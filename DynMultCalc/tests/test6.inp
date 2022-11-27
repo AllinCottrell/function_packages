@@ -1,0 +1,11 @@
+set verbose off
+include DynMultCalc.gfn
+
+open denmark --quiet
+ols LRM const LRY(0 to -2) IBO(0 to -1) IDE(-1)
+
+bm = multipliers($model, "IBO", 1)
+multi_print(bm)
+
+bl = long_run_effects($model)
+long_run_print(bl)

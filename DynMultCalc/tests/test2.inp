@@ -1,0 +1,11 @@
+clear
+include DynMultCalc.gfn
+
+open fedstl.bin
+data gdpc1
+data unrate
+ogap = 100 * hpfilt(log(gdpc1))
+
+ols unrate const time ogap(0 to -2) unrate(-1 to -2) -w
+b = multipliers($model, "ogap", 1)
+multi_plot(b)

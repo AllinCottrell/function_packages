@@ -1,0 +1,7 @@
+set verbose off
+include DynMultCalc.gfn
+
+open denmark --quiet
+ols LRM const LRM(-1) LRY(0 to -2) IBO(0 to -1) IDE(-1) -w
+b = multipliers($model, "IBO")
+multi_print(b)

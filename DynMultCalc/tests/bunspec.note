@@ -1,0 +1,28 @@
+bundle created by DynMultCalc, function multipliers():
+  cumulate = 0
+  meanlag = 2.38407
+  p = 1
+  q = 1
+  sdx = 0.030653
+  LRM (matrix: 1 x 2)
+  mult (matrix: 19 x 2)
+  xlags (matrix: 2 x 1)
+  ylags = 1
+  xname = "IBO"
+  yname = "LRM"
+
+bundle created by DynMultCalc, function long_run_effects():
+  LRMs (matrix: 3 x 2)
+  meanlags (matrix: 3 x 1)
+  pdstr = "quarters"
+  yname = "LRM"
+
+bundle created by GUI_DynMultCalc
+  conf = 0.95
+  cum_multipliers (bundle)
+  long_run (bundle)
+  multipliers (bundle)
+
+"multipliers" and "cum_multipliers" both contain a "mult" matrix
+
+

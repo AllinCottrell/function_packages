@@ -1,0 +1,10 @@
+include DynMultCalc.gfn
+
+open denmark -q
+ols LRM const LRM(-1 to -2) LRY(0 to -2) IBO(0 to -1) IDE(0 to -2) --quiet
+
+# compute the long-run multipliers
+bundle lr_fx = long_run_effects($model)
+
+# print the long-run multipliers
+long_run_print(lr_fx)
