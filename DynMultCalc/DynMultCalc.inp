@@ -130,7 +130,7 @@ function string periods_string (int pd)
 end function
 
 function void irf_plot (const bundle b,
-                        scalar conflev[0:1:0.95],
+                        scalar conflev[0.1:0.99:0.95],
                         string ofile[null])
     if !b.cumulate
         funcerr "response must be cumulated"
@@ -164,8 +164,8 @@ function scalar DynMultCalc_precheck (void)
 end function
 
 function list DynMultCalc_listmaker (void)
-    /* assemble the list of regressors from which the user
-       can make a selection
+/* assemble the list of regressors from which the user
+   can make a selection
     */
     bundle m = $model
     list X = m.xlist
@@ -193,9 +193,9 @@ end function
 ### public functions
 ###
 
-function void multi_plot(const bundle b, scalar conflev[0:1:0.95],
-                         string ofile[null])
-    m = b.mult
+function void multi_plot (const matrix m,
+                          scalar conflev[0.1:0.99:0.95],
+                          string ofile[null])
     plt = m[,1] ~ seq(0, rows(m) - 1)'
     cnameset(plt, "Multiplier Horizon")
     bandwidth = invcdf(z, 1 - (1-conflev)/2)
@@ -210,48 +210,55 @@ function void multi_plot(const bundle b, scalar conflev[0:1:0.95],
     plot plt
         option with-lines
         options band=band band-style=fill,grey
+        
     end plot --output=@targ
 end function
 
 function void multi_print (const bundle b, bool allLRMs[0])
 
+    string to_from = sprintf("%s <- %s", b.yname, b.xname)
+
     if !allLRMs
         if b.q > 0
-            string mstr = b.cumulate ? "Cumulated multipliers" : "Dynamic multipliers"
             printf "ADL(%d,%d) model\n", b.p, b.q
-            printf "%s of %s response to %s\n", mstr, b.yname, b.xname
+            printf "Multipliers %s\n", to_from
         else
             printf "Autoregressive model of order %d\n", b.p
             printf "MA representation"
-            if b.cumulate
-                printf " (cumulated)"
-            endif
             printf "\n"
         endif
 
         m = b.LRM
         modprint m "Long-run"
         if ok(b.meanlag)
-            printf "Mean lag = %5.2f %s\n", b.meanlag, periods_string($pd)
+            printf "Mean lag = %5.2f %s\n\n", b.meanlag, periods_string($pd)
         endif
-    else
-        string mstr = b.cumulate ? "Cumulated multipliers" : "Dynamic multipliers"
-        printf "%s: %s response to %s\n", mstr, b.yname, b.xname
     endif
 
-    m = b.mult
+    if allLRMs
+        printf "Dynamic (interim) multipliers %s\n", to_from
+    else
+        printf "Dynamic (interim) multipliers\n"
+    endif
+    m = b.dyn_mult
     k = rows(m)
     strings pn = array(k+1)
     loop i = 0 .. k
         pn[i+1] = sprintf("%s_%02d", b.xname, i)
     endloop
+    modprint m pn
 
+    if allLRMs
+        printf "Cumulated multipliers %s\n", to_from
+    else
+        printf "Cumulated multipliers\n"
+    endif
+    m = b.cum_mult
     modprint m pn
 end function
 
 function bundle multipliers (const bundle model,
                              string xvarname,
-                             bool cumulated[0],
                              int horizon[1::18])
 
     MArep = xvarname == (model.depvar) # special case
@@ -259,7 +266,7 @@ function bundle multipliers (const bundle model,
     bundle varinfo = base_vars(model, xvarname)
     strings names = varinfo.xnames
     string yname = varinfo.yname
-    bundle ret = _(yname=yname, xname=xvarname, cumulate=cumulated)
+    bundle ret = _(yname=yname, xname=xvarname)
     ret.sdx = MArep ? model.sigma : varinfo.sdx
 
     pos = instrings(names, xvarname)
@@ -268,7 +275,7 @@ function bundle multipliers (const bundle model,
     endif
 
     matrix coeff = model.coeff
-    
+
     if inbundle(varinfo, yname)
         # autoregressive terms
         matrix a = varinfo[yname]
@@ -284,7 +291,7 @@ function bundle multipliers (const bundle model,
         ylags = {}
         matrix sela = {}
         matrix avec = {0}
-    endif    
+    endif
 
     # distributed lags
     if MArep
@@ -312,11 +319,10 @@ function bundle multipliers (const bundle model,
         horizon = ret.q
     endif
 
-    # multipliers proper
-    shock = cumulated ? ones(horizon+1,1) : 1 | zeros(horizon, 1)
-    mult = filter(shock, bvec, avec)
+    # dynamic multipliers
+    shock = 1 | zeros(horizon, 1)
+    dyn_mult = filter(shock, bvec, avec)
     Ja = fdjac(avec, "filter(shock, bvec, avec)")
-
     if MArep
         J = Ja[, ylags]
         sel = sela
@@ -330,24 +336,41 @@ function bundle multipliers (const bundle model,
             sel = selb
         endif
     endif
-
     V = model.vcv[sel, sel]
     V = qform(J, V)
-    mult = mult ~ sqrt(diag(V))
-    ret.mult = mult
+    dyn_mult = dyn_mult ~ sqrt(diag(V))
+    ret.dyn_mult = dyn_mult
+
+    # cumulated multipliers
+    shock = ones(horizon+1,1)
+    cum_mult = filter(shock, bvec, avec)
+    Ja = fdjac(avec, "filter(shock, bvec, avec)")
+    if MArep
+        J = Ja[, ylags]
+        sel = sela
+    else
+        Jb = fdjac(bvec, "filter(shock, bvec, avec)")
+        if ret.p > 0
+            J = Ja[, ylags] ~ Jb[, xlags + 1]
+            sel = sela | selb
+        else
+            J = Jb[, xlags + 1]
+            sel = selb
+        endif
+    endif
+    V = model.vcv[sel, sel]
+    V = qform(J, V)
+    cum_mult = cum_mult ~ sqrt(diag(V))
+    ret.cum_mult = cum_mult
 
     # mean lag
-    chkvec = cumulated ? sgn(mult[1,1] | diff(mult[,1])) : sgn(mult[,1])
+    chkvec = sgn(dyn_mult[,1])
     s = contains({-1; 1}, chkvec)
     if min(s) == 0  # sign constancy except for zeros
         ret.meanlag = mean_lag(avec, bvec)
     else
         ret.meanlag = NA
     endif
-
-    # just for debugging
-    # ret.avec = avec
-    # ret.bvec = bvec
 
     return ret
 end function
@@ -357,7 +380,7 @@ function bundle long_run_effects (const bundle model, bool CLI[1])
     strings xnames = varinfo.xnames
     string yname = varinfo.yname
     matrix coeff = model.coeff
-    
+
     if inbundle(varinfo, yname)
         a = varinfo[yname]
         matrix ylags = a[,1]
@@ -369,7 +392,7 @@ function bundle long_run_effects (const bundle model, bool CLI[1])
         scalar p = 0
         sela = {}
         avec = {0}
-    endif    
+    endif
 
     if inlist(model.xlist, 0)
         xnames = xnames[-1]
@@ -413,15 +436,12 @@ function bundle long_run_effects (const bundle model, bool CLI[1])
 end function
 
 function void GUI_DynMultCalc_plot (bundle *b, int ptype[0:1:0] \
-                                    "Plot type" {"Dynamic", "Cumulated"})
+                                    "Plot type" {"Dynamic", "Cumulated"},
+                                    scalar conf[0.5:0.99:0.95:0.01])
     if ptype == 0
-        multi_plot(b.multipliers, b.conf)
+        multi_plot(b.dyn_mult, conf)
     else
-        if inbundle(b, "cum_multipliers")
-            irf_plot(b.cum_multipliers, b.conf)
-        else
-            irf_plot(b.multipliers, b.conf)
-        endif
+        multi_plot(b.cum_mult, conf)
     endif
 end function
 
@@ -439,23 +459,15 @@ end function
 
 function bundle GUI_DynMultCalc (int xvar[$mylist] \
                                  "Regressor for detailed treatment",
-                                 int mode[1:2:1] "Multiplier type" \
-                                 {"Dynamic", "Cumulated"},
-                                 int horizon[1::18] "Horizon", \
+                                 int horizon[1::18] "Horizon",
                                  scalar conf[0.5:0.99:0.95:0.01] \
                                  "Confidence level, for plots")
 
-    bundle ret = null
-    bundle blr = long_run_effects($model, 0)
-    ret.long_run = blr
     xvarname = varname(xvar)
-    scalar cumulate = mode == 2
-    bundle bm = multipliers($model, xvarname, cumulate, horizon)
-    ret.multipliers = bm
-    if !cumulate
-        # we want the cumulated version to support IRF plot
-        ret.cum_multipliers = multipliers($model, xvarname, 1)
-    endif
+    bundle blr = long_run_effects($model, 0)
+    bundle bm = multipliers($model, xvarname, horizon)
+    bundle ret = blr + bm
+
     printf "ADL(%d,%d) model\n\n", bm.p, bm.q
     matrix LRMs = blr.LRMs
     nx = rows(LRMs)
