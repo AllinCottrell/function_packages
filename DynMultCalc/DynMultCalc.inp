@@ -116,17 +116,15 @@ function scalar mean_lag(const matrix avec,
 end function
 
 function string periods_string (int pd)
-    ret = "periods"
-
     if pd == 4
-        ret = "quarters"
+        return "quarters"
     elif pd == 12
-        ret = "months"
+        return "months"
     elif contains(pd, {5,6,7})
-        ret = "days"
+        return "days"
+    else
+        return "periods"
     endif
-
-    return ret
 end function
 
 function void irf_plot (const bundle b,
@@ -164,8 +162,8 @@ function scalar DynMultCalc_precheck (void)
 end function
 
 function list DynMultCalc_listmaker (void)
-/* assemble the list of regressors from which the user
-   can make a selection
+    /* assemble the list of regressors from which the user
+       can make a selection
     */
     bundle m = $model
     list X = m.xlist
@@ -193,11 +191,12 @@ end function
 ### public functions
 ###
 
-function void multi_plot (const matrix m,
+function void multi_plot (const bundle b,
+                          bool cumulate[0],
                           scalar conflev[0.1:0.99:0.95],
                           string ofile[null])
+    matrix m = cumulate ? b.cum_mult : b.dyn_mult
     plt = m[,1] ~ seq(0, rows(m) - 1)'
-    cnameset(plt, "Multiplier Horizon")
     bandwidth = invcdf(z, 1 - (1-conflev)/2)
     band = m[,1] ~ bandwidth * m[,2]
 
@@ -206,11 +205,19 @@ function void multi_plot (const matrix m,
     else
         targ = "display"
     endif
+    
+    if cumulate
+        mstr = "Cumulated multipliers"
+    else
+        mstr = "Dynamic multipliers"
+    endif
 
     plot plt
         option with-lines
         options band=band band-style=fill,grey
-        
+        printf "set title '%s %s <- %s'", mstr, b.yname, b.xname
+        literal set ylabel "Multiplier"
+        literal set xlabel "Horizon"
     end plot --output=@targ
 end function
 
@@ -438,11 +445,7 @@ end function
 function void GUI_DynMultCalc_plot (bundle *b, int ptype[0:1:0] \
                                     "Plot type" {"Dynamic", "Cumulated"},
                                     scalar conf[0.5:0.99:0.95:0.01])
-    if ptype == 0
-        multi_plot(b.dyn_mult, conf)
-    else
-        multi_plot(b.cum_mult, conf)
-    endif
+    multi_plot(b, ptype, conf)
 end function
 
 function void long_run_print (const bundle blr)
