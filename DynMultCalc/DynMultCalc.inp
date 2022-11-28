@@ -162,8 +162,8 @@ function scalar DynMultCalc_precheck (void)
 end function
 
 function list DynMultCalc_listmaker (void)
-    /* assemble the list of regressors from which the user
-       can make a selection
+/* assemble the list of regressors from which the user
+   can make a selection
     */
     bundle m = $model
     list X = m.xlist
@@ -205,11 +205,12 @@ function void multi_plot (const bundle b,
     else
         targ = "display"
     endif
-    
-    if cumulate
-        mstr = "Cumulated multipliers"
+
+    string mstr = cumulate ? "Cumulated multipliers" : "Dynamic multipliers"
+    if inbundle(b, "pdstr") && b.pdstr != "periods"
+        hstr = sprintf("Horizon (%s)", b.pdstr)
     else
-        mstr = "Dynamic multipliers"
+        hstr = "Horizon"
     endif
 
     plot plt
@@ -217,7 +218,7 @@ function void multi_plot (const bundle b,
         options band=band band-style=fill,grey
         printf "set title '%s %s <- %s'", mstr, b.yname, b.xname
         literal set ylabel "Multiplier"
-        literal set xlabel "Horizon"
+        printf "set xlabel '%s'", hstr
     end plot --output=@targ
 end function
 
@@ -238,7 +239,7 @@ function void multi_print (const bundle b, bool allLRMs[0])
         m = b.LRM
         modprint m "Long-run"
         if ok(b.meanlag)
-            printf "Mean lag = %5.2f %s\n\n", b.meanlag, periods_string($pd)
+            printf "Mean lag = %5.2f %s\n\n", b.meanlag, b.pdstr
         endif
     endif
 
@@ -268,8 +269,7 @@ function bundle multipliers (const bundle model,
                              string xvarname,
                              int horizon[1::18])
 
-    MArep = xvarname == (model.depvar) # special case
-
+    scalar MArep = xvarname == model.depvar # special case
     bundle varinfo = base_vars(model, xvarname)
     strings names = varinfo.xnames
     string yname = varinfo.yname
@@ -379,6 +379,8 @@ function bundle multipliers (const bundle model,
         ret.meanlag = NA
     endif
 
+    ret.pdstr = periods_string($pd)
+
     return ret
 end function
 
@@ -442,9 +444,9 @@ function bundle long_run_effects (const bundle model, bool CLI[1])
     return ret
 end function
 
-function void GUI_DynMultCalc_plot (bundle *b, int ptype[0:1:0] \
-                                    "Plot type" {"Dynamic", "Cumulated"},
-                                    scalar conf[0.5:0.99:0.95:0.01])
+function void DynMultCalc_plot (bundle *b, int ptype[0:1:0] \
+                                "Plot type" {"Dynamic", "Cumulated"},
+                                scalar conf[0.5:0.99:0.95])
     multi_plot(b, ptype, conf)
 end function
 
@@ -480,11 +482,12 @@ function bundle GUI_DynMultCalc (int xvar[$mylist] \
         printf "Long-run effect of %s on %s\n", xvarname, $model.depvar
     endif
     modprint LRMs
+    ret.pdstr = periods_string($pd)
     if nx > 1
-        printf "Mean lags (%s):\n\n", periods_string($pd)
+        printf "Mean lags (%s):\n\n", ret.pdstr
         print blr.meanlags
     elif ok(blr.meanlags[1])
-        printf "Mean lag: %g %s\n\n", blr.meanlags[1], periods_string($pd)
+        printf "Mean lag: %g %s\n\n", blr.meanlags[1], ret.pdstr
     endif
     multi_print(bm, 1)
     ret.conf = conf
