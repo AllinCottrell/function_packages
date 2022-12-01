@@ -2,7 +2,7 @@ set verbose off
 clear
 include DynMultCalc.gfn
 
-example = 1
+example = 5
 
 if example == 1
     # simple printout
@@ -12,15 +12,17 @@ if example == 1
     multi_print(b)
     
 elif example == 2
-    # plotting function
+    # plotting function with custom horizon
     open fedstl.bin
     data gdpc1
     data unrate
     ogap = 100 * hpfilt(log(gdpc1))
-    
     ols unrate const time ogap(0 to -2) unrate(-1 to -2) -w
-    b = multipliers($model, "ogap", 1)
-    multi_plot(b)
+
+    horizon = 40
+    cumulate = 1
+    b = multipliers($model, "ogap", horizon)
+    multi_plot(b, cumulate)
     
 elif example == 3
     # just the long run effects
@@ -55,7 +57,7 @@ elif example == 5
     bundle model = _(depvar=yname, xlist=X, xnames=varnames(X),
 		     coeff=coeff, vcv=I(5)*0.01)
     
-    b = multipliers(model, "LRY", 1)
+    b = multipliers(model, "LRY")
     # exemplify the optional parameters for multi_plot
-    multi_plot(b, 0.9, "example5.pdf")
+    multi_plot(b, 0, 0.9, "example5.pdf")
 endif
