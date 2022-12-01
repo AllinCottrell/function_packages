@@ -195,6 +195,7 @@ function void multi_plot (const bundle b,
                           bool cumulate[0],
                           scalar conflev[0.1:0.99:0.95],
                           string ofile[null])
+    
     matrix m = cumulate ? b.cum_mult : b.dyn_mult
     plt = m[,1] ~ seq(0, rows(m) - 1)'
     bandwidth = invcdf(z, 1 - (1-conflev)/2)

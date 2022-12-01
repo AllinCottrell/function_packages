@@ -2,7 +2,7 @@ set verbose off
 clear
 include DynMultCalc.gfn
 
-example = 5
+example = 1
 
 if example == 1
     # simple printout

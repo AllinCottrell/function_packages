@@ -119,7 +119,6 @@ supplies an input bundle containing the following keys:
 
 In most cases the user will want to estimate a model using the ordinary
 gretl estimation commands and then use the \verb|$model| accessor bundle.
-
 Standard errors are computed via the delta method. This covers both
 the stationary and cointegrated cases, under the provisos described in
 \cite{PesaranShin1998}.
@@ -197,11 +196,12 @@ Mean lag =  1.62 quarters
 \end{code}
 \end{scriptsize}
 
-The \texttt{multipliers} function accepts two optional extra
-parameters to inflect its behaviour: a third Boolean argument to
-compute the cumulated multipliers $c_i$ instead of the dynamic
-multipliers $\delta_i$, and a fourth integer argument for the maximum
-order (which defaults to 18).
+If you want to compute multipliers for an horizon different than the
+default value (18), you can supply that as a third optional argument, as in
+\begin{code}
+  mb = multipliers($model, "LRY", 24)  
+\end{code}
+% $
 
 \subsection{All long-run effects}
 \label{sec:LR}
@@ -298,15 +298,11 @@ outcome will be a window showing the long-run multipliers for all of
 the independent variables followed by the output of the
 \texttt{multi\_print} function.
 
-Additionally, you will see some icons in the toolbar at the top of the
-output window, one of which (the second from the right) calls for
-plotting. Click on it to get the choice of plotting either the
-multiplier sequence, with a confidence band drawn in accordance with
-the argument given, or an ``Impulse Response'' plot, that is a plot of
-the cumulated multipliers scaled by the standard deviation of the
-selected independent variable. Examples of such plots are shown in
-Figure \ref{fig:mults}. You can use the context menu (right-click on
-most systems) to customize the plot to your liking and/or save it to a
+Additionally, you will see some icons in the toolbar at the top of the output window, one of which
+(the second from the right) calls for plotting. Click on it to get the choice of plotting the
+sequence of dynamic or cumulated multipliers, with a confidence band drawn in accordance with the
+argument given. Examples of such plots are shown in Figure \ref{fig:mults}. You can use the context
+menu (right-click on most systems) to customize the plot to your liking and/or save it to a
 \textsf{pdf} or \textsf{png} file.
 
 \begin{figure}[htbp]
@@ -314,26 +310,60 @@ most systems) to customize the plot to your liking and/or save it to a
   \begin{center}
   \begin{tabular}{c}
     \includegraphics[scale=0.75]{m_example} \\[10pt]
-    \includegraphics[scale=0.75]{irf_example}
+    \includegraphics[scale=0.75]{cm_example}
   \end{tabular}
   \caption{Plots available via the \textsf{DynMultCal} graphical
     interface}
   \end{center}
 \end{figure}
 \clearpage
-\section{List of public functions}
+\section{Alphabetical list of public functions}
  \label{sec:functions}
 
-\begin{funcdoc}{multipliers(bundle mod, string xname, bool
-    cumulate, int horizon)}
+
+\begin{funcdoc}{long\_run\_effects(bundle model)}
+  \begin{description}
+  \item[Return type]: \texttt{bundle}
+  \item[\texttt{model}]: a model bundle, typically obtained via the
+    \verb|$model| accessor after estimation.
+\end{description}
+%
+
+\noindent Computes the long-run multipliers for a dynamic model. The
+output of the function is a bundle containing the following keys:
+
+\medskip
+\begin{center}
+\begin{tabular}{llp{0.63\textwidth}}
+  \hline
+  \textbf{Type} & \textbf{Key name} & \textbf{Content} \\
+  \hline
+  scalar & \texttt{LRMs} & a 2-column matrix holding the long-run multipliers
+                           and their asymptotic standard errors \\ 
+  matrix & \texttt{meanlags} & a matrix holding the mean lags where available \\ 
+  string & \texttt{pdstr} & name of the time unit \\ 
+  string & \texttt{yname} & name of the explanatory variable \\ 
+  \hline
+\end{tabular}
+\end{center}
+\end{funcdoc}
+
+\begin{funcdoc}{long\_run\_print (bundle blr)}
+  \begin{description}
+  \item[Return type]: none
+  \item[\texttt{blr}]: a bundle like the one produced by the
+    \texttt{long\_run\_effects()} function.
+\end{description}
+
+\noindent Pretty-prints the long run multipliers.
+\end{funcdoc}
+
+\begin{funcdoc}{multipliers(bundle mod, string xname, int horizon)}
   \begin{description}
   \item[Return type]: \texttt{bundle}
   \item[\texttt{mod}]: the model bundle
   \item[\texttt{xname}]: the name of the variable you want the
     multipliers for (as a string)
-  \item[\texttt{cumulate}]: boolean flag: 0 (the default) to compute
-    the ordinary multipliers, $\delta_i$, or 1 to compute the cumulated
-    ones $c_i$
   \item[\texttt{horizon}]: number of steps (default = 18)
 \end{description}
 %
@@ -347,9 +377,10 @@ following keys:
   \hline
   \textbf{Type} & \textbf{Key name} & \textbf{Content} \\
   \hline
-  scalar & \texttt{cumulate} & Boolean flag: are the multipliers cumulated? \\
   scalar & \texttt{meanlag} & the mean lag \\
-  matrix & \texttt{mult} & a 2-column matrix holding the multipliers
+  matrix & \texttt{dyn\_mult} & a 2-column matrix holding the multipliers
+                           and their asymptotic standard errors \\ 
+  matrix & \texttt{cum\_mult} & a 2-column matrix holding the interim multipliers
                            and their asymptotic standard errors \\ 
   scalars & \texttt{p, q} & orders of the $A(L)$ and $B(L)$ polynomials \\
   scalar & \texttt{sdx} & standard deviation of the selected
@@ -372,11 +403,14 @@ autoregressive part of the model (see Section \ref{sec:MArep}).
 \end{funcdoc}
 
 
-\begin{funcdoc}{multi\_plot(const bundle b, scalar conflev,
+\begin{funcdoc}{multi\_plot(const bundle b, bool cumulate, scalar conflev,
 			 string ofile)}
   \begin{description}
   \item[Return type]: \texttt{none}
   \item[\texttt{b}]: a bundle generated by the \texttt{multipliers} function.
+  \item[\texttt{cumulate}]: boolean flag: 0 (the default) to plot the
+    ordinary multipliers, $\delta_i$, or 1 to plot the cumulated
+    (``interim'') ones $c_i$
   \item[\texttt{conflev}]: a scalar between 0 and 1, with the
     confidence level for the plotted band; if omitted, it defaults at 0.95.
   \item[\texttt{ofile}]: an optional string for redirecting the output.
@@ -397,26 +431,6 @@ valid filename.
 \noindent Prints out the quantities of interest.
 \end{funcdoc}
 
-\begin{funcdoc}{long\_run\_effects(const bundle mod)}
-  \begin{description}
-  \item[Return type]: \texttt{bundle}
-  \item[\texttt{mod}]: a suitable model bundle, as for the primary
-    \texttt{multipliers} function.
-  \end{description}
-  \noindent The returned bundle contains two matrices, \texttt{LRMs}
-  ($k \times 2$) and \texttt{meanlags} ($k \times 1$). The first holds
-  the long-run multiplier and its standard error for each of the $k$
-  relevant variables and the second holds the associated mean lags (or
-  \texttt{nan} if the multipliers alternate in sign).
-\end{funcdoc}
-
-\begin{funcdoc}{long\_run\_print(const bundle b)}
-  \begin{description}
-  \item[Return type]: \texttt{none}
-  \item[\texttt{b}]: a bundle generated by the \texttt{long\_run\_effects} function.
-\end{description}
-\noindent Pretty-prints the bundle's content.
-\end{funcdoc}
 
 %\clearpage
 \bibliographystyle{jae}
