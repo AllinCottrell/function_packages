@@ -18,6 +18,9 @@ install: $(PKG).gfn $(DOC)
 install-gfn: $(PKG).gfn
 	mkdir -p $(GFNDIR)/$(PKG) && install -m 644 $< $(GFNDIR)/$(PKG)
 
+install-local: $(PKG).zip
+	echo pkg install $(PKG).zip --local | gretlcli -b -
+
 clean: 
 	rm -f $(PKG).gfn $(PKG).zip *~
 
