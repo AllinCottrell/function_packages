@@ -245,9 +245,9 @@ function void multi_print (const bundle b, bool allLRMs[0])
     endif
 
     if allLRMs
-        printf "Dynamic (interim) multipliers %s\n", to_from
+        printf "Dynamic multipliers %s\n", to_from
     else
-        printf "Dynamic (interim) multipliers\n"
+        printf "Dynamic multipliers\n"
     endif
     m = b.dyn_mult
     k = rows(m)
@@ -258,9 +258,9 @@ function void multi_print (const bundle b, bool allLRMs[0])
     modprint m pn
 
     if allLRMs
-        printf "Cumulated multipliers %s\n", to_from
+        printf "Cumulated (interim) multipliers %s\n", to_from
     else
-        printf "Cumulated multipliers\n"
+        printf "Cumulated (interim) multipliers\n"
     endif
     m = b.cum_mult
     modprint m pn
