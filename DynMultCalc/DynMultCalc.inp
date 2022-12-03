@@ -466,7 +466,7 @@ end function
 function bundle GUI_DynMultCalc (int xvar[$mylist] \
                                  "Regressor for detailed treatment",
                                  int horizon[1::18] "Horizon",
-                                 scalar conf[0.5:0.99:0.95:0.01] \
+                                 scalar conf[0.5:0.99:0.95] \
                                  "Confidence level, for plots")
 
     xvarname = varname(xvar)

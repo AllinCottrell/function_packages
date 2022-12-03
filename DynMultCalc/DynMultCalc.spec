@@ -2,7 +2,7 @@ author = Riccardo "Jack" Lucchetti and Allin Cottrell
 email = r.lucchetti@univpm.it
 version = 2.0
 
-date = 2022-12-01
+date = 2022-12-03
 description = Compute dynamic multipliers for ADL models 
 tags = C20
 
