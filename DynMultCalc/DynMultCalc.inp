@@ -162,8 +162,8 @@ function scalar DynMultCalc_precheck (void)
 end function
 
 function list DynMultCalc_listmaker (void)
-/* assemble the list of regressors from which the user
-   can make a selection
+    /* assemble the list of regressors from which the user
+       can make a selection
     */
     bundle m = $model
     list X = m.xlist
@@ -433,8 +433,11 @@ function bundle long_run_effects (const bundle model, bool CLI[1])
     endloop
 
     rnameset(LRMs, xnames)
-    rnameset(meanlags, xnames)
-    bundle ret = _(LRMs, meanlags)
+    bundle ret = _(LRMs)
+    if sum(ok(meanlags)) > 0
+        rnameset(meanlags, xnames)
+        ret.meanlags = meanlags
+    endif
 
     if CLI
         # if in CLI mode, we need a little more for pretty-printing
@@ -455,11 +458,13 @@ function void long_run_print (const bundle blr)
     matrix LRMs = blr.LRMs
     printf "Long-run effects on %s, all exogenous regressors\n", blr.yname
     modprint LRMs
-    if rows(LRMs) > 1
-        printf "Mean lags (%s):\n\n", blr.pdstr
-        print blr.meanlags
-    elif ok(blr.meanlags[1])
-        printf "Mean lag: %g %s\n\n", blr.meanlags[1], blr.pdstr
+    if inbundle(blr, "meanlags")
+        if rows(blr.meanlags) > 1
+            printf "Mean lags (%s):\n\n", blr.pdstr
+            print blr.meanlags
+        else
+            printf "Mean lag: %g %s\n\n", blr.meanlags[1], blr.pdstr
+        endif
     endif
 end function
 
@@ -484,11 +489,15 @@ function bundle GUI_DynMultCalc (int xvar[$mylist] \
     endif
     modprint LRMs
     ret.pdstr = periods_string($pd)
-    if nx > 1
-        printf "Mean lags (%s):\n\n", ret.pdstr
-        print blr.meanlags
-    elif ok(blr.meanlags[1])
-        printf "Mean lag: %g %s\n\n", blr.meanlags[1], ret.pdstr
+    if inbundle(blr, "meanlags")
+        if nx > 1
+            printf "Mean lags (%s):\n\n", ret.pdstr
+            print blr.meanlags
+        else
+            printf "Mean lag: %g %s\n\n", blr.meanlags[1], ret.pdstr
+        endif
+    else
+        printf "Mean lag(s): not defined\n\n"
     endif
     multi_print(bm, 1)
     ret.conf = conf
