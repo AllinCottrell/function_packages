@@ -1,0 +1,215 @@
+function void rf_setup (void)
+foreign language=R --quiet
+   randforest <- function(L, classify=FALSE, tune=FALSE, verbose=FALSE, outname) {
+      library(randomForest)
+      y <- L$y
+      ytest <- L$ytest
+      if (classify) {
+         y <- factor(y)
+         ytest <- factor(ytest)
+      }
+      if (with(L, exists("seed"))) {
+         set.seed(L$seed)
+      }
+      if (!missing(outname)) {
+         con <- file(outname, "w")
+         sink(con)
+         sink(con, type="message")
+      }
+      if (verbose) {
+         cat(sprintf("\nOutput from randomForest %s\n", 
+           packageVersion("randomForest")))
+         cat("-------------------------------\n")
+      }
+      if (tune) {
+         res <- tuneRF(x=L$x, y=y, trace=verbose, plot=FALSE)
+         mtry = res[which.min(res[,2]), 1]
+         if (verbose) {
+         	cat(sprintf("using mtry = %d\n", mtry))
+         }
+         rf <- randomForest(x=L$x, y=y, xtest=L$xtest, ytest=ytest, mtry=mtry)
+      } else {
+         rf <- randomForest(x=L$x, y=y, xtest=L$xtest, ytest=ytest)
+      }
+      if (verbose) {
+         print(rf)
+      }
+      ret <- list()
+      ret$insample = rf$predicted
+      ret$outsample <- rf$test$predicted
+      if (classify) {
+         ret$insample <- as.numeric(levels(ret$insample))[ret$insample]
+         ret$outsample <- as.numeric(levels(ret$outsample))[ret$outsample]
+      }
+      if (verbose) {
+         cat("-------------------------------\n")
+         sink()
+      }
+      ret
+   }
+end foreign
+end function
+
+function matrix confusion (const matrix X)
+   n = rows(X)
+   matrix v = values(X[,1])
+   nv = nelem(v)
+   matrix Y = replace(X, v, seq(1, nv))
+   matrix C = zeros(nv, nv)
+   loop i=1..n
+      r = Y[i,1]
+      c = Y[i,2]
+      C[r,c] += 1
+   endloop
+   strings S = array(nv)
+   loop i=1..nv
+      S[i] = sprintf("%g", v[i])
+   endloop
+   rnameset(C, S)
+   cnameset(C, S)
+   return C
+end function
+
+function void rf_print (const bundle *b)
+   printf "Called randomForest() in %s mode\n",
+     b.classify ? "classification" : "regression"
+   printf "Dependent variable: %s\n", b.depvar
+   printf "Total observations %d: %d training, %d testing\n",
+     b.n1 + b.n2, b.n1, b.n2
+   if inbundle(b, "seed")
+      printf "RNG seed = %d\n", b.seed
+   endif   
+   if b.classify
+      printf "\nTraining percent correct: %.2f\n", b.pcc1
+      printf "Testing percent correct:  %.2f\n", b.pcc2
+      printf "\nConfusion matrix, training:\n"
+      print b.C1
+      printf "Confusion matrix, testing:\n"
+      print b.C2
+   else
+      printf "\nTraining MSE: %#g\n", b.MSE1
+      printf "Testing MSE:  %#g\n", b.MSE2
+      printf "\nOther forecast evaluation statistics:\n\n"
+      print b.regstats
+   endif     
+end function
+
+function bundle random_forest (list L, const bundle opts)
+   if inbundle(opts, "pctrain")
+      n_train = int(0.01 * opts.pctrain * $nobs)
+   else
+      n_train = opts.n_train
+   endif
+   if $t1 > 1 || n_train >= $nobs
+      funcerr "We need a full dataset that includes some training observations"
+   endif
+
+   if inbundle(opts, "verbose")
+      verbose = opts.verbose
+   else
+      verbose = 1
+   endif
+   
+   bundle args = opts
+
+   # make matrices for R, training first...
+   t2 = n_train
+   smpl ; t2
+   n1 = $nobs
+   matrix args.y = {L[1]}
+   matrix args.x = {L[2:]}
+   # then testing...
+   test1 = t2 + 1
+   smpl test1 $tmax
+   n2 = $nobs
+   matrix args.ytest = {L[1]}
+   matrix args.xtest = {L[2:]}
+
+   if inbundle(opts, "classify")
+      classify = opts.classify
+   else
+      classify = isdummy(L[1]) || getinfo(L[1]).coded
+   endif
+   scalar tune = inbundle(opts, "tune") ? opts.tune : 0
+   
+   if inbundle(opts, "seed")
+      scalar seed = opts.seed
+   else
+      scalar seed = NA
+   endif
+   
+   if verbose > 1
+      string outname = sprintf("%s/R.out", $dotdir)
+   else
+      string outname = ""
+   endif
+   
+   printf "Calling randomForest...\n"
+   flush
+
+   # call randforest()
+   bundle ret = R.randforest(args, classify, tune, verbose > 1, outname)
+
+   # show R output if wanted
+   if outname != ""
+      catch string Rout = readfile(outname)
+      if $error == 0 && Rout != ""
+         print Rout
+      endif
+   endif
+   
+   # add info to return bundle
+   ret.classify = classify
+   if inbundle(opts, "depvar")
+      ret.depvar = opts.depvar
+   else
+      ret.depvar = varname(L[1])
+   endif
+   ret.n1 = n1
+   ret.n2 = n2
+   if ok(seed)
+      ret.seed = seed
+   endif
+   if classify
+      scalar ret.pcc1 = 100 * sumc(ret.insample .= args.y) / n1
+      scalar ret.pcc2 = 100 * sumc(ret.outsample .= args.ytest) / n2
+      ret.C1 = confusion(args.y ~ ret.insample)
+      ret.C2 = confusion(args.ytest ~ ret.outsample)
+   else
+      fc1 = fcstats(args.y, ret.insample)
+      fc2 = fcstats(args.ytest, ret.outsample)
+      matrix regstats = (fc1 ~ fc2)[1:5,]
+      rnameset(regstats, rnameget(fc1)[1:5])
+      cnameset(regstats, "Training Testing")
+      ret.regstats = regstats
+      scalar ret.MSE1 = sumc((args.y - ret.insample).^2) / n1
+      scalar ret.MSE2 = sumc((args.ytest - ret.outsample).^2) / n2
+   endif
+   
+   if verbose
+      rf_print(&ret)
+   endif
+   
+   # is this wanted?
+   matrix ret.allpred = ret.insample | ret.outsample
+
+   return ret
+end function
+
+function bundle GUI_rf (series y "dependent variable",
+                        list X "indpendent variables",
+                        scalar pctrain[20:95:60:1] "training data, percent",
+                        int mode[0:2:0] {"automatic", "regression", "classification"},
+                        int verbosity [1:2:2])
+   list L = y X
+   bundle opts
+   scalar opts.pctrain = pctrain
+   scalar opts.verbose = verbosity
+   string opts.depvar = argname(y)
+   if mode == 1
+      opts.classify = 0
+   elif mode == 2
+      opts.classify = 1
+   endif
+   return random_forest(L, opts)
+end function

@@ -1,0 +1,17 @@
+author = Allin Cottrell
+email = cottrell@wfu.edu
+version = 0.1
+date = 2023-02-05
+description = Random Forest (via R)
+tags = C14 C53
+min-version = 2023a
+gui-main = GUI_rf
+label = Random Forest
+menu-attachment = MAINWIN/Model/RobustModels
+bundle-print = rf_print
+R-setup = rf_setup
+public = random_forest GUI_rf rf_print 
+help = random_forest.pdf
+sample-script = random_forest_sample.inp
+data-files = titanic.gdt
+R-depends = R 4.1.0 randomForest 4.7-1.1

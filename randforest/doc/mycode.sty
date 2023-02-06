@@ -1,0 +1,58 @@
+\ProvidesPackage{mycode}
+
+\newcommand{\scriptname}{Listing}
+
+\DefineVerbatimEnvironment%
+{code}{Verbatim}
+{fontsize=\small, xleftmargin=1em}
+
+\DefineVerbatimEnvironment%
+{scode}{Verbatim}
+{frame=lines, framesep=2ex, fontsize=\small,
+ formatcom=\color{myteal}, rulecolor=\color{mygray}}
+
+\DefineVerbatimEnvironment%
+{scodebit}{Verbatim}
+{fontsize=\small, formatcom=\color{myteal}}
+
+\DefineVerbatimEnvironment%
+{outbit}{Verbatim}
+{fontsize=\small, formatcom=\color{myteal}}
+
+\DefineVerbatimEnvironment%
+{scodebot}{Verbatim}
+{frame=bottomline, framesep=2ex, fontsize=\small,
+ formatcom=\color{myteal}, rulecolor=\color{mygray}}
+
+\definecolor{mygray}{rgb}{0.85,0.85,0.85} 
+\definecolor{myteal}{rgb}{0.0,0.25,0.15}
+\definecolor{steel}{rgb}{0.03,0.20,0.45}
+
+%% add script as float ("Listing")
+\ifcsname c@chapter\endcsname
+ \newcounter{script}[chapter]
+ \renewcommand \thescript
+     {\ifnum \c@chapter>\z@ \thechapter.\fi \@arabic\c@script}
+\else
+ \newcounter{script}
+ \renewcommand \thescript
+     {\@arabic\c@script}
+\fi
+\def\fps@script{tbp}
+\def\ftype@script{1}
+\def\ext@script{los}
+\def\fnum@script{\scriptname\nobreakspace\thescript}
+\newenvironment{script}
+               {\@float{script}}
+               {\end@float}
+\newenvironment{script*}
+               {\@dblfloat{script}}
+               {\end@dblfloat}
+\ifcsname c@chapter\endcsname
+ \newcommand\theHscript{\thechapter.\arabic{script}}
+\else
+ \newcommand\theHscript{\arabic{script}}
+\fi
+
+\endinput
+%% end of mycode.sty

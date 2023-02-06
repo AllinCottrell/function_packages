@@ -1,0 +1,12 @@
+set verbose off
+include random_forest.gfn
+
+open titanic.gdt -q --frompkg=random_forest
+set seed 877777
+series sorter = uniform()
+dataset sortby sorter
+
+list L = Survived Pclass female SibSp Embarked Parch Fare
+bundle opts = _(n_train=700, seed=5177)
+bundle rfb = random_forest(L, opts)
+
