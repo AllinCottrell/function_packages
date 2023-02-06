@@ -100,20 +100,19 @@ function bundle random_forest (list L, const bundle opts)
    else
       n_train = opts.n_train
    endif
-   if $t1 > 1 || n_train >= $nobs
-      funcerr "We need a full dataset that includes some training observations"
+   if n_train >= $nobs
+      funcerr "We need both training and testing observations"
    endif
 
-   if inbundle(opts, "verbose")
-      verbose = opts.verbose
-   else
-      verbose = 1
+   if sum(ok(L)) < $nobs
+      funcerr "Missing values encountered"
    endif
    
+   verbose = inbundle(opts, "verbose") ? opts.verbose : 1
    bundle args = opts
 
    # make matrices for R, training first...
-   t2 = n_train
+   t2 = $t1 + n_train - 1
    smpl ; t2
    n1 = $nobs
    matrix args.y = {L[1]}
