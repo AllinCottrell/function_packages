@@ -45,8 +45,8 @@ This package was last verified as working with \textsf{R} version
 which requires \textsf{R} 4.1.0 or higher. More recent versions may
 work but that is not guaranteed.
 
-I'm not going to try explaining here what Random Forest algorithm is
-all about---I think Wikipedia does a good job.\footnote{See
+I'm not going to try explaining here what the Random Forest algorithm
+is all about---I think Wikipedia does a good job.\footnote{See
   \url{https://en.wikipedia.org/wiki/Random_forest}.} I'll just say
 that it's a predictive apparatus somewhat comparable with a Support
 Vector Machine or SVM, something that is supported natively in
@@ -90,8 +90,8 @@ contain any of the following:
 \end{center}
 
 The default \texttt{verbose} value of 1 prints summary output compiled
-by gretl. The other acceptable values are 0 (for no printed output) or
-2 (to include a trace of the progress made by \textsf{R}'s
+by gretl. The other acceptable values are 0, for no printed output, or
+2, to include a trace of the progress made by \textsf{R}'s
 \textsf{randomForest}.
 
 Unless you're in a big hurry you probably want to let the underlying
@@ -107,7 +107,7 @@ variable or is marked as an ``encoding'' (see the help for the
 \texttt{classify} to 0 or 1. (You may wish to take control when the
 dependent is ordinal, but not on an interval or ratio scale.)
 
-As the name implies, there's some randomization involved in building a
+As the name implies, there's randomization involved in building a
 Random Forest. If you want to get perfectly reproducible results you
 should set \texttt{seed} to a specific value in the options bundle;
 otherwise the results will differ to some degree across runs of a
@@ -118,58 +118,61 @@ sample script included in the package.  It begins with
 %
 \begin{code}
 include random_forest.gfn
-open titanic.gdt -q --frompkg=random_forest
+open titanic3.gdt -q --frompkg=random_forest
 set seed 877777
 series sorter = uniform()
 dataset sortby sorter
 \end{code}
 %
-The data file is from \texttt{kaggle.com}; it contains 889 records
-regarding passengers on RMS \textit{Titanic}.\footnote{See
-  \url{https://www.kaggle.com/c/titanic}.} The target for prediction
-is the binary variable \texttt{Survived} (1 = survived, 0 =
-didn't). Six other variables are available as candidate predictors.
-The last two lines of the extract above randomize the order of the
-observations prior to division into training and testing samples.
-(You can comment out the \texttt{set seed} statement to get a
-different randomization on each invocation of the script).  The code
-then continues:
+The data file is a slightly modified version of \texttt{titanic3.csv}
+from \url{https://hbiostat.org/data/}; it contains 1306 records
+regarding passengers on RMS \textit{Titanic}.\footnote{A subset of
+  these data can be found at \url{https://www.kaggle.com/c/titanic}.}
+The target for prediction is the binary variable \texttt{survived} (1
+= survived, 0 = didn't). Seven other variables are available as
+candidate predictors.  The last two lines of the extract above
+randomize the order of the observations prior to division into
+training and testing samples.  (You can comment out the \texttt{set
+  seed} statement to get a different randomization on each invocation
+of the script).  The code then continues:
 %
 \begin{code}
-list L = Survived Pclass female SibSp Embarked Parch Fare
-bundle opts = _(n_train=700, seed=777778)
+list L = survived pclass female sibsp parch fare embarked
+bundle opts = _(n_train=900, seed=777778)
 bundle rfb = random_forest(L, opts)
 \end{code}
 %
-So we're using all six covariates, selecting the first 700 records for
-training, setting a random seed for replicability (this seed will be
-used by \textsf{R}), and implicitly accepting the default values for
+So we're using six of the covariates,\footnote{The \texttt{age}
+  variable is potentially useful but is missing in 263 cases so we
+  omitted it here.}  selecting the first 900 records for training,
+setting a random seed for replicability (this seed will be used by
+\textsf{R}), and implicitly accepting the default values for
 classification mode, \texttt{tune} and \texttt{verbose}.
 
 Partial output from the sample script is shown in
 Listing~\ref{output}.
 
 \begin{script}[htbp]
-\begin{scodebit}
+  \begin{scodebit}
 Called randomForest() in classification mode
-Dependent variable: Survived
-Total observations 889: 700 training, 189 testing
+Dependent variable: survived
+Total observations 1306: 900 training, 406 testing
 RNG seed = 777778
 
-Training percent correct: 82.14
-Testing percent correct:  78.31
+Training percent correct: 78.33
+Testing percent correct:  80.30
 
 Confusion matrix, training:
              0            1
 
-0          385           49
-1           76          190
+0          473           71
+1          124          232
 
 Confusion matrix, testing:
              0            1
 
-0          101           14
-1           27           47
+0          226           38
+1           42          100
 \end{scodebit}
   \caption{Output from sample script}
   \label{output}
@@ -194,10 +197,10 @@ contains the following items.
 In case the mode is regression rather than classification, the
 \texttt{insample}, \texttt{outsample} and \texttt{allpred} values are
 as described above, but \texttt{pcc1} and \texttt{pcc2} are replaced
-by \texttt{MSE1} and \texttt{MSE2}, giving the mean squared error
-values for the two sub-samples, and \texttt{C1} and \texttt{C1} are
-replaced by a single matrix named \texttt{regstats}, an example of
-which is shown below.
+by \texttt{MSE1} and \texttt{MSE2}, giving the mean squared error for
+the two sub-samples, and \texttt{C1} and \texttt{C1} are replaced by a
+single matrix named \texttt{regstats}, an example of which is shown
+below.
 %
 \begin{code}
          Training      Testing 
