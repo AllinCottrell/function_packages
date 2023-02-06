@@ -1,0 +1,10 @@
+*.gfn
+*.zip
+*.aux
+*.bbl
+*.log
+*.blg
+*.out
+DynMultCalc.pdf
+random_forest.pdf
+
