@@ -25,8 +25,7 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
 
-\title{random\_forest 0.1}
-\author{Allin Cottrell}
+\title{random\_forest 0.1} \author{Allin Cottrell}
 \maketitle
 
 This is an unusual gretl package---unusual (but not illegal!) in that
@@ -42,16 +41,19 @@ the \textsf{R} ecosystem.
 
 This package was last verified as working with \textsf{R} version
 4.2.1 (2022-06-23) and \textsf{randomForest} 4.7-1.1 (2022-05-23),
-which requires \textsf{R} 4.1.0 or higher. More recent versions may
-work but that is not guaranteed.
+which requires \textsf{R} 4.1.0 or higher. Some details about ensuring
+the \textsf{R} setup that's required can be found in the Appendix to
+this document.
 
 I'm not going to try explaining here what the Random Forest algorithm
-is all about---I think Wikipedia does a good job.\footnote{See
-  \url{https://en.wikipedia.org/wiki/Random_forest}.} I'll just say
-that it's a predictive apparatus somewhat comparable with a Support
-Vector Machine or SVM, something that is supported natively in
-gretl---see ``gretl + SVM'' under the \textsf{Help} menu in the gretl
-GUI.
+is all about---I think Wikipedia does a good job,\footnote{See
+  \url{https://en.wikipedia.org/wiki/Random_forest}.} and you can
+consult Leo Breiman's original paper on the topic.\footnote{See
+  \url{https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf}.}
+I'll just say that it's a predictive apparatus somewhat comparable
+with a Support Vector Machine or SVM, something that is supported
+natively in gretl---see ``gretl + SVM'' under the \textsf{Help} menu
+in the gretl GUI.
 
 \section{Scripting usage}
 
@@ -83,8 +85,8 @@ contain any of the following:
 \begin{tabular}{llll}
   \textit{key} & \textit{type} & \textit{comment} & \textit{default value} \\[4pt]
   \texttt{verbose} & integer & controls printed output & 1 \\
-  \texttt{tune} & boolean & tune hyperparameter & 1 or TRUE \\
   \texttt{classify} & boolean & classification (vs. regression) & automatic\\
+  \texttt{tune} & boolean & tune the \texttt{mtry} parameter & 1 or TRUE \\
   \texttt{seed} & integer & seed for RNG in \textsf{R} & automatic
 \end{tabular}
 \end{center}
@@ -94,10 +96,6 @@ by gretl. The other acceptable values are 0, for no printed output, or
 2, to include a trace of the progress made by \textsf{R}'s
 \textsf{randomForest}.
 
-Unless you're in a big hurry you probably want to let the underlying
-engine do some tuning. But you can turn that off if you wish: give
-\texttt{0} or \texttt{FALSE} for \texttt{tune}.
-
 The Random Forest algorithm can handle both ``classification'' (for
 discrete, qualitative outcomes) and ``regression'' (for a more or less
 continuous numerical outcome). By default gretl will call for
@@ -106,6 +104,17 @@ variable or is marked as an ``encoding'' (see the help for the
 \texttt{setinfo} command).  But you can force the issue by setting
 \texttt{classify} to 0 or 1. (You may wish to take control when the
 dependent is ordinal, but not on an interval or ratio scale.)
+
+Unless you're in a big hurry you'll likely want to let the underlying
+engine do some tuning. This involves a call to the \texttt{tuneRF}
+function in the \textsf{R} package. The tunable parameter
+\texttt{mtry} represents the number of covariates randomly sampled as
+candidates at each split in tree formation; \texttt{tuneRF} optimizes
+this parameter with respect to an ``Out-of-Bag'' error estimate.  If
+you just want to use the default value of \texttt{mtry}, give
+\texttt{0} or \texttt{FALSE} for the \texttt{tune} option. In
+classification mode the default is $\sqrt{k}$ and in regression mode
+it's $k/3$, where $k$ is the number of covariates.
 
 As the name implies, there's randomization involved in building a
 Random Forest. If you want to get perfectly reproducible results you
@@ -237,5 +246,9 @@ save the results bundle and/or any of its contents.
 \section*{Change log}
 
 2023-02-05: version 0.1 released.
+
+\section*{Appendix}
+
+To be written.
 
 \end{document}
