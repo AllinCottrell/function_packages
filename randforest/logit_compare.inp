@@ -1,13 +1,13 @@
 set verbose off
 include random_forest.gfn
 
-open titanic.gdt -q --frompkg=random_forest
+open titanic3.gdt -q --frompkg=random_forest
 set seed 877777
 series sorter = uniform()
 dataset sortby sorter
 
-n0 = 700
-list L = Survived Pclass female SibSp Embarked Parch Fare
+n0 = 900
+list L = survived pclass female sibsp parch fare embarked
 bundle opts = _(n_train=n0, classify=1, seed=777778, tune=1)
 bundle ret = random_forest(L, opts)
 
@@ -16,24 +16,25 @@ USE_ROC = 0
 if USE_ROC
   include roc.gfn
 endif
-list EMB = dummify(Embarked)
-list X = const Pclass female SibSp EMB Parch Fare
+list EMB = dummify(embarked)
+list X = const pclass female sibsp parch fare EMB
 smpl 1 n0
-logit Survived X --p-values
+logit survived X --p-values
+
 # exclude "non-significant" regressors
-X -= EMB Parch Fare
-logit Survived X --p-values
+X -= parch fare EMB
+logit survived X --p-values
 matrix lb = $coeff
 if USE_ROC
-  bundle r = roc(Survived, $yhat, 0)
+  bundle r = roc(survived, $yhat, 0)
   thresh = r.thresh
 else
   thresh = 0.5
 endif
 printf "threshold = %g\n", thresh
 series lpred = $yhat > thresh
-printf "Within sample correct, logit: %.2f%%\n", 100 * sum(lpred == Survived) / $nobs
+printf "Within sample correct, logit: %.2f%%\n", 100 * sum(lpred == survived) / $nobs
 smpl n0+1 $tmax
 lpred = cdf(lgt, lincomb(X, lb)) > thresh
-printf "Out of sample correct, logit: %.2f%%\n", 100 * sum(lpred == Survived) / $nobs
+printf "Out of sample correct, logit: %.2f%%\n", 100 * sum(lpred == survived) / $nobs
 
