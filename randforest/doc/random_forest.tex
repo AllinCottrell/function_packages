@@ -42,8 +42,8 @@ the \textsf{R} ecosystem.
 This package was last verified as working with \textsf{R} version
 4.2.1 (2022-06-23) and \textsf{randomForest} 4.7-1.1 (2022-05-23),
 which requires \textsf{R} 4.1.0 or higher. Some details about ensuring
-the \textsf{R} setup that's required can be found in the Appendix to
-this document.
+the \textsf{R} setup that's required can be found in
+Section~\ref{sec:Rdetails}.
 
 I'm not going to try explaining here what the Random Forest algorithm
 is all about---I think Wikipedia does a good job,\footnote{See
@@ -135,15 +135,15 @@ dataset sortby sorter
 %
 The data file is a slightly modified version of \texttt{titanic3.csv}
 from \url{https://hbiostat.org/data/}; it contains 1306 records
-regarding passengers on RMS \textit{Titanic}.\footnote{A subset of
-  these data can be found at \url{https://www.kaggle.com/c/titanic}.}
-The target for prediction is the binary variable \texttt{survived} (1
-= survived, 0 = didn't). Seven other variables are available as
-candidate predictors.  The last two lines of the extract above
-randomize the order of the observations prior to division into
-training and testing samples.  (You can comment out the \texttt{set
-  seed} statement to get a different randomization on each invocation
-of the script).  The code then continues:
+regarding passengers on RMS \textit{Titanic}.\footnote{This is a
+  superset of the \textit{Titanic} data available on
+  \texttt{kaggle.com}.}  The target for prediction is the binary
+variable \texttt{survived} (1 = survived, 0 = didn't). Seven other
+variables are available as candidate predictors.  The last two lines
+of the extract above randomize the order of the observations prior to
+division into training and testing samples.  (You can comment out the
+\texttt{set seed} statement to get a different randomization on each
+invocation of the script).  The code then continues:
 %
 \begin{code}
 list L = survived pclass female sibsp parch fare embarked
@@ -238,16 +238,17 @@ save the results bundle and/or any of its contents.
 
 \begin{figure}[htbp]
   \centering
-  %\includegraphics[scale=0.6]{almonreg.png}
+  \includegraphics[scale=0.6]{rfgui.png}
   \caption{The random\_forest dialog}
   \label{fig:dialog}
 \end{figure}
 
-\section*{Change log}
+\section{Change log}
 
 2023-02-05: version 0.1 released.
 
-\section*{Appendix}
+\section{Some \textsf{R} details}
+\label{sec:Rdetails}
 
 To be written.
 

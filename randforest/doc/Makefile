@@ -1,7 +1,7 @@
 DOC = random_forest.pdf
 SRC = random_forest.tex
 
-$(DOC): $(SRC) mycode.sty
+$(DOC): $(SRC) mycode.sty rfgui.png
 	pdflatex $<
 	pdflatex $<
 	pdflatex $<
