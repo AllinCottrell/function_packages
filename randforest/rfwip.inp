@@ -17,7 +17,7 @@ foreign language=R --quiet
          sink(con, type="message")
       }
       if (verbose) {
-         cat(sprintf("\nOutput from randomForest %s\n", 
+         cat(sprintf("\nOutput from randomForest %s\n",
            packageVersion("randomForest")))
          cat("-------------------------------\n")
       }
@@ -70,7 +70,7 @@ function matrix confusion (const matrix X)
    return C
 end function
 
-function void rf_print (const bundle *b)
+function void rf_print (const bundle *b, int minimal[0:1:0])
    printf "Called randomForest() in %s mode\n",
      b.classify ? "classification" : "regression"
    printf "Dependent variable: %s\n", b.depvar
@@ -78,23 +78,36 @@ function void rf_print (const bundle *b)
      b.n1 + b.n2, b.n1, b.n2
    if inbundle(b, "seed")
       printf "RNG seed = %d\n", b.seed
-   endif   
+   endif
    if b.classify
       printf "\nTraining percent correct: %.2f\n", b.pcc1
       printf "Testing percent correct:  %.2f\n", b.pcc2
-      printf "\nConfusion matrix, training:\n"
-      print b.C1
-      printf "Confusion matrix, testing:\n"
-      print b.C2
+      if minimal
+         printf "\n"
+      else
+         printf "\nConfusion matrix, training:\n"
+         print b.C1
+         printf "Confusion matrix, testing:\n"
+         print b.C2
+      endif
    else
       printf "\nTraining MSE: %#g\n", b.MSE1
       printf "Testing MSE:  %#g\n", b.MSE2
       printf "\nOther forecast evaluation statistics:\n\n"
       print b.regstats
-   endif     
+   endif
 end function
 
 function bundle random_forest (list L, const bundle opts)
+   if sum(ok(L)) < $nobs
+      catch ols L --quiet
+      if $error
+         funcerr "Missing values encountered"
+      else
+         series s = $sample
+         smpl s --dummy
+      endif
+   endif
    if inbundle(opts, "pctrain")
       n_train = int(0.01 * opts.pctrain * $nobs)
    else
@@ -103,13 +116,8 @@ function bundle random_forest (list L, const bundle opts)
    if n_train >= $nobs
       funcerr "We need both training and testing observations"
    endif
-   
-   if sum(ok(L)) < $nobs
-      funcerr "Missing values encountered"
-   endif
-   
+
    verbose = inbundle(opts, "verbose") ? opts.verbose : 1
-   
    bundle args = opts
 
    # make matrices for R, training first...
@@ -117,33 +125,24 @@ function bundle random_forest (list L, const bundle opts)
    smpl ; t2
    n1 = $nobs
    matrix args.y = {L[1]}
-   matrix args.x = {L[2:]}
+   matrix args.x = {cdummify(L[2:])}
    # then testing...
    test1 = t2 + 1
    smpl test1 $tmax
    n2 = $nobs
    matrix args.ytest = {L[1]}
-   matrix args.xtest = {L[2:]}
+   matrix args.xtest = {cdummify(L[2:])}
 
    if inbundle(opts, "classify")
       classify = opts.classify
    else
       classify = isdummy(L[1]) || getinfo(L[1]).coded
    endif
+
    scalar tune = inbundle(opts, "tune") ? opts.tune : 0
-   
-   if inbundle(opts, "seed")
-      scalar seed = opts.seed
-   else
-      scalar seed = NA
-   endif
-   
-   if verbose > 1
-      string outname = sprintf("%s/R.out", $dotdir)
-   else
-      string outname = ""
-   endif
-   
+   scalar seed = inbundle(opts, "seed") ? opts.seed : NA
+   string outname = verbose > 1 ? sprintf("%s/R.out", $dotdir) : ""
+
    printf "Calling randomForest...\n"
    flush
 
@@ -157,7 +156,7 @@ function bundle random_forest (list L, const bundle opts)
          print Rout
       endif
    endif
-   
+
    # add info to return bundle
    ret.classify = classify
    if inbundle(opts, "depvar")
@@ -185,11 +184,11 @@ function bundle random_forest (list L, const bundle opts)
       scalar ret.MSE1 = sumc((args.y - ret.insample).^2) / n1
       scalar ret.MSE2 = sumc((args.ytest - ret.outsample).^2) / n2
    endif
-   
+
    if verbose
-      rf_print(&ret)
+      rf_print(&ret, verbose > 1)
    endif
-   
+
    # is this wanted?
    matrix ret.allpred = ret.insample | ret.outsample
 
@@ -200,12 +199,14 @@ function bundle GUI_rf (series y "dependent variable",
                         list X "indpendent variables",
                         scalar pctrain[20:95:60:1] "training data, percent",
                         int mode[0:2:0] {"automatic", "regression", "classification"},
+                        bool tune[1] "tune 'mtry'",
                         int verbosity [1:2:2])
    list L = y X
    bundle opts
    scalar opts.pctrain = pctrain
    scalar opts.verbose = verbosity
    string opts.depvar = argname(y)
+   scalar opts.tune = tune
    if mode == 1
       opts.classify = 0
    elif mode == 2

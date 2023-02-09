@@ -100,7 +100,13 @@ end function
 
 function bundle random_forest (list L, const bundle opts)
    if sum(ok(L)) < $nobs
-      funcerr "Missing values encountered"
+      catch ols L --quiet
+      if $error
+         funcerr "Missing values encountered"
+      else
+         series s = $sample
+         smpl s --dummy
+      endif
    endif
    if inbundle(opts, "pctrain")
       n_train = int(0.01 * opts.pctrain * $nobs)

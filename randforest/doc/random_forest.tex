@@ -154,7 +154,7 @@ bundle rfb = random_forest(L, opts)
 So we're using six of the covariates, selecting the first 900 records
 for training, setting a random seed for replicability (this seed will
 be used by \textsf{R}), and implicitly accepting the default values
-for classification mode, \texttt{tune} and \texttt{verbose}.
+for \texttt{classify}, \texttt{tune} and \texttt{verbose}.
 
 Two of the available covariates in \texttt{titanic3} dataset call for
 some discussion. First, \texttt{embarked} is an encoding of a purely
@@ -162,12 +162,11 @@ qualitative characteristic: the port at which the passenger
 embarked. Variables of this sort are automatically converted into a
 set of 0/1 dummies ($m-1$ of them, if the variable has $m$ distinct
 values) before being passed to \texttt{R}. Second, \texttt{age} (the
-age of the passenger in years) is a plausible predictor of survival
-but unfortunately this datum is missing in 263 cases. At present
-missing values are not allowed in the sample passed to the package,
-and we have omitted \texttt{age} from the specification. However, to
-include \texttt{age} one could first sub-sample to omit any missing
-observations then pass the reduced sample to \texttt{random\_forest}.
+age of the passenger in years) may be a plausible predictor of
+survival but unfortunately this datum is missing in 263 cases so we
+omitted it from the specification. However, one \textit{could} include
+\texttt{age}: gretl would then automatically shrink the sample to
+avoid the missing values.
 
 Partial output from the sample script is shown in
 Listing~\ref{output}.
