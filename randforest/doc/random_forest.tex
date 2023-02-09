@@ -66,8 +66,8 @@ bundle random_forest (list L, const bundle opts)
 %
 This means that it returns a bundle and has two required arguments, a
 list and a bundle. The list argument should be in standard gretl
-``regression list'' format: the dependent variable followed by one or
-more independent variables (or ``features'' as they're known in the
+``regression list'' format: the dependent variable followed by the
+independent variables (or ``features'' as they're known in the
 machine-learning world). The \texttt{opts} bundle has just one
 required member: under the key \texttt{n\_train} you must tell gretl
 how many of the available observations should be used for training.
@@ -151,12 +151,23 @@ bundle opts = _(n_train=900, seed=777778)
 bundle rfb = random_forest(L, opts)
 \end{code}
 %
-So we're using six of the covariates,\footnote{The \texttt{age}
-  variable is potentially useful but is missing in 263 cases so we
-  omitted it here.}  selecting the first 900 records for training,
-setting a random seed for replicability (this seed will be used by
-\textsf{R}), and implicitly accepting the default values for
-classification mode, \texttt{tune} and \texttt{verbose}.
+So we're using six of the covariates, selecting the first 900 records
+for training, setting a random seed for replicability (this seed will
+be used by \textsf{R}), and implicitly accepting the default values
+for classification mode, \texttt{tune} and \texttt{verbose}.
+
+Two of the available covariates in \texttt{titanic3} dataset call for
+some discussion. First, \texttt{embarked} is an encoding of a purely
+qualitative characteristic: the port at which the passenger
+embarked. Variables of this sort are automatically converted into a
+set of 0/1 dummies ($m-1$ of them, if the variable has $m$ distinct
+values) before being passed to \texttt{R}. Second, \texttt{age} (the
+age of the passenger in years) is a plausible predictor of survival
+but unfortunately this datum is missing in 263 cases. At present
+missing values are not allowed in the sample passed to the package,
+and we have omitted \texttt{age} from the specification. However, to
+include \texttt{age} one could first sub-sample to omit any missing
+observations then pass the reduced sample to \texttt{random\_forest}.
 
 Partial output from the sample script is shown in
 Listing~\ref{output}.
@@ -229,12 +240,12 @@ error, and \texttt{MAPE} = mean absolute percentage error.
 \section{GUI usage}
 
 On installing the package you should be given the option of adding a
-hook named \textsf{Random Forest} to gretl's \textsf{Model} menu, under
-the \textsf{Robust estimation} sub-menu. This hook brings up a
-dialog box in which you can select the various inputs described above
+hook named \textsf{Random Forest} to gretl's \textsf{Model} menu,
+under the \textsf{Robust estimation} sub-menu. This hook brings up a
+dialog box in which you can specify most of inputs described above
 (Figure~\ref{fig:dialog}). Clicking \textsf{OK} in this dialog will
 open a window displaying the results of estimation and allowing you to
-save the results bundle and/or any of its contents.
+save the results bundle or any of its contents.
 
 \begin{figure}[htbp]
   \centering
@@ -250,6 +261,32 @@ save the results bundle and/or any of its contents.
 \section{Some \textsf{R} details}
 \label{sec:Rdetails}
 
-To be written.
+As noted above, this gretl package requires version 4.7-1.1 of the
+\textsf{randomForest} package, which in turn requires \textsf{R} 4.1.0
+or higher. As of this writing it is verified as working with
+\textsf{R} 4.2.1 and 4.2.2. It is straightforward to install
+\textsf{R} for most platforms: see
+\url{https://cran.r-project.org/}. Having done so one can then install
+\textsf{randomForest} using the \textsf{R} command:
+\begin{code}
+install.packages("randomForest")
+\end{code}
+This should take care of installing the other \textsf{R} packages on
+which \textsf{randomForest} depends if they're not already present on
+the local machine.
+
+We mentioned above that gretl by default calls \textsf{randomForest}'s
+\texttt{tuneRF} function to optimize its \texttt{mtry}
+parameter. We're aware that the \textsf{caret} package for \textsf{R}
+offers a variety of means of tuning machine-learning algorithms,
+including Random Forests, but chose not to build in support for
+\textsf{caret} in this offering. That's because our (admittedly
+limited) testing led to the conclusion that \texttt{tuneRF} is about
+equally effective but also because \textsf{caret} has a very hefty
+list of dependencies, and its complexity seems inconsistent with our
+wish to offer a relatively quick and easy route to the exploration of
+Random Forests. That said, it's possible that a future version of this
+package might add some degree of \textsf{caret} support if a demand
+is evident.
 
 \end{document}
