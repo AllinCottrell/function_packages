@@ -99,6 +99,7 @@ function void rf_print (const bundle *b, int minimal[0:1:0])
 end function
 
 function bundle random_forest (list L, const bundle opts)
+   # check for NAs
    if sum(ok(L)) < $nobs
       catch ols L --quiet
       if $error
@@ -119,6 +120,8 @@ function bundle random_forest (list L, const bundle opts)
 
    verbose = inbundle(opts, "verbose") ? opts.verbose : 1
    bundle args = opts
+   series allpred
+   t1 = $t1
 
    # make matrices for R, training first...
    t2 = $t1 + n_train - 1
@@ -126,6 +129,7 @@ function bundle random_forest (list L, const bundle opts)
    n1 = $nobs
    matrix args.y = {L[1]}
    matrix args.x = {cdummify(L[2:])}
+
    # then testing...
    test1 = t2 + 1
    smpl test1 $tmax
@@ -149,13 +153,20 @@ function bundle random_forest (list L, const bundle opts)
    # call randforest()
    bundle ret = R.randforest(args, classify, tune, verbose > 1, outname)
 
-   # show R output if wanted
+   # show R printed output if wanted
    if outname != ""
       catch string Rout = readfile(outname)
       if $error == 0 && Rout != ""
          print Rout
       endif
    endif
+
+   # write training predictions to series
+   smpl t1 t2
+   allpred = ret.insample
+   # and then testing predictions
+   smpl test1 $tmax
+   allpred = ret.outsample
 
    # add info to return bundle
    ret.classify = classify
@@ -189,8 +200,9 @@ function bundle random_forest (list L, const bundle opts)
       rf_print(&ret, verbose > 1)
    endif
 
-   # is this wanted?
-   matrix ret.allpred = ret.insample | ret.outsample
+   # transcribe all-predictions series
+   smpl full
+   series ret.allpred = allpred
 
    return ret
 end function

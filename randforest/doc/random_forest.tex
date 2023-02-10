@@ -204,22 +204,22 @@ contains the following items.
 \begin{itemize}
 \item Column vectors named \texttt{insample} and \texttt{outsample}
   holding the predictions for the training and testing observations,
-  respectively. Plus, for convenience, a vector named \texttt{allpred}
-  holding all the predictions. These vectors can easily be converted
-  into series if needed.
+  respectively. Plus, for convenience, a series named \texttt{allpred}
+  holding all the predictions.
+\item The numbers of training and testing observations, under the
+  names \texttt{n1} and \texttt{n2}.
+\item The \texttt{seed} value, if specified.  
 \item Scalars \texttt{pcc1} and \texttt{pcc2} giving the percentage of
   correct predictions for the training and testing data respectively.
 \item Confusion matrices \texttt{C1} and \texttt{C1} pertaining to the
   training and testing data.
 \end{itemize}
 
-In case the mode is regression rather than classification, the
-\texttt{insample}, \texttt{outsample} and \texttt{allpred} values are
-as described above, but \texttt{pcc1} and \texttt{pcc2} are replaced
-by \texttt{MSE1} and \texttt{MSE2}, giving the mean squared error for
-the two sub-samples, and \texttt{C1} and \texttt{C1} are replaced by a
-single matrix named \texttt{regstats}, an example of which is shown
-below.
+In case the mode is regression rather than classification,
+\texttt{pcc1} and \texttt{pcc2} are replaced by \texttt{MSE1} and
+\texttt{MSE2}, giving the mean squared error for the two sub-samples,
+and \texttt{C1} and \texttt{C1} are replaced by a single matrix named
+\texttt{regstats}, an example of which is shown below.
 %
 \begin{code}
          Training      Testing 
@@ -255,7 +255,7 @@ save the results bundle or any of its contents.
 
 \section{Change log}
 
-2023-02-05: version 0.1 released.
+2023-02-10: version 0.1 released.
 
 \section{Some \textsf{R} details}
 \label{sec:Rdetails}
