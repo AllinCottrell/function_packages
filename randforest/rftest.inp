@@ -1,6 +1,7 @@
 set verbose off
 set R_functions on
-include rfwip.inp
+# include rfwip.inp
+include rf_no_lib.inp
 rf_setup()
 
 open titanic3.gdt -q
@@ -8,13 +9,13 @@ set seed 877777
 series sorter = uniform()
 dataset sortby sorter
 
-list L = survived pclass female sibsp parch fare embarked # age
+list X = pclass female sibsp parch fare embarked # age
 # smpl --no-missing L
 bundle opts = _(n_train=900, classify=1, seed=777778, tune=1, verbose=2)
-bundle rfb = random_forest(L, opts)
+bundle rfb = random_forest(surived, X, opts)
 print rfb
 quit
 series yhat = rfb.allpred
 # smpl full
-print survived yhat age -o
+# print survived yhat age -o
 

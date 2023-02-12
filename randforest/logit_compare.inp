@@ -7,9 +7,9 @@ series sorter = uniform()
 dataset sortby sorter
 
 n0 = 900
-list L = survived pclass female sibsp parch fare embarked
+list X = pclass female sibsp parch fare embarked
 bundle opts = _(n_train=n0, classify=1, seed=777778, tune=1)
-bundle ret = random_forest(L, opts)
+bundle ret = random_forest(survived, X, opts)
 
 # compare logit
 USE_ROC = 0

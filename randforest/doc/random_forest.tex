@@ -61,20 +61,20 @@ The function available for command-line and scripting use is named
 \texttt{random\_forest}. It has the following signature:
 %
 \begin{code}
-bundle random_forest (list L, const bundle opts)
+bundle random_forest (series y, list X, const bundle opts)
 \end{code}
 %
-This means that it returns a bundle and has two required arguments, a
-list and a bundle. The list argument should be in standard gretl
-``regression list'' format: the dependent variable followed by the
-independent variables (or ``features'' as they're known in the
-machine-learning world). The \texttt{opts} bundle has just one
-required member: under the key \texttt{n\_train} you must tell gretl
-how many of the available observations should be used for training.
-The remaining observations (there must be some left over) will be used
-for testing. What you get on return is a bundle containing predictions
-for both the training and the testing data, along with some figures of
-merit with which to assess the degree of predictive success.
+This means that it returns a bundle and has three required arguments,
+a series, a list and a bundle. The first two arguments specify a
+dependent variable and list of independent variables (or ``features''
+as they're known in the machine-learning world). The \texttt{opts}
+bundle has just one required member: under the key \texttt{n\_train}
+you must tell gretl how many of the available observations should be
+used for training.  The remaining observations (there must be some
+left over) will be used for testing. What you get on return is a
+bundle containing predictions for both the training and the testing
+data, along with some figures of merit with which to assess the degree
+of predictive success.
 
 We'll expand on the content of the bundle returned by
 \texttt{random\_forest} shortly. First of all here's some detail on
@@ -146,9 +146,9 @@ division into training and testing samples.  (You can comment out the
 invocation of the script).  The code then continues:
 %
 \begin{code}
-list L = survived pclass female sibsp parch fare embarked
+list X = pclass female sibsp parch fare embarked
 bundle opts = _(n_train=900, seed=777778)
-bundle rfb = random_forest(L, opts)
+bundle rfb = random_forest(survived, X, opts)
 \end{code}
 %
 So we're using six of the covariates, selecting the first 900 records
@@ -156,9 +156,9 @@ for training, setting a random seed for replicability (this seed will
 be used by \textsf{R}), and implicitly accepting the default values
 for \texttt{classify}, \texttt{tune} and \texttt{verbose}.
 
-Two of the available covariates in \texttt{titanic3} dataset call for
-some discussion. First, \texttt{embarked} is an encoding of a purely
-qualitative characteristic: the port at which the passenger
+Two of the available covariates in the \texttt{titanic3} dataset call
+for some discussion. First, \texttt{embarked} is an encoding of a
+purely qualitative characteristic: the port at which the passenger
 embarked. Variables of this sort are automatically converted into a
 set of 0/1 dummies ($m-1$ of them, if the variable has $m$ distinct
 values) before being passed to \texttt{R}. Second, \texttt{age} (the

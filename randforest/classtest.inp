@@ -6,7 +6,7 @@ set seed 877777
 series sorter = uniform()
 dataset sortby sorter
 
-list L = survived pclass female sibsp parch fare embarked
+list X = pclass female sibsp parch fare embarked
 bundle opts = _(n_train=900, classify=1, seed=777778, tune=1, verbose=2)
-bundle rfb = random_forest(L, opts)
+bundle rfb = random_forest(survived, X, opts)
 print rfb

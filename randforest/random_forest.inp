@@ -171,8 +171,9 @@ function void rf_print (const bundle *b, int minimal[0:1:0])
    endif
 end function
 
-function bundle random_forest (list L, const bundle opts)
+function bundle random_forest (series y, list X, const bundle opts)
    # check for NAs
+   list L = y X
    if sum(ok(L)) < $nobs
       catch ols L --quiet
       if $error
@@ -200,20 +201,20 @@ function bundle random_forest (list L, const bundle opts)
    t2 = $t1 + n_train - 1
    smpl ; t2
    n1 = $nobs
-   matrix args.y = {L[1]}
-   matrix args.x = {cdummify(L[2:])}
+   matrix args.y = {y}
+   matrix args.x = {cdummify(X)}
 
    # then testing...
    test1 = t2 + 1
    smpl test1 $tmax
    n2 = $nobs
-   matrix args.ytest = {L[1]}
-   matrix args.xtest = {cdummify(L[2:])}
+   matrix args.ytest = {y}
+   matrix args.xtest = {cdummify(X)}
 
    if inbundle(opts, "classify")
       classify = opts.classify
    else
-      classify = isdummy(L[1]) || getinfo(L[1]).coded
+      classify = isdummy(y) || getinfo(y).coded
    endif
 
    scalar tune = inbundle(opts, "tune") ? opts.tune : 0
@@ -254,7 +255,7 @@ function bundle random_forest (list L, const bundle opts)
    if inbundle(opts, "depvar")
       ret.depvar = opts.depvar
    else
-      ret.depvar = varname(L[1])
+      ret.depvar = varname(y)
    endif
    ret.n1 = n1
    ret.n2 = n2
@@ -294,7 +295,6 @@ function bundle GUI_rf (series y "dependent variable",
                         int mode[0:2:0] {"automatic", "regression", "classification"},
                         bool tune[1] "tune 'mtry'",
                         int verbosity [1:2:2])
-   list L = y X
    bundle opts
    scalar opts.pctrain = pctrain
    scalar opts.verbose = verbosity
@@ -305,5 +305,5 @@ function bundle GUI_rf (series y "dependent variable",
    elif mode == 2
       opts.classify = 1
    endif
-   return random_forest(L, opts)
+   return random_forest(y, X, opts)
 end function
