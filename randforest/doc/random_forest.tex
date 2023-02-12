@@ -211,14 +211,14 @@ contains the following items.
 \item The \texttt{seed} value, if specified.  
 \item Scalars \texttt{pcc1} and \texttt{pcc2} giving the percentage of
   correct predictions for the training and testing data respectively.
-\item Confusion matrices \texttt{C1} and \texttt{C1} pertaining to the
+\item Confusion matrices \texttt{C1} and \texttt{C2} pertaining to the
   training and testing data.
 \end{itemize}
 
 In case the mode is regression rather than classification,
 \texttt{pcc1} and \texttt{pcc2} are replaced by \texttt{MSE1} and
 \texttt{MSE2}, giving the mean squared error for the two sub-samples,
-and \texttt{C1} and \texttt{C1} are replaced by a single matrix named
+and \texttt{C1} and \texttt{C2} are replaced by a single matrix named
 \texttt{regstats}, an example of which is shown below.
 %
 \begin{code}
@@ -255,7 +255,7 @@ save the results bundle or any of its contents.
 
 \section{Change log}
 
-2023-02-10: version 0.1 released.
+2023-02-12: version 0.1 released.
 
 \section{Some \textsf{R} details}
 \label{sec:Rdetails}
@@ -277,15 +277,14 @@ the local machine.
 We mentioned above that gretl by default calls \textsf{randomForest}'s
 \texttt{tuneRF} function to optimize its \texttt{mtry}
 parameter. We're aware that the \textsf{caret} package for \textsf{R}
-offers a variety of means of tuning machine-learning algorithms,
-including Random Forests, but chose not to build in support for
-\textsf{caret} in this offering. That's because our (admittedly
-limited) testing led to the conclusion that \texttt{tuneRF} is about
-equally effective but also because \textsf{caret} has a very hefty
-list of dependencies, and its complexity seems inconsistent with our
-wish to offer a relatively quick and easy route to the exploration of
-Random Forests. That said, it's possible that a future version of this
-package might add some degree of \textsf{caret} support if a demand
-is evident.
+offers various means of tuning machine-learning algorithms, including
+Random Forests, but chose not to build in support for \textsf{caret}
+in this offering. That's because our (admittedly limited) testing led
+to the conclusion that \texttt{tuneRF} is about equally effective but
+also because \textsf{caret} has a very hefty list of dependencies, and
+its complexity seems inconsistent with our wish to offer a relatively
+quick and easy route to the exploration of Random Forests. That said,
+it's possible that a future version of this package might add some
+degree of \textsf{caret} support if a demand is evident.
 
 \end{document}

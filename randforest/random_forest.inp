@@ -13,7 +13,8 @@ function void rf_setup (void)
       if (with(L, exists("seed"))) {
          set.seed(L$seed)
       }
-      if (!missing(outname)) {
+      do_sink <- !missing(outname)
+      if (do_sink) {
          con <- file(outname, "w")
          sink(con)
          sink(con, type="message")
@@ -45,6 +46,8 @@ function void rf_setup (void)
       }
       if (verbose) {
          cat("-------------------------------\n")
+      }
+      if (do_sink) {
          sink()
       }
       ret
