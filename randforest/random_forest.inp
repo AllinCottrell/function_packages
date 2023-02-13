@@ -258,7 +258,7 @@ function bundle random_forest (series y, list X, const bundle opts)
    if inbundle(opts, "depvar")
       ret.depvar = opts.depvar
    else
-      ret.depvar = varname(y)
+      ret.depvar = argname(y)
    endif
    ret.n1 = n1
    ret.n2 = n2
