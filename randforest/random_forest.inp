@@ -174,7 +174,7 @@ function void rf_print (const bundle *b, int minimal[0:1:0])
    endif
 end function
 
-function bundle random_forest (series y, list X, const bundle opts)
+function bundle random_forest (const series y, list X, const bundle opts)
    # check for NAs
    list L = y X
    if sum(ok(L)) < $nobs
