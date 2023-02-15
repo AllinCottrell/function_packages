@@ -38,7 +38,10 @@ function void rf_setup (void)
          print(rf)
       }
       ret <- list()
-      ret$insample = rf$predicted
+      ret$mtry <- rf$mtry
+      ret$ntree <- rf$ntree
+      ret$importance <- rf$importance
+      ret$insample <- rf$predicted
       ret$outsample <- rf$test$predicted
       if (classify) {
          ret$insample <- as.numeric(levels(ret$insample))[ret$insample]
@@ -106,7 +109,7 @@ function bundle rf_driver (const bundle L, int classify,
       if (verbose) {
          print(rf)
       }
-      pred1 = rf$predicted
+      pred1 <- rf$predicted
       pred2 <- rf$test$predicted
       if (classify) {
          pred1 <- as.numeric(levels(pred1))[pred1]
