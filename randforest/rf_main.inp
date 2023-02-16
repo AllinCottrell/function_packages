@@ -85,11 +85,11 @@ function bundle rf_driver (const bundle L, int classify,
    foreign language=R --quiet
       library(randomForest)
       y <- gretl.loadmat("y.mat")
-		x <- gretl.loadmat("x.mat")
-		ytest <- gretl.loadmat("ytest.mat")
-		xtest <- gretl.loadmat("xtest.mat")
-		srcname <- sprintf("%s/rfvars.R", gretl.dotdir)
-		source(srcname)
+      x <- gretl.loadmat("x.mat")
+      ytest <- gretl.loadmat("ytest.mat")
+      xtest <- gretl.loadmat("xtest.mat")
+      srcname <- sprintf("%s/rfvars.R", gretl.dotdir)
+      source(srcname)
       if (classify) {
          y <- factor(y)
          ytest <- factor(ytest)
