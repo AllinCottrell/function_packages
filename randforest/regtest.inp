@@ -1,13 +1,13 @@
 set verbose off
 include random_forest.gfn
 
-open /home/allin/stats/work/svm/cadata.gdtb -q
+open ~/stats/work/svm/cadata.gdtb -q
 smpl 1 1000 --permanent
 set seed 877777
 series sorter = uniform()
 dataset sortby sorter
 
 n0 = 700
-list X = dataset - median_value
+list X = dataset - median_value - sorter
 bundle opts = _(n_train=n0, classify=0, seed=5177, tune=1, verbose=2)
 bundle rfb = random_forest(median_value, X, opts)

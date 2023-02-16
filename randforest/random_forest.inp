@@ -41,6 +41,7 @@ function void rf_setup (void)
       ret$mtry <- rf$mtry
       ret$ntree <- rf$ntree
       ret$importance <- rf$importance
+      ret$imp_label <- colnames(ret$importance)[1]
       ret$insample <- rf$predicted
       ret$outsample <- rf$test$predicted
       if (classify) {
@@ -117,6 +118,9 @@ function bundle rf_driver (const bundle L, int classify,
       }
       gretl.export(as.matrix(pred1), "insample")
       gretl.export(as.matrix(pred2), "outsample")
+      gretl.export(rf$importance, "importance")
+      label <- colnames(rf$importance)[1]
+      gretl.export(label, "imp_label")
       if (verbose) {
          cat("-------------------------------\n")
       }
@@ -126,6 +130,9 @@ function bundle rf_driver (const bundle L, int classify,
    bundle ret
    ret.insample = mread("insample.mat", 1)
    ret.outsample = mread("outsample.mat", 1)
+   ret.importance = mread("importance.mat", 1)
+   lfile = sprintf("%s/imp_label.txt", $dotdir)
+   ret.imp_label = strstrip(readfile(lfile))
    return ret
 end function
 
@@ -158,6 +165,8 @@ function void rf_print (const bundle *b, int minimal[0:1:0])
    if inbundle(b, "seed")
       printf "RNG seed = %d\n", b.seed
    endif
+   printf "\nImportance (%s)\n\n", b.imp_label
+   print b.importance
    if b.classify
       printf "\nTraining percent correct: %.2f\n", b.pcc1
       printf "Testing percent correct:  %.2f\n", b.pcc2
@@ -198,33 +207,36 @@ function bundle random_forest (const series y, list X, const bundle opts)
       funcerr "We need both training and testing observations"
    endif
 
-   verbose = inbundle(opts, "verbose") ? opts.verbose : 1
    bundle args = opts
    series allpred
-   t1 = $t1
+
+   # handle the various options
+   verbose = inbundle(opts, "verbose") ? opts.verbose : 1
+   if inbundle(opts, "classify")
+      classify = opts.classify
+   else
+      classify = (isdummy(y) || getinfo(y).coded)? 1 : 0
+   endif
+   scalar tune = inbundle(opts, "tune") ? opts.tune : 0
+   scalar seed = inbundle(opts, "seed") ? opts.seed : NA
+
+   # adjust the X list for coded vars if need be
+   X = cdummify(X)
 
    # make matrices for R, training first...
-   t2 = $t1 + n_train - 1
+   t1 = $t1
+   t2 = t1 + n_train - 1
    smpl ; t2
    n1 = $nobs
    matrix args.y = {y}
-   matrix args.x = {cdummify(X)}
+   matrix args.x = {X}
 
    # then testing...
    test1 = t2 + 1
    smpl test1 $tmax
    n2 = $nobs
    matrix args.ytest = {y}
-   matrix args.xtest = {cdummify(X)}
-
-   if inbundle(opts, "classify")
-      classify = opts.classify
-   else
-      classify = isdummy(y) || getinfo(y).coded
-   endif
-
-   scalar tune = inbundle(opts, "tune") ? opts.tune : 0
-   scalar seed = inbundle(opts, "seed") ? opts.seed : NA
+   matrix args.xtest = {X}
 
    printf "Calling randomForest...\n"
    flush
@@ -263,6 +275,7 @@ function bundle random_forest (const series y, list X, const bundle opts)
    else
       ret.depvar = argname(y)
    endif
+   rnameset(ret.importance, varnames(X))
    ret.n1 = n1
    ret.n2 = n2
    if ok(seed)

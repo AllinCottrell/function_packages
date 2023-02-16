@@ -10,4 +10,7 @@ list X = pclass female sibsp parch fare embarked
 bundle opts = _(n_train=900, classify=1, seed=777778, tune=1, verbose=2)
 bundle rfb = random_forest(survived, X, opts)
 print rfb
-eval rfb.importance
+
+bundle imp = _(mat=rfb.importance)
+bwrite(imp, "imp.xml")
+
