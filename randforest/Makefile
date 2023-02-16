@@ -3,11 +3,12 @@ GFNDIR = $(PREFIX)/share/gretl/functions
 PKG = random_forest
 DOC = doc/random_forest.pdf
 DATA = titanic3.gdt
+HANSL = $(PKG).inp rf_main.inp rf_extra.inp
 
 $(PKG).zip: $(PKG).gfn doc/$(PKG).pdf $(DATA)
 	rm -rf $(PKG) && mkdir $(PKG) && cp $^ $(PKG) && zip -r $@ $(PKG)
 
-$(PKG).gfn: $(PKG).inp $(PKG).spec $(PKG)_sample.inp
+$(PKG).gfn: $(HANSL) $(PKG).spec $(PKG)_sample.inp
 	gretlcli --makepkg $(PKG).inp
 
 $(DOC):

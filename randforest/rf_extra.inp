@@ -1,0 +1,102 @@
+function matrix confusion (const matrix X)
+   n = rows(X)
+   matrix v = values(X[,1])
+   nv = nelem(v)
+   matrix Y = replace(X, v, seq(1, nv))
+   matrix C = zeros(nv, nv)
+   loop i=1..n
+      r = Y[i,1]
+      c = Y[i,2]
+      C[r,c] += 1
+   endloop
+   strings S = array(nv)
+   loop i=1..nv
+      S[i] = sprintf("%g", v[i])
+   endloop
+   rnameset(C, S)
+   cnameset(C, S)
+   return C
+end function
+
+function void rf_print (const bundle *b, int minimal[0:1:0])
+   printf "Called randomForest() in %s mode\n",
+     b.classify ? "classification" : "regression"
+   printf "Dependent variable: %s\n", b.depvar
+   printf "Total observations %d: %d training, %d testing\n",
+     b.n1 + b.n2, b.n1, b.n2
+   if inbundle(b, "seed")
+      printf "RNG seed = %d\n", b.seed
+   endif
+   printf "\nImportance (%s)\n\n", b.imp_label
+   print b.importance
+   if b.classify
+      printf "Training percent correct: %.2f\n", b.pcc1
+      printf "Testing percent correct:  %.2f\n", b.pcc2
+      if minimal
+         printf "\n"
+      else
+         printf "\nConfusion matrix, training:\n"
+         print b.C1
+         printf "Confusion matrix, testing:\n"
+         print b.C2
+      endif
+   else
+      printf "Training MSE: %#g\n", b.MSE1
+      printf "Testing MSE:  %#g\n", b.MSE2
+      printf "\nOther forecast evaluation statistics:\n\n"
+      print b.regstats
+   endif
+end function
+
+function void rf_plot (bundle *b, int maxvars[2::10], string outspec[null])
+   matrix m = mreverse(msortby(b.importance, 1))
+   scalar allx = rows(m)
+   scalar total = sumc(m)
+   if allx <= maxvars
+      nx = allx
+   else
+      nx = maxvars
+      m = m[1:nx]
+   endif
+
+   strings S = rnameget(m)
+   scalar total = sumc(m)
+   scalar maximp = 0
+
+   loop i=1..nx
+      m[i] /= total
+      if m[i] > maximp
+         maximp = m[i]
+      endif
+   endloop
+   
+   if !exists("outspec") || outspec == ""
+      outspec = "display"
+   endif
+   string ftmp
+
+   outfile --tempfile=ftmp -q
+      printf "set linetype 1 lc rgb \"#5F6B84\"\n"
+      printf "set linetype 2 lc rgb \"#000000\"\n"
+      printf "set title 'Relative importance (fraction of total)\n"
+      printf "set yrange [0:%g]\n", 1.1 * maximp
+      printf "set xrange [0.5:%g]\n", nx + 0.5
+      printf "set style fill solid 0.6\n"
+      printf "set xtics ("
+      loop i=1..nx
+         printf "\"%s\" %d", S[i], i
+         printf "%s", i < nx ? ", \" : " \"
+         printf "\n"
+      endloop
+      printf ")\n"
+      printf "set xtics rotate by -45\n"
+      printf "plot '-' using 1:2 notitle w boxes\n"
+      loop i=1..nx
+         printf "%d %g\n", i, m[i]
+      endloop
+      printf "e\n"
+   end outfile
+
+   gnuplot --input="@ftmp" --output="@outspec"
+   remove(ftmp)
+end function

@@ -12,5 +12,6 @@ bundle rfb = random_forest(survived, X, opts)
 print rfb
 
 bundle imp = _(mat=rfb.importance)
-bwrite(imp, "imp.xml")
+rf_plot(&rfb)
+
 
