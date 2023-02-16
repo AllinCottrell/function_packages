@@ -1,0 +1,41 @@
+set verbose off
+
+bundle b = bread("imp.xml")
+matrix imp = b.mat
+m = mreverse(msortby(imp, 1))
+strings S = rnameget(m)
+ns = nelem(S)
+
+scalar total = sumc(m)
+scalar maximp = 0
+loop i=1..ns
+   m[i] /= total
+   if m[i] > maximp
+      maximp = m[i]
+   endif
+endloop
+
+outfile "test.gp" -q
+printf "set linetype 1 lc rgb \"#5F6B84\"\n"
+printf "set linetype 2 lc rgb \"#000000\"\n"
+printf "set title 'Relative importance (fraction of total)\n"
+printf "set yrange [0:%g]\n", 1.1 * maximp
+printf "set xrange [0.5:%g]\n", ns + 0.5
+printf "set style fill solid 0.6\n"
+nl = sprintf("\n")
+printf "set xtics ("
+loop i=1..ns
+   printf "\"%s\" %d", S[i], i
+   printf "%s", i < ns ? ", \" : " \"
+   printf "\n"
+endloop
+printf ")\n"
+printf "set xtics rotate by -45\n"
+printf "plot '-' using 1:2 notitle w boxes\n"
+loop i=1..ns
+   printf "%d %g\n", i, m[i]
+endloop
+printf "e\n"
+end outfile
+
+gnuplot --input="test.gp" --output=display
