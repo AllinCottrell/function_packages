@@ -69,7 +69,7 @@ function void rf_plot (bundle *b, int maxvars[2::10], string outspec[null])
          maximp = m[i]
       endif
    endloop
-   
+
    if !exists("outspec") || outspec == ""
       outspec = "display"
    endif
@@ -82,13 +82,13 @@ function void rf_plot (bundle *b, int maxvars[2::10], string outspec[null])
       printf "set yrange [0:%g]\n", 1.1 * maximp
       printf "set xrange [0.5:%g]\n", nx + 0.5
       printf "set style fill solid 0.6\n"
+      printf "# xtics lines = %d\n", nx
       printf "set xtics ("
       loop i=1..nx
          printf "\"%s\" %d", S[i], i
-         printf "%s", i < nx ? ", \" : " \"
+         printf "%s", i < nx ? ", \" : ")"
          printf "\n"
       endloop
-      printf ")\n"
       printf "set xtics rotate by -45\n"
       printf "plot '-' using 1:2 notitle w boxes\n"
       loop i=1..nx
