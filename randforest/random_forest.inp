@@ -3,7 +3,9 @@ function void rf_setup (void)
    # when the package is loaded, hence making R.randforest() available.
    foreign language=R --quiet
    randforest <- function(L, classify=FALSE, tune=FALSE, verbose=FALSE, outname) {
-      library(randomForest)
+      if (! "randomForest" %in% (.packages())) {
+         library(randomForest)
+      }
       y <- L$y
       ytest <- L$ytest
       if (classify) {
