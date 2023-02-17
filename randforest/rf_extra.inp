@@ -27,6 +27,8 @@ function void rf_print (const bundle *b, int minimal[0:1:0])
    if inbundle(b, "seed")
       printf "RNG seed = %d\n", b.seed
    endif
+   printf "number of trees: %d\n", b.ntree
+   printf "mtry value: %d\n", b.mtry
    printf "\nImportance (%s)\n\n", b.imp_label
    print b.importance
    if b.classify

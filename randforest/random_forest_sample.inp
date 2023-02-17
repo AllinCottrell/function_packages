@@ -9,3 +9,4 @@ dataset sortby sorter
 list X = pclass female sibsp parch fare embarked
 bundle opts = _(n_train=900, seed=777778)
 bundle rfb = random_forest(survived, X, opts)
+rf_plot(&rfb)
