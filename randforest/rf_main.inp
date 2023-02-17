@@ -148,8 +148,12 @@ function bundle random_forest (const series y, list X, const bundle opts)
       else
          series s = $sample
          smpl s --dummy
+         tmax = $t2
       endif
+   else
+      tmax = $tmax
    endif
+
    if inbundle(opts, "pctrain")
       n_train = int(0.01 * opts.pctrain * $nobs)
    else
@@ -185,7 +189,7 @@ function bundle random_forest (const series y, list X, const bundle opts)
 
    # then testing...
    test1 = t2 + 1
-   smpl test1 $tmax
+   smpl test1 tmax
    n2 = $nobs
    matrix args.ytest = {y}
    matrix args.xtest = {X}
@@ -217,7 +221,7 @@ function bundle random_forest (const series y, list X, const bundle opts)
    smpl t1 t2
    allpred = ret.insample
    # and then testing predictions
-   smpl test1 $tmax
+   smpl test1 tmax
    allpred = ret.outsample
 
    # add info to return bundle
