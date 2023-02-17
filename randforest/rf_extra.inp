@@ -49,7 +49,7 @@ function void rf_print (const bundle *b, int minimal[0:1:0])
 end function
 
 function void rf_plot (bundle *b, int maxvars[2::10], string outspec[null])
-   matrix m = mreverse(msortby(b.importance, 1))
+   matrix m = msortby(b.importance, 1)
    scalar allx = rows(m)
    scalar total = sumc(m)
    if allx <= maxvars
@@ -59,10 +59,8 @@ function void rf_plot (bundle *b, int maxvars[2::10], string outspec[null])
       m = m[1:nx]
    endif
 
-   strings S = rnameget(m)
    scalar total = sumc(m)
    scalar maximp = 0
-
    loop i=1..nx
       m[i] /= total
       if m[i] > maximp
@@ -79,20 +77,15 @@ function void rf_plot (bundle *b, int maxvars[2::10], string outspec[null])
       printf "set linetype 1 lc rgb \"#5F6B84\"\n"
       printf "set linetype 2 lc rgb \"#000000\"\n"
       printf "set title 'Relative importance (fraction of total)\n"
-      printf "set yrange [0:%g]\n", 1.1 * maximp
-      printf "set xrange [0.5:%g]\n", nx + 0.5
+      printf "unset key\n"
+      printf "set yrange [0:*]\n"
+      printf "set xrange [0:%g]\n", 1.05 * maximp
       printf "set style fill solid 0.6\n"
-      printf "# xtics lines = %d\n", nx
-      printf "set xtics ("
+      printf "bw = 0.6\n"
+      printf "set offsets 0, 0, 0.5-bw/2.0, 0.5\n"
+      printf "plot '-' using (0.5*$2):0:(0.5*$2):(bw/2.):ytic(1) with boxxy\n" 
       loop i=1..nx
-         printf "\"%s\" %d", S[i], i
-         printf "%s", i < nx ? ", \" : ")"
-         printf "\n"
-      endloop
-      printf "set xtics rotate by -45\n"
-      printf "plot '-' using 1:2 notitle w boxes\n"
-      loop i=1..nx
-         printf "%d %g\n", i, m[i]
+         printf "%s %g\n", rnameget(m, i), m[i]
       endloop
       printf "e\n"
    end outfile
