@@ -50,18 +50,22 @@ function void rf_print (const bundle *b, int minimal[0:1:0])
    endif
 end function
 
-function void rf_plot (bundle *b, int maxvars[2::10], string outspec[null])
+function void rf_plot (bundle *b, int maxvars[2::15], string outspec[null])
    matrix m = msortby(b.importance, 1)
    scalar allx = rows(m)
    scalar total = sumc(m)
    if allx <= maxvars
+      # use the whole importance matrix
       nx = allx
    else
+      # trim the importance matrix
       nx = maxvars
-      m = m[1:nx]
+      first = allx - nx + 1
+      S = rnameget(m)[first:]
+      m = m[first:]
+      rnameset(m, S)
    endif
 
-   scalar total = sumc(m)
    scalar maximp = 0
    loop i=1..nx
       m[i] /= total
