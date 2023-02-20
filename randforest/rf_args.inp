@@ -1,0 +1,61 @@
+function scalar get_scalar_arg (const bundle b, const string key,
+                                scalar deflt, const matrix ok[null])
+   scalar k = deflt
+   scalar bad = 0
+   atype = inbundle(b, key)
+   if atype == 1
+      k = b[key]
+      if exists("ok")
+         bad = !contains(k, ok)
+      endif
+   else
+      bad = atype > 0
+   endif
+   errorif(bad, sprintf("Invalid '%s' specification", key))
+   return k
+end function
+
+function void typo_check (const bundle b)
+   strings OK = defarray("n_train", "d_train", "verbose", "classify",
+     "tune", "seed")
+   strings S = getkeys(b)
+   string bad = ""
+   loop i=1..nelem(S)
+      if !instrings(OK, S[i])
+         bad = S[i]
+         break
+      endif
+   endloop
+   errorif(bad != "", sprintf("'%s': not a recognized option", bad))
+end function
+
+function bundle get_args (const bundle input)
+   typo_check(input)
+   n1 = 0
+   bundle args
+   scalar atype = inbundle(input, "n_train")
+   if atype == 1
+      n1 = input.n_train
+   elif atype == 0
+      atype = inbundle(input, "d_train")
+      if atype == 2
+         n1 = isdummy(input.d_train)
+         args.traindum = 1
+      endif
+   endif
+   if n1 == 0
+      funcerr "Missing or invalid training range specification"
+   endif
+
+   args.verbose = get_scalar_arg(input, "verbose", 1, {0,1,2})
+   args.classify = get_scalar_arg(input, "classify", NA, {0,1})
+   args.tune = get_scalar_arg(input, "tune", 1, {0,1})
+   args.seed = get_scalar_arg(input, "seed", NA, null)
+
+   if ok(args.seed) && (args.seed < 0 || args.seed > 4294967295)
+      funcerr "Invalid 'seed' specification"
+   endif
+
+   return args
+end function
+
