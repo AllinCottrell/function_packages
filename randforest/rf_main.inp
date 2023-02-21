@@ -139,6 +139,9 @@ function bundle rf_driver (const bundle L, int classify,
 end function
 
 function bundle random_forest (const series y, list X, const bundle opts)
+   # initial check of options
+   bundle args = rf_get_args(opts)
+
    # check for NAs
    list L = y X
    if sum(ok(L)) < $nobs
@@ -163,18 +166,17 @@ function bundle random_forest (const series y, list X, const bundle opts)
       funcerr "We need both training and testing observations"
    endif
 
-   bundle args = opts
    series allpred
 
    # handle the various options
-   verbose = inbundle(opts, "verbose") ? opts.verbose : 1
-   if inbundle(opts, "classify")
-      classify = opts.classify
+   verbose = args.verbose
+   if ok(args.classify)
+      classify = args.classify
    else
       classify = (isdummy(y) || getinfo(y).coded)? 1 : 0
    endif
-   scalar tune = inbundle(opts, "tune") ? opts.tune : 0
-   scalar seed = inbundle(opts, "seed") ? opts.seed : NA
+   scalar tune = args.tune
+   scalar seed = args.seed
 
    # adjust the X list for coded vars if need be
    X = cdummify(X)

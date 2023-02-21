@@ -28,9 +28,9 @@
 \title{random\_forest 0.1} \author{Allin Cottrell}
 \maketitle
 
-This is an unusual gretl package---unusual (but not illegal!) in that
-it relies on the \textsf{R} package \textsf{randomForest} for its
-underlying functionality,\footnote{See
+This is an unusual gretl package---unusual in that it relies on the
+\textsf{R} package \textsf{randomForest} for its underlying
+functionality,\footnote{See
   \url{https://cran.r-project.org/web/packages/randomForest/index.html}.}
 and therefore also relies on \textsf{R} itself. A native
 implementation of the Random Forest machine-learning algorithm may be
@@ -40,7 +40,7 @@ well as a gretl-style GUI interface, to functionality borrowed from
 the \textsf{R} ecosystem.
 
 This package was last verified as working with \textsf{R} version
-4.2.1 (2022-06-23) and \textsf{randomForest} 4.7-1.1 (2022-05-23),
+4.2.2 (2022-10-31) and \textsf{randomForest} 4.7-1.1 (2022-05-23),
 which requires \textsf{R} 4.1.0 or higher. Some details about ensuring
 the \textsf{R} setup that's required can be found in
 Section~\ref{sec:Rdetails}.
@@ -239,6 +239,39 @@ The abbreviated row labels in \texttt{regstats} expand as follows:
 \texttt{MAE} = mean absolute error, \texttt{MPE} = mean perecentage
 error, and \texttt{MAPE} = mean absolute percentage error.
 
+\subsection{Other scriptable functions}
+
+Besides the primary function, \texttt{random\_forest}, two additional
+functions are available in scripting mode, namely \texttt{rf\_print}
+and \texttt{rf\_plot}. The signature of \texttt{rf\_print} is:
+%
+\begin{code}
+void rf_print (const bundle *b, int minimal[0:1:0])
+\end{code}
+For the first argument, a pointer to a bundle returned by
+\texttt{random\_forest} is expected. Nothing is returned, but the
+content of the bundle is printed in a standard form. The second
+argument, which defaults to 0, is only relevant for GUI usage:
+its effect is to suppress output which would have already been shown
+via the GUI.
+
+The signature of \texttt{rf\_plot} is:
+%
+\begin{code}
+void rf_plot (const bundle *b, int maxvars[2::15], string outspec[null])
+\end{code}
+%
+This function produces a plot (a horizontal bar-chart) showing the
+relative importance of the ``features'' in the prediction of
+outcomes. As with \texttt{rf\_print}, the first argument should be a
+pointer to a bundle returned by \texttt{random\_forest}. The second
+argument, \texttt{maxvars}, limits the number of features to show, the
+default value being 15. You can give an integer argument less than or
+greater than 15 to tighten or relax this limit. The third argument,
+\texttt{outspec}, can be used to set the destination of the plot. By
+default it's shown on screen but you can give a filename to direct the
+output to file. See the help for the \texttt{gnuplot} command for the
+mapping from filename to file type.
 
 \section{GUI usage}
 
@@ -259,7 +292,7 @@ save the results bundle or any of its contents.
 
 \section{Change log}
 
-2023-02-12: version 0.1 released.
+2023-02-20: version 0.1 released.
 
 \section{Some \textsf{R} details}
 \label{sec:Rdetails}
