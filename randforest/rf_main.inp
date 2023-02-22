@@ -142,12 +142,28 @@ function bundle random_forest (const series y, list X, const bundle opts)
    # initial check of options
    bundle args = rf_get_args(opts)
 
+   if args.usedum
+      series d1 = opts.d_train
+      series d2 = d1 == 0
+   endif
+
+   # to hold all predictions
+   series allpred
+
    # check for NAs
-   list L = y X
+   if args.usedum
+      list L = y X d1
+   else
+      list L = y X
+   endif
    if sum(ok(L)) < $nobs
       catch ols L --quiet
       if $error
          funcerr "Missing values encountered"
+      elif args.usedum
+         series skip = missing($yhat)
+         d1 = skip ? 0 : d1
+         d2 = skip ? 0 : d1 == 0
       else
          series s = $sample
          smpl s --dummy
@@ -157,16 +173,19 @@ function bundle random_forest (const series y, list X, const bundle opts)
       tmax = $tmax
    endif
 
-   if inbundle(opts, "pctrain")
-      n_train = int(0.01 * opts.pctrain * $nobs)
+   if args.usedum
+      n1 = sum(d1)
+      n2 = sum(d2)
+   elif inbundle(opts, "pctrain")
+      n1 = int(0.01 * opts.pctrain * $nobs)
+      n2 = $nobs - n1
    else
-      n_train = opts.n_train
+      n1 = opts.n_train
+      n2 = $nobs - n1
    endif
-   if n_train >= $nobs
+   if n1 <= 0 || n2 <= 0
       funcerr "We need both training and testing observations"
    endif
-
-   series allpred
 
    # handle the various options
    verbose = args.verbose
@@ -182,17 +201,25 @@ function bundle random_forest (const series y, list X, const bundle opts)
    X = cdummify(X)
 
    # make matrices for R, training first...
-   t1 = $t1
-   t2 = t1 + n_train - 1
-   smpl ; t2
-   n1 = $nobs
+   if args.usedum
+      smpl d1 --dummy
+   else
+      t1 = $t1
+      t2 = t1 + n1 - 1
+      smpl ; t2
+   endif
    matrix args.y = {y}
    matrix args.x = {X}
+   matrix A = {y} ~ {X}
+   summary --matrix=A
 
    # then testing...
-   test1 = t2 + 1
-   smpl test1 tmax
-   n2 = $nobs
+   if args.usedum
+      smpl d2 --dummy --replace
+   else
+      test1 = t2 + 1
+      smpl test1 tmax
+   endif
    matrix args.ytest = {y}
    matrix args.xtest = {X}
 
@@ -220,10 +247,18 @@ function bundle random_forest (const series y, list X, const bundle opts)
    endif
 
    # write training predictions to series
-   smpl t1 t2
+   if args.usedum
+      smpl d1 --dummy --replace
+   else
+      smpl t1 t2
+   endif
    allpred = ret.insample
    # and then testing predictions
-   smpl test1 tmax
+   if args.usedum
+      smpl d2 --dummy --replace
+   else
+      smpl test1 tmax
+   endif
    allpred = ret.outsample
 
    # add info to return bundle
