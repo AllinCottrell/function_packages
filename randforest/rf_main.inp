@@ -210,8 +210,8 @@ function bundle random_forest (const series y, list X, const bundle opts)
    endif
    matrix args.y = {y}
    matrix args.x = {X}
-   # matrix A = {y} ~ {X}
-   # summary --matrix=A
+   # matrix coef = mols(args.y, args.x)
+   # printf "\n%#.9g\n", coef
 
    # then testing...
    if args.usedum

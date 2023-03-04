@@ -68,18 +68,23 @@ This means that it returns a bundle and has three required arguments,
 a series, a list and a bundle. The first two arguments specify a
 dependent variable and list of independent variables (or ``features''
 as they're known in the machine-learning world). The \texttt{opts}
-bundle has just one required member: under the key \texttt{n\_train}
-you must tell gretl how many of the available observations should be
-used for training.  The remaining observations (there must be some
-left over) will be used for testing. What you get on return is a
-bundle containing predictions for both the training and the testing
-data, along with some figures of merit with which to assess the degree
-of predictive success.
+bundle has just one required member, namely a specification of the
+observations to be used for training. (The remaining observations, of
+which there must be some, will be used for testing.) This can take
+either of two forms:
+\begin{itemize}
+\item \texttt{n\_train}: an integer. The first \texttt{n\_train} valid
+  observations will be used for training. Or
+\item \texttt{d\_train}: a 0/1 dummy series. Observations for which
+  \texttt{d\_train} has value 1 will be used for training.
+\end{itemize}
 
-We'll expand on the content of the bundle returned by
-\texttt{random\_forest} shortly. First of all here's some detail on
-the options. Besides \texttt{n\_train}, the \texttt{opts} bundle may
-contain any of the following:
+What you get on return is a bundle containing predictions for both the
+training and the testing data, along with some figures of merit with
+which to assess the degree of predictive success.  We'll expand on the
+content of this bundle shortly, but first here's some detail on the
+options. Besides \texttt{n\_train} or \texttt{d\_train}, the
+\texttt{opts} bundle may contain any of the following:
 
 \begin{center}
 \begin{tabular}{llll}
