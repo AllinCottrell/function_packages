@@ -17,7 +17,7 @@ end function
 
 function void typo_check (const bundle b)
    strings OK = defarray("n_train", "d_train", "verbose", "classify",
-     "tune", "seed")
+     "tune", "seed", "depvar", "pctrain")
    strings S = getkeys(b)
    string bad = ""
    loop i=1..nelem(S)
@@ -32,7 +32,9 @@ end function
 function bundle rf_get_args (const bundle opts)
    typo_check(opts)
    bundle args = _(usedum = 0)
-   if inbundle(opts, "n_train")
+   if inbundle(opts, "pctrain")
+      args.n_train = int(0.01 * opts.pctrain * $nobs)
+   elif inbundle(opts, "n_train")
       args.n_train = get_scalar_arg(opts, "n_train", NA, null)
       if !ok(args.n_train) || args.n_train < 20
          funcerr "Invalid 'n_train' specification"
@@ -49,13 +51,16 @@ function bundle rf_get_args (const bundle opts)
          funcerr msg
       endif
    endif
+
    args.verbose = get_scalar_arg(opts, "verbose", 1, {0,1,2})
    args.classify = get_scalar_arg(opts, "classify", NA, {0,1})
    args.tune = get_scalar_arg(opts, "tune", 1, {0,1})
-   args.seed = get_scalar_arg(opts, "seed", NA, null)
+   scalar seed = get_scalar_arg(opts, "seed", NA, null)
 
-   if ok(args.seed) && (args.seed < 0 || args.seed > 4294967295)
+   if ok(seed) && (seed < 0 || seed > 4294967295)
       funcerr "Invalid 'seed' specification"
+   elif ok(seed)
+      args.seed = seed
    endif
 
    return args

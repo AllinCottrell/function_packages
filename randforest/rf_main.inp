@@ -195,7 +195,6 @@ function bundle random_forest (const series y, list X, const bundle opts)
       classify = (isdummy(y) || getinfo(y).coded)? 1 : 0
    endif
    scalar tune = args.tune
-   scalar seed = args.seed
 
    # adjust the X list for coded vars if need be
    X = cdummify(X)
@@ -271,8 +270,8 @@ function bundle random_forest (const series y, list X, const bundle opts)
    rnameset(ret.importance, varnames(X))
    ret.n1 = n1
    ret.n2 = n2
-   if ok(seed)
-      ret.seed = seed
+   if inbundle(args, "seed")
+      ret.seed = args.seed
    endif
    if classify
       scalar ret.pcc1 = 100 * sumc(ret.insample .= args.y) / n1
