@@ -36,7 +36,7 @@ function void rf_print (const bundle *b, int minimal[0:1:0])
       printf "Testing percent correct:  %.2f\n", b.pcc2
       if minimal
          printf "\n"
-      elif $version > 20230
+      elif 0 # not yet: $version > 20230
          printf "\nConfusion matrix, training:\n"
          xtab --matrix=b.C1 --no-fisher
          printf "\nConfusion matrix, testing:\n"
