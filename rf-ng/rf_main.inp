@@ -1,0 +1,322 @@
+function void rf_setup (void)
+   # If the gretl build includes libR support, this function is called
+   # when the package is loaded, hence making R.randforest() available.
+   foreign language=R --quiet
+   randforest <- function(L, classify=FALSE, tune=FALSE, verbose=FALSE, outname) {
+      if (! "randomForest" %in% (.packages())) {
+         library(randomForest)
+      }
+      y <- L$y
+      ytest <- L$ytest
+      if (classify) {
+         y <- factor(y)
+         ytest <- factor(ytest)
+      }
+      if (with(L, exists("seed"))) {
+         set.seed(L$seed)
+      }
+      do_sink <- !missing(outname)
+      if (do_sink) {
+         con <- file(outname, "w")
+         sink(con)
+         sink(con, type="message")
+      }
+      if (verbose) {
+         cat(sprintf("\nOutput from randomForest %s\n",
+           packageVersion("randomForest")))
+         cat("-------------------------------\n")
+      }
+      if (tune) {
+         res <- tuneRF(x=L$x, y=y, trace=verbose, plot=FALSE)
+         mtry = res[which.min(res[,2]), 1]
+         if (verbose) {
+         	cat(sprintf("using mtry = %d\n", mtry))
+         }
+         rf <- randomForest(x=L$x, y=y, xtest=L$xtest, ytest=ytest, mtry=mtry)
+      } else {
+         rf <- randomForest(x=L$x, y=y, xtest=L$xtest, ytest=ytest)
+      }
+      if (verbose) {
+         print(rf)
+      }
+      ret <- list()
+      ret$mtry <- rf$mtry
+      ret$ntree <- rf$ntree
+      ret$importance <- rf$importance
+      ret$imp_label <- colnames(ret$importance)[1]
+      ret$insample <- rf$predicted
+      ret$outsample <- rf$test$predicted
+      if (classify) {
+         ret$insample <- as.numeric(levels(ret$insample))[ret$insample]
+         ret$outsample <- as.numeric(levels(ret$outsample))[ret$outsample]
+      }
+      if (verbose) {
+         cat("-------------------------------\n")
+      }
+      if (do_sink) {
+         sink()
+      }
+      ret
+   }
+   end foreign
+end function
+
+function bundle rf_driver (const bundle L, int classify,
+                           int tune, int verbose)
+   # This function is for use when libR support is not available.
+   # We fall back on executing the R binary.
+
+   # write data for R
+   mwrite(L.y, "y.mat", 1)
+   mwrite(L.x, "x.mat", 1)
+   mwrite(L.ytest, "ytest.mat", 1)
+   mwrite(L.xtest, "xtest.mat", 1)
+   srcname = sprintf("%s/rfvars.R", $dotdir)
+   outfile @srcname --quiet
+      printf "classify <- %d\n", classify
+      printf "tune <- %d\n", tune
+      printf "verbose <- %d\n", verbose
+      if inbundle(L, "seed")
+         printf "set.seed(%d)\n", L.seed
+      endif
+   end outfile
+
+   # execute R
+   foreign language=R --quiet
+      library(randomForest)
+      y <- gretl.loadmat("y.mat")
+      x <- gretl.loadmat("x.mat")
+      ytest <- gretl.loadmat("ytest.mat")
+      xtest <- gretl.loadmat("xtest.mat")
+      srcname <- sprintf("%s/rfvars.R", gretl.dotdir)
+      source(srcname)
+      if (classify) {
+         y <- factor(y)
+         ytest <- factor(ytest)
+      }
+      if (verbose) {
+         cat(sprintf("\nOutput from randomForest %s\n",
+           packageVersion("randomForest")))
+         cat("-------------------------------\n")
+      }
+      if (tune) {
+         res <- tuneRF(x=x, y=y, trace=verbose, plot=FALSE)
+         mtry = res[which.min(res[,2]), 1]
+         if (verbose) {
+            cat(sprintf("using mtry = %d\n", mtry))
+         }
+         rf <- randomForest(x=x, y=y, xtest=xtest, ytest=ytest, mtry=mtry)
+      } else {
+         rf <- randomForest(x=x, y=y, xtest=xtest, ytest=ytest)
+      }
+      if (verbose) {
+         print(rf)
+      }
+      pred1 <- rf$predicted
+      pred2 <- rf$test$predicted
+      if (classify) {
+         pred1 <- as.numeric(levels(pred1))[pred1]
+         pred2 <- as.numeric(levels(pred2))[pred2]
+      }
+      gretl.export(as.matrix(pred1), "insample")
+      gretl.export(as.matrix(pred2), "outsample")
+      gretl.export(rf$importance, "importance")
+      label <- colnames(rf$importance)[1]
+      gretl.export(label, "imp_label")
+      if (verbose) {
+         cat("-------------------------------\n")
+      }
+   end foreign
+
+   # retrieve data from R
+   bundle ret
+   ret.insample = mread("insample.mat", 1)
+   ret.outsample = mread("outsample.mat", 1)
+   ret.importance = mread("importance.mat", 1)
+   lfile = sprintf("%s/imp_label.txt", $dotdir)
+   ret.imp_label = strstrip(readfile(lfile))
+   return ret
+end function
+
+function bundle random_forest (const series y, list X, const bundle opts)
+   # initial check of options
+   bundle args = rf_get_args(opts)
+
+   if args.usedum
+      series d1 = opts.d_train
+      series d2 = d1 == 0
+   endif
+
+   # to hold all predictions
+   series allpred
+
+   # check for NAs
+   if args.usedum
+      list L = y X d1
+   else
+      list L = y X
+   endif
+   if sum(ok(L)) < $nobs
+      catch ols L --quiet
+      if $error
+         funcerr "Missing values encountered"
+      elif args.usedum
+         series skip = missing($yhat)
+         d1 = skip ? 0 : d1
+         d2 = skip ? 0 : d1 == 0
+      else
+         series s = $sample
+         smpl s --dummy
+         tmax = $t2
+      endif
+   else
+      tmax = $tmax
+   endif
+
+   if args.usedum
+      n1 = sum(d1)
+      n2 = sum(d2)
+   elif inbundle(opts, "pctrain")
+      n1 = int(0.01 * opts.pctrain * $nobs)
+      n2 = $nobs - n1
+   else
+      n1 = opts.n_train
+      n2 = $nobs - n1
+   endif
+   if n1 <= 0 || n2 <= 0
+      funcerr "We need both training and testing observations"
+   endif
+
+   # handle the various options
+   verbose = args.verbose
+   if ok(args.classify)
+      classify = args.classify
+   else
+      classify = (isdummy(y) || getinfo(y).coded)? 1 : 0
+   endif
+   scalar tune = args.tune
+
+   # adjust the X list for coded vars if need be
+   X = cdummify(X)
+
+   # make matrices for R, training first...
+   if args.usedum
+      smpl d1 --dummy
+   else
+      t1 = $t1
+      t2 = t1 + n1 - 1
+      smpl ; t2
+   endif
+   matrix args.y = {y}
+   matrix args.x = {X}
+   # matrix coef = mols(args.y, args.x)
+   # printf "\n%#.9g\n", coef
+
+   # then testing...
+   if args.usedum
+      smpl d2 --dummy --replace
+   else
+      test1 = t2 + 1
+      smpl test1 tmax
+   endif
+   matrix args.ytest = {y}
+   matrix args.xtest = {X}
+
+   printf "Calling randomForest...\n"
+   flush
+
+   USE_LIB = $sysinfo.foreign.Rlib
+   # USE_LIB = 0
+
+   # call randforest()
+   if USE_LIB
+      # call predefined R function
+      string outname = verbose > 1 ? sprintf("%s/R.out", $dotdir) : ""
+      bundle ret = R.randforest(args, classify, tune, verbose > 1, outname)
+      # show R printed output if wanted
+      if outname != ""
+         catch string Rout = readfile(outname)
+         if $error == 0 && Rout != ""
+            print Rout
+         endif
+      endif
+   else
+      # execute the R binary
+      bundle ret = rf_driver(args, classify, tune, verbose > 1)
+   endif
+
+   # write training predictions to series
+   if args.usedum
+      smpl d1 --dummy --replace
+   else
+      smpl t1 t2
+   endif
+   allpred = ret.insample
+   # and then testing predictions
+   if args.usedum
+      smpl d2 --dummy --replace
+   else
+      smpl test1 tmax
+   endif
+   allpred = ret.outsample
+
+   # add info to return bundle
+   ret.classify = classify
+   if inbundle(opts, "depvar")
+      ret.depvar = opts.depvar
+   else
+      ret.depvar = argname(y)
+   endif
+   rnameset(ret.importance, varnames(X))
+   ret.n1 = n1
+   ret.n2 = n2
+   if inbundle(args, "seed")
+      ret.seed = args.seed
+   endif
+   if classify
+      scalar ret.pcc1 = 100 * sumc(ret.insample .= args.y) / n1
+      scalar ret.pcc2 = 100 * sumc(ret.outsample .= args.ytest) / n2
+      ret.C1 = confusion(args.y ~ ret.insample)
+      ret.C2 = confusion(args.ytest ~ ret.outsample)
+   else
+      fc1 = fcstats(args.y, ret.insample)
+      fc2 = fcstats(args.ytest, ret.outsample)
+      matrix regstats = (fc1 ~ fc2)[1:5,]
+      rnameset(regstats, rnameget(fc1)[1:5])
+      cnameset(regstats, "Training Testing")
+      ret.regstats = regstats
+      scalar ret.MSE1 = sumc((args.y - ret.insample).^2) / n1
+      scalar ret.MSE2 = sumc((args.ytest - ret.outsample).^2) / n2
+   endif
+
+   if verbose
+      rf_print(&ret, verbose > 1)
+   endif
+
+   # transcribe all-predictions series
+   smpl full
+   series ret.allpred = allpred
+
+   return ret
+end function
+
+function bundle GUI_rf (series y "dependent variable",
+                        list X "indpendent variables",
+                        scalar n_train "training observations",
+                        int mode[0:2:0] {"automatic", "regression", "classification"},
+                        bool tune[1] "tune 'mtry'",
+			int verbosity [1:2:2],
+			bool use_seed[1] "set random seed",
+			int seed[0:4294967295:1234567])
+   bundle opts
+   scalar opts.pctrain = pctrain
+   scalar opts.verbose = verbosity
+   string opts.depvar = argname(y)
+   scalar opts.tune = tune
+   if mode == 1
+      opts.classify = 0
+   elif mode == 2
+      opts.classify = 1
+   endif
+   return random_forest(y, X, opts)
+end function

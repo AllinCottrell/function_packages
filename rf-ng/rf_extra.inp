@@ -1,0 +1,116 @@
+function matrix confusion (const matrix X)
+   n = rows(X)
+   matrix v = values(X[,1])
+   nv = nelem(v)
+   matrix Y = replace(X, v, seq(1, nv))
+   matrix C = zeros(nv, nv)
+   loop i=1..n
+      r = Y[i,1]
+      c = Y[i,2]
+      C[r,c] += 1
+   endloop
+   strings S = array(nv)
+   loop i=1..nv
+      S[i] = sprintf("%g", v[i])
+   endloop
+   rnameset(C, S)
+   cnameset(C, S)
+   return C
+end function
+
+function void rf_print (const bundle *b, int minimal[0:1:0])
+   printf "Called randomForest() in %s mode\n",
+     b.classify ? "classification" : "regression"
+   printf "Dependent variable: %s\n", b.depvar
+   printf "Total observations %d: %d training, %d testing\n",
+     b.n1 + b.n2, b.n1, b.n2
+   if inbundle(b, "seed")
+      printf "RNG seed = %d\n", b.seed
+   endif
+   printf "number of trees: %d\n", b.ntree
+   printf "mtry value: %d\n", b.mtry
+   printf "\nImportance (%s)\n\n", b.imp_label
+   print b.importance
+   if b.classify
+      printf "Training percent correct: %.2f\n", b.pcc1
+      printf "Testing percent correct:  %.2f\n", b.pcc2
+      if minimal
+         printf "\n"
+      elif 0 # not yet: $version > 20230
+         printf "\nConfusion matrix, training:\n"
+         xtab --matrix=b.C1 --no-fisher
+         printf "\nConfusion matrix, testing:\n"
+         xtab --matrix=b.C2 --no-fisher
+      else
+         printf "\nConfusion matrix, training:\n"
+         print b.C1
+         printf "Confusion matrix, testing:\n"
+         print b.C2
+      endif
+   else
+      printf "Training MSE: %#g\n", b.MSE1
+      printf "Testing MSE:  %#g\n", b.MSE2
+      printf "\nOther forecast evaluation statistics:\n\n"
+      print b.regstats
+   endif
+end function
+
+function void rf_plot (const bundle *b, int maxvars[2::15], string outspec[null])
+   matrix m = msortby(b.importance, 1)
+   scalar allx = rows(m)
+   scalar total = sumc(m)
+   if allx <= maxvars
+      # use the whole importance matrix
+      nx = allx
+   else
+      # trim the importance matrix
+      nx = maxvars
+      first = allx - nx + 1
+      S = rnameget(m)[first:]
+      m = m[first:]
+      rnameset(m, S)
+   endif
+
+   scalar maximp = 0
+   loop i=1..nx
+      m[i] /= total
+      if m[i] > maximp
+         maximp = m[i]
+      endif
+   endloop
+
+   if !exists("outspec") || outspec == ""
+      outspec = "display"
+   endif
+   string ftmp
+
+   set force_decpoint on
+   outfile --tempfile=ftmp -q
+      printf "set linetype 1 lc rgb \"#5F6B84\"\n"
+      printf "set linetype 2 lc rgb \"#000000\"\n"
+      printf "set title 'Relative importance (fraction of total)\n"
+      printf "unset key\n"
+      printf "set yrange [0:*]\n"
+      printf "set xrange [0:%g]\n", 1.05 * maximp
+      printf "set style fill solid 0.6\n"
+      printf "bw = 0.6\n"
+      printf "set offsets 0, 0, 0.5-bw/2.0, 0.5\n"
+      printf "plot '-' using (0.5*$2):0:(0.5*$2):(bw/2.):ytic(1) with boxxy\n" 
+      loop i=1..nx
+         printf "%s %g\n", rnameget(m, i), m[i]
+      endloop
+      printf "e\n"
+   end outfile
+   set force_decpoint off
+
+   gnuplot --input="@ftmp" --output="@outspec"
+   remove(ftmp)
+end function
+
+function bundle rf_ui_maker (void)
+   bundle b
+   b["seed"] = _(condition_on="use_seed", value="==1")
+   b["n_train"] = _(maximum="0.9*$nobs", default="0.6*$nobs")
+   b["X"] = _(no_series=1, exclude="y")
+   return b
+end function

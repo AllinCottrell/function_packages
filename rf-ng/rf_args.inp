@@ -1,0 +1,68 @@
+function scalar get_scalar_arg (const bundle b, const string key,
+                                scalar deflt, const matrix ok[null])
+   scalar k = deflt
+   scalar bad = 0
+   atype = inbundle(b, key)
+   if atype == 1
+      k = b[key]
+      if exists("ok")
+         bad = !contains(k, ok)
+      endif
+   else
+      bad = atype > 0
+   endif
+   errorif(bad, sprintf("Invalid '%s' specification", key))
+   return k
+end function
+
+function void typo_check (const bundle b)
+   strings OK = defarray("n_train", "d_train", "verbose", "classify",
+     "tune", "seed", "depvar", "pctrain")
+   strings S = getkeys(b)
+   string bad = ""
+   loop i=1..nelem(S)
+      if !instrings(OK, S[i])
+         bad = S[i]
+         break
+      endif
+   endloop
+   errorif(bad != "", sprintf("'%s': not a recognized option", bad))
+end function
+
+function bundle rf_get_args (const bundle opts)
+   typo_check(opts)
+   bundle args = _(usedum = 0)
+   if inbundle(opts, "pctrain")
+      args.n_train = int(0.01 * opts.pctrain * $nobs)
+   elif inbundle(opts, "n_train")
+      args.n_train = get_scalar_arg(opts, "n_train", NA, null)
+      if !ok(args.n_train) || args.n_train < 20
+         funcerr "Invalid 'n_train' specification"
+      endif
+   else
+      dtype = inbundle(opts, "d_train")
+      if dtype == 2
+         series d = opts.d_train
+         args.usedum = isdummy(d)
+      endif
+      if !args.usedum
+         string msg = dtype > 0 ? "Invalid 'd_train' specification" : \
+           "Missing 'n_train' specification"
+         funcerr msg
+      endif
+   endif
+
+   args.verbose = get_scalar_arg(opts, "verbose", 1, {0,1,2})
+   args.classify = get_scalar_arg(opts, "classify", NA, {0,1})
+   args.tune = get_scalar_arg(opts, "tune", 1, {0,1})
+   scalar seed = get_scalar_arg(opts, "seed", NA, null)
+
+   if ok(seed) && (seed < 0 || seed > 4294967295)
+      funcerr "Invalid 'seed' specification"
+   elif ok(seed)
+      args.seed = seed
+   endif
+
+   return args
+end function
+
