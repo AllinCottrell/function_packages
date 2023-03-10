@@ -302,14 +302,14 @@ end function
 
 function bundle GUI_rf (series y "dependent variable",
                         list X "indpendent variables",
-                        scalar n_train "training observations",
+                        int n_train[50::] "training observations",
                         int mode[0:2:0] {"automatic", "regression", "classification"},
                         bool tune[1] "tune 'mtry'",
 			int verbosity [1:2:2],
-			bool use_seed[1] "set random seed",
-			int seed[0:4294967295:1234567])
+			bool use_seed[0] "set random seed",
+			int seed[0:2147483647:1234567])
    bundle opts
-   scalar opts.pctrain = pctrain
+   scalar opts.n_train = n_train
    scalar opts.verbose = verbosity
    string opts.depvar = argname(y)
    scalar opts.tune = tune
@@ -317,6 +317,9 @@ function bundle GUI_rf (series y "dependent variable",
       opts.classify = 0
    elif mode == 2
       opts.classify = 1
+   endif
+   if use_seed
+      opts.seed = seed
    endif
    return random_forest(y, X, opts)
 end function

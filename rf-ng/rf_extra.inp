@@ -108,9 +108,16 @@ function void rf_plot (const bundle *b, int maxvars[2::15], string outspec[null]
 end function
 
 function bundle rf_ui_maker (void)
+   n = ceil(0.65*$nobs)
+   tmp = n - (n % 50)
+   if tmp >= 100
+      defstr = sprintf("%d", tmp)
+   else
+      defstr = "ceil(0.65*$nobs)"
+   endif
    bundle b
-   b["seed"] = _(condition_on="use_seed", value="==1")
-   b["n_train"] = _(maximum="0.9*$nobs", default="0.6*$nobs")
-   b["X"] = _(no_series=1, exclude="y")
+   b["seed"] = _(depends="use_seed")
+   b["n_train"] = _(maximum="ceil(0.9*$nobs)", default=defstr)
+   b["X"] = _(singleton=0, exclude="y", no_const=1)
    return b
 end function
