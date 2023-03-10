@@ -84,6 +84,7 @@ function void rf_plot (const bundle *b, int maxvars[2::15], string outspec[null]
    endif
    string ftmp
 
+   set force_decpoint on
    outfile --tempfile=ftmp -q
       printf "set linetype 1 lc rgb \"#5F6B84\"\n"
       printf "set linetype 2 lc rgb \"#000000\"\n"
@@ -100,6 +101,7 @@ function void rf_plot (const bundle *b, int maxvars[2::15], string outspec[null]
       endloop
       printf "e\n"
    end outfile
+   set force_decpoint off
 
    gnuplot --input="@ftmp" --output="@outspec"
    remove(ftmp)
