@@ -63,8 +63,7 @@ end function
 
 function bundle no_rlib (void)
    bundle ret = null
-   printf "This package requires access to the R shared library, but that does\n"
-   printf "not seem to be available."
+   printf "The R shared library, required by this package, was not found."
    return ret
 end function
 
@@ -225,7 +224,6 @@ function bundle random_forest (const series y, list X, const bundle opts)
 
    return ret
 end function
-
 
 function bundle GUI_rf (series y "dependent variable",
                         list X "indpendent variables",
