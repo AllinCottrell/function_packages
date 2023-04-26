@@ -8,7 +8,7 @@ HANSL = $(PKG).inp rf_main.inp rf_extra.inp rf_args.inp
 $(PKG).zip: $(PKG).gfn doc/$(PKG).pdf $(DATA)
 	rm -rf $(PKG) && mkdir $(PKG) && cp $^ $(PKG) && zip -r $@ $(PKG)
 
-$(PKG).gfn: $(HANSL) $(PKG).spec $(PKG)_sample.inp
+$(PKG).gfn: $(HANSL) $(PKG).spec $(PKG)_sample.inp rf_gui.md
 	gretlcli --makepkg $(PKG).inp
 
 $(DOC):

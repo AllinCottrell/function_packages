@@ -6,6 +6,7 @@ description = Random Forest (via R)
 tags = C14 C53
 min-version = 2023a
 gui-main = GUI_rf
+gui-help = rf_gui.md
 label = Random Forest
 menu-attachment = MAINWIN/Model/RobustModels
 bundle-print = rf_print

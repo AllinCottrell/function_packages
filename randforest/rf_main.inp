@@ -306,6 +306,9 @@ function bundle GUI_rf (series y "dependent variable",
                         int mode[0:2:0] {"automatic", "regression", "classification"},
                         bool tune[1] "tune 'mtry'",
                         int verbosity [1:2:2])
+   if $datatype == 3
+      funcerr "random_forest: panel data not yet supported"
+   endif
    bundle opts
    scalar opts.pctrain = pctrain
    scalar opts.verbose = verbosity
