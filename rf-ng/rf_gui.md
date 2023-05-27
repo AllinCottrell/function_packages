@@ -1,16 +1,22 @@
-# Random Forest GUI
+## The random_forest GUI
 
-- **dependent variable**: Select a series for this role.
-- **independent variables**: Select or construct a list for this role. There
-  must be more than one independent variable.
-- **training observations**: The number of observations to use for training;
-  the remainder will be used for testing.
-- **mode**: Regression or classification. Most of the time gretl should
-  get this right, so "automatic" is the default.
-- **tune mtry**: Tuning of hyperparameter. You probably want this but can
-  save some CPU cycles by turning it off.
-- **verbosity**: Reduce this value for quieter output.
-- **set random seed**: Check this if you want to specify a random seed.
-- **seed**: Specifying a seed will give you results that can be replicated.
-  Otherwise the seed is set from the system clock and results will differ
-  somewhat on each run.
+**Dependent variable**: select the series for which you want predictions.
+
+**independent variables**: select (or construct with the help of the
+`+` button) a list of predictors, of which there must be at least two.
+
+**training observations**: specify how many observations should be
+used for training. The remainder will be used for testing.
+
+**mode**: classification or regression: "automatic" should do the
+right thing in almost all cases.
+
+**tune**: let the package call for optimization of the hyperparameter
+named "mtry". Recommended.
+
+**verbosity**: set to 1 for less output if you wish.
+
+**set random seed**: check this only if want to generate reproducible
+results. If so, specify a seed (or accept the default) and
+make note of it for future use.
+
