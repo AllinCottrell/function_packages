@@ -230,9 +230,12 @@ function bundle GUI_rf (series y "dependent variable",
                         int n_train[50::] "training observations",
                         int mode[0:2:0] {"automatic", "regression", "classification"},
                         bool tune[1] "tune 'mtry'",
-			int verbosity [1:2:2],
-			bool use_seed[0] "set random seed",
-			int seed[0:2147483647:1234567])
+                        int verbosity [1:2:2],
+                        bool use_seed[0] "set random seed",
+                        int seed[0:2147483647:1234567])
+   if $datatype == 3
+      funcerr "random_forest: panel data not yet supported"
+   endif
    bundle opts
    scalar opts.n_train = n_train
    scalar opts.verbose = verbosity
