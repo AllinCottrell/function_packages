@@ -226,7 +226,7 @@ function bundle random_forest (const series y, list X, const bundle opts)
 end function
 
 function bundle GUI_rf (series y "dependent variable",
-                        list X "indpendent variables",
+                        list X "independent variables",
                         int n_train[50::] "training observations",
                         int mode[0:2:0] {"automatic", "regression", "classification"},
                         bool tune[1] "tune 'mtry'",
