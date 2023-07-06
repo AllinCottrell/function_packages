@@ -63,7 +63,7 @@ end function
 
 function bundle no_rlib (void)
    bundle ret = null
-   printf "The R shared library, required by this package, was not found."
+   printf "The R shared library, required by this package, was not found.\n"
    return ret
 end function
 
