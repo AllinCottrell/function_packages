@@ -1,0 +1,51 @@
+function void GUI_bandplot (int xvar[$xlist] "x-axis variable",
+                            scalar conf[0.5:0.99:0.95:0.01] "confidence level",
+                            int style[1:3:1] "band style" {"line", "fill", "dash"})
+   bandplot($model, xvar, conf, style)
+end function
+
+function string style_word (int i)
+   strings S = defarray("line", "fill", "dash")
+   return S[i]
+end function
+
+function void bandplot (const bundle mod "model bundle",
+                        int xcol[2::] "x-axis variable",
+                        scalar conf[0.1:0.999:0.95] "confidence level",
+                        int style[1:3:1] "band style" {"line", "fill", "dash"})
+   matrix X = {mod.xlist}
+   matrix b = mod.coeff
+   matrix V = mod.vcv
+   matrix xref = X[,xcol]
+   scalar xmin = minc(xref)
+   matrix Xm = meanc(X)
+   scalar nse = critical(t, mod.df, (1 - conf) / 2)
+   # n = number of plotting steps
+   scalar n = 50
+   scalar xstep = (maxc(xref) - xmin) / n
+   scalar xi = xmin
+   matrix yhat = zeros(n, 1)
+   matrix yse = zeros(n, 1)
+   matrix x = zeros(n, 1)
+   loop i=1..n --quiet
+      Xm[xcol] = xi
+      yhat[i] =  Xm * b
+      yse[i] = sqrt(qform(Xm, V))
+      x[i] = xi
+      xi += xstep
+   endloop
+   string yname = mod.depvar
+   string title = sprintf("%s: fitted values with %g%% confidence band for mean", yname, 100 * conf)
+   string xname = cnameget(X, xcol)
+   matrix plotmat = yhat ~ x
+   matrix bmat = yhat ~ yse
+   string bs = style_word(style)
+   plot plotmat
+      options with-lines fit=none
+      options band=bmat,nse band-style=@bs
+      literal set nokey
+      literal set ylabel ''
+      printf "set title \"%s\"", title
+      printf "set xlabel \"%s\"", xname
+   end plot --output=display
+end function

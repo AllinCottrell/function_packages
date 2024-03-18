@@ -1,0 +1,16 @@
+This function displays a confidence band for the effect of 
+a specific regressor, in the context of a multiple regression 
+estimated via OLS. You need to select a particular independent
+variable to be examined and a confidence level.
+
+The fitted line shows the prediction for the dependent variable
+as the value of the selected regressor is varied, while holding
+all other regressors at their mean values.
+
+The confidence band takes the form of the fitted value plus and
+minus a certain number of standard errors, the number depending
+on the chosen level of confidence. The standard error in
+question is that for the prediction of the conditional mean of 
+the dependent variable: it incorporates uncertainty over the
+true parameter values, and its size varies with the distance of
+the value of the chosen regressor from its sample mean.

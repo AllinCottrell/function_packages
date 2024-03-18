@@ -1,0 +1,6 @@
+include bandplot.gfn
+open data4-10.gdt
+
+ols ENROLL const CATHOL WHITE INCOME
+scalar xvar = 2 # the variable (X column) to put on the x-axis
+bandplot($model, xvar, 0.95, 1)

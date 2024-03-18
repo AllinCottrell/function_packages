@@ -1,0 +1,25 @@
+The function `bandplot()` produces a confidence band plot for
+the effect of a specific regressor, in the context of a multiple
+regression estimated via OLS. You need to select a particular
+independent variable to be examined and a confidence level.
+
+The signature of `bandplot()` is shown below; the leading "void"
+indicates that it does not return anything.
+
+```
+void bandplot (const bundle mod,
+               int xcol,
+               scalar conf[0.1:0.999:0.95],
+               int style[1:3:1])
+```
+
+
+- `mod`: bundle obtained via the $model accessor after OLS
+       estimation
+- `xcol`: the 1-based index of the regressor that should be 
+       placed on the x-axis; if the specification contains
+       an intercept this should be 2 or greater
+- `conf`: the desired confidence level, as a decimal fraction
+       between 0.1 and 0.999, with a default value of 0.95
+- `style`: the style with which to plot the band: 1 = lines (the
+       default), 2 = fill, 3 = dashes
