@@ -1,10 +1,10 @@
 author = Allin Cottrell
 email = cottrell@wfu.edu
-version = 0.2
-date = 2023-03-09
+version = 0.4
+date = 2024-03-21
 description = Random Forest (via R)
 tags = C14 C53
-min-version = 2023a
+min-version = 2024a
 gui-main = GUI_rf
 gui-help = rf_gui.md
 label = Random Forest

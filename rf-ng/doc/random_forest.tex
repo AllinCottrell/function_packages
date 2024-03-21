@@ -9,7 +9,7 @@
 \usepackage[letterpaper,body={6.3in,9.15in},top=.8in,left=1.1in]{geometry}
 % \usepackage[a4paper,body={6.1in,9.7in},top=.8in,left=1.1in]{geometry}
 
-\hypersetup{pdftitle={random_forest 0.1},
+\hypersetup{pdftitle={random_forest 0.4},
             pdfauthor={Allin Cottrell},
             colorlinks=true,
             linkcolor=blue,
@@ -25,7 +25,7 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
 
-\title{random\_forest 0.2} \author{Allin Cottrell}
+\title{random\_forest 0.4} \author{Allin Cottrell}
 \maketitle
 
 This is an unusual gretl package---unusual in that it relies on the
@@ -104,7 +104,7 @@ by gretl. The other acceptable values are 0, for no printed output, or
 2, to include a trace of the progress made by \textsf{R}'s
 \textsf{randomForest}.
 
-\subsection{Classlification vs Regression}
+\subsection{Classification vs Regression}
 
 The Random Forest algorithm can handle both ``classification'' (for
 discrete, qualitative outcomes) and ``regression'' (for a more or less
@@ -312,8 +312,12 @@ save the results bundle or any of its contents.
 
 \section{Change log}
 
-2023-XX-XX: version 0.1 released.\\[4pt]
-2023-03-06: version 0.1 released.
+2024-03-21: version 0.4: update ui-maker syntax, require gretl 2024a.\\
+2023-12-18: version 0.3: fix \texttt{rf\_plot} for the case where at
+least one feature has a name that starts with \texttt{e} or \texttt{E}.\\
+2023-12-16: version 0.2: require R shared library, and require gretl
+2023c to ensure that \texttt{R.dll} can be found on MS Windows; update GUI.\\
+2023-03-09: version 0.1 released.
 
 \section{Some \textsf{R} details}
 \label{sec:Rdetails}
@@ -330,7 +334,10 @@ install.packages("randomForest")
 \end{code}
 This should take care of installing the other \textsf{R} packages on
 which \textsf{randomForest} depends if they're not already present on
-the local machine.
+the local machine. But please note that with this release we also
+require that the \textsf{R} shared library is installed; this should
+usually be the case unless you build \textsf{R} yourself and choose
+not to build the shared library.
 
 We mentioned above that gretl by default calls \textsf{randomForest}'s
 \texttt{tuneRF} function to optimize its \texttt{mtry}

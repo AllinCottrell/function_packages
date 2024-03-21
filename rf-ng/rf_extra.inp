@@ -82,10 +82,9 @@ function void rf_plot (const bundle *b, int maxvars[2::15], string outspec[null]
    if !exists("outspec") || outspec == ""
       outspec = "display"
    endif
-   string ftmp
-
+   string plotbuf
    set force_decpoint on
-   outfile --tempfile=ftmp -q
+   outfile --buffer=plotbuf -q
       printf "set linetype 1 lc rgb \"#5F6B84\"\n"
       printf "set linetype 2 lc rgb \"#000000\"\n"
       printf "set title 'Relative importance (fraction of total)\n"
@@ -95,16 +94,16 @@ function void rf_plot (const bundle *b, int maxvars[2::15], string outspec[null]
       printf "set style fill solid 0.6\n"
       printf "bw = 0.6\n"
       printf "set offsets 0, 0, 0.5-bw/2.0, 0.5\n"
-      printf "plot '-' using (0.5*$2):0:(0.5*$2):(bw/2.):ytic(1) with boxxy\n" 
+      printf "$data << _EOD\n"
       loop i=1..nx
          printf "%s %g\n", rnameget(m, i), m[i]
       endloop
-      printf "e\n"
+      printf "_EOD\n"
+      printf "plot $data using (0.5*$2):0:(0.5*$2):(bw/2.):ytic(1) with boxxy\n"
    end outfile
    set force_decpoint off
 
-   gnuplot --input="@ftmp" --output="@outspec"
-   remove(ftmp)
+   gnuplot --inbuf=plotbuf --output="@outspec"
 end function
 
 function bundle rf_ui_maker (void)
@@ -116,8 +115,8 @@ function bundle rf_ui_maker (void)
       defstr = "ceil(0.65*$nobs)"
    endif
    bundle b
-   b["seed"] = _(depends="use_seed")
-   b["n_train"] = _(maximum="ceil(0.9*$nobs)", default=defstr)
-   b["X"] = _(singleton=0, exclude="y", no_const=1)
+   b.seed = _(depends="use_seed")
+   b.n_train = _(maximum="ceil(0.9*$nobs)", default=defstr)
+   b.X = _(no_singleton=1, no_const=1, exclude="y")
    return b
 end function
