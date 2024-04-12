@@ -1,0 +1,23 @@
+function matrix criteria (scalar ess, int n, int k, bool quiet[0])
+    if ess <= 0 || k < 1 || n <= k
+        funcerr "We require ess > 0, k > 0 and n > k"
+    endif
+
+    matrix crit = zeros(1, 4)
+    scalar logn = log(n)
+    scalar llm = n * log(ess)
+    llm += n * (log(2*$pi) + 1 - logn)
+    crit[1] = llm + 2 * k
+    crit[2] = llm + k * logn
+    crit[3] = llm + 2 * k * log(logn)
+    crit[4] = crit[1] + (2 * k * (k+1)) / (n-k-1)
+    cnameset(crit, defarray("AIC", "BIC", "HQC", "AICc"))
+
+    if !quiet
+        printf "Using ess = %g, %d observations, %d coefficients\n", ess, n, k
+        printf "\nAIC  = %#g\nBIC  = %#g\nHQC  = %#g\nAICc = %#g\n\n",
+          crit[1], crit[2], crit[3], crit[4]
+    endif
+
+    return crit
+end function

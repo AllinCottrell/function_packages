@@ -1,0 +1,10 @@
+author = Allin Cottrell
+email = cottrell@wfu.edu
+version = 1.5
+date = 2024-04-12
+description = Calculate model selection criteria
+tags = C10
+min-version = 2018a
+public = criteria 
+help = criteria_help.txt
+sample-script = criteria_sample.inp
