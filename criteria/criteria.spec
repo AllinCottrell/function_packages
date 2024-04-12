@@ -3,6 +3,7 @@ email = cottrell@wfu.edu
 version = 1.5
 date = 2024-04-12
 description = Calculate model selection criteria
+data-requirement = no-data-ok
 tags = C10
 min-version = 2018a
 public = criteria 
