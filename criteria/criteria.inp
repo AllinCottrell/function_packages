@@ -1,6 +1,6 @@
-function matrix criteria (scalar ess, int n, int k, bool quiet[0])
-    if ess <= 0 || k < 1 || n <= k
-        funcerr "We require ess > 0, k > 0 and n > k"
+function matrix criteria (scalar ess, int n, int k[1::], bool quiet[0])
+    if ess <= 0 || n <= k
+        funcerr "We require ess > 0 and n > k"
     endif
 
     matrix crit = zeros(1, 4)
