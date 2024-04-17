@@ -1,0 +1,15 @@
+include ../lp-mfx.inp
+
+open mroz87.gdt -q
+
+list Xlist = KL6 WA WE MTR
+probit LFP 0 Xlist
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+
+foreign language=stata --send-data
+  probit lfp kl6 wa we mtr
+  mfx compute, predict()
+end foreign
+
+

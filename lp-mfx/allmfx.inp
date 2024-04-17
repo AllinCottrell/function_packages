@@ -1,0 +1,17 @@
+set verbose off
+include lp-mfx.inp
+
+open data4-10
+series y = ENROLL > 0.09
+# COLLEGE[13] = NA
+logit y 0 CATHOL INCOME COLLEGE
+
+bundle m = $model
+matrix M = unitary_avg_mfx(m)
+print M
+quit
+
+# print "column means"
+# eval meanc(M)
+bundle b = binary_mfx(y, $xlist, $coeff, $vcv, $sample, 1)
+lp_mfx_print(&b)

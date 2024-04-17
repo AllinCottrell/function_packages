@@ -1,0 +1,11 @@
+include ./lp-mfx.inp
+
+open keane.gdt -q
+smpl (year==87) --restrict
+# logit status 0 educ exper expersq black --multinomial
+logit enroll 0 educ exper expersq black
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+bundle b = lp_mfx($model, 2)
+lp_mfx_print(&b)
+

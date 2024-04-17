@@ -1,0 +1,108 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-25 14:54
+? run dumiact.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/dumiact.inp
+Read datafile /opt/esl/share/gretl/data/greene/greene19_1.gdt
+
+Model 1: Logit, using observations 1-32
+Dependent variable: GRADE
+Standard errors based on Hessian
+
+             coefficient   std. error      z        slope   
+  ----------------------------------------------------------
+  const      -21.6979      10.8309      -2.003              
+  GPA          5.44278      3.02100      1.802     0.755178 
+  TUCE         0.0787873    0.147359     0.5347    0.0109316
+  PSI         14.7731      11.3250       1.304     0.998458 
+  iact        -3.69379      3.27981     -1.126    -0.512508 
+
+Mean dependent var   0.343750   S.D. dependent var   0.482559
+McFadden R-squared   0.415141   Adjusted R-squared   0.172325
+Log-likelihood      -12.04326   Akaike criterion     34.08651
+Schwarz criterion    41.41519   Hannan-Quinn         36.51576
+
+Number of cases 'correctly predicted' = 27 (84.4%)
+f(beta'x) at mean of independent vars = 0.139
+Likelihood ratio test: Chi-square(4) = 17.0969 [0.0019]
+
+           Predicted
+             0    1
+  Actual 0  18    3
+         1   2    9
+
+Excluding the constant, p-value was highest for variable 2 (TUCE)
+
+
+Binary logit marginal effects at means
+note: dp/dx based on discrete change for PSI
+
+GRADE = 1, Pr = 0.1711
+
+            dp/dx        s.e.           z        pval        xbar
+ GPA      0.54283     0.23992      2.2626    0.023661      3.1172
+TUCE     0.011176    0.020915     0.53438     0.59308      21.938
+ PSI      0.51627     0.16177      3.1913   0.0014162     0.43750
+
+
+Binary logit average marginal effects
+note: dp/dx based on discrete change for PSI 
+
+            dp/dx        s.e.           z        pval
+ GPA      0.34942     0.10149      3.4429  0.00057561
+TUCE    0.0097015    0.017783     0.54555     0.58538
+ PSI      0.36491     0.14432      2.5285    0.011454
+
+
+. quietly adopath + "/home/cottrell/.gretl/"
+
+. * load data from gretl
+. insheet using "/home/cottrell/.gretl/stata.csv"
+(5 vars, 32 obs)
+
+. quietly logit grade gpa tuce i.psi c.gpa#i.psi
+
+. margins, dydx(gpa tuce psi) atmeans
+
+Conditional marginal effects                      Number of obs   =         32
+Model VCE    : OIM
+
+Expression   : Pr(grade), predict()
+dy/dx w.r.t. : gpa tuce 1.psi
+at           : gpa             =    3.117188 (mean)
+               tuce            =     21.9375 (mean)
+               0.psi           =       .5625 (mean)
+               1.psi           =       .4375 (mean)
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         gpa |   .5428348   .2399179     2.26   0.024     .0726045    1.013065
+        tuce |   .0111762   .0209145     0.53   0.593    -.0298155     .052168
+       1.psi |   .5162736   .1617737     3.19   0.001      .199203    .8333442
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+. margins, dydx(gpa tuce psi)
+
+Average marginal effects                          Number of obs   =         32
+Model VCE    : OIM
+
+Expression   : Pr(grade), predict()
+dy/dx w.r.t. : gpa tuce 1.psi
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         gpa |   .3494185    .101491     3.44   0.001     .1504998    .5483372
+        tuce |   .0097015   .0177829     0.55   0.585    -.0251524    .0445553
+       1.psi |   .3649094   .1443164     2.53   0.011     .0820544    .6477644
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+. 
+end of do-file
+

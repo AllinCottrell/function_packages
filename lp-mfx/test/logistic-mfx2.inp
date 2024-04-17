@@ -1,0 +1,18 @@
+include ../lp-mfx.inp
+
+open data4-10
+
+ols ENROLL 0 CATHOL PUPIL
+matrix b_ols = $coeff
+logistic ENROLL 0 CATHOL PUPIL
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+print "OLS coeffs, for reference"
+eval b_ols[2:]
+
+bundle b = lp_mfx($model, 3)
+lp_mfx_print(&b)
+print "column means"
+eval meanc(b.mfx)
+b = lp_mfx($model, 2)
+lp_mfx_print(&b)

@@ -1,0 +1,14 @@
+open nels_small.gdt -q
+include ../lp-mfx.inp
+
+list X1 = const grades faminc female black
+list X2 = const grades faminc black female 
+logit psechoice X1 --multinomial -q
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+logit psechoice X2 --multinomial -q
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+
+
+

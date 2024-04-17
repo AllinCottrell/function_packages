@@ -1,0 +1,20 @@
+set verbose off
+include ../lp-mfx.inp
+
+open greene19_1.gdt -q
+series iact = GPA*PSI
+list X = GPA TUCE PSI iact
+logit GRADE 0 X
+# eval meanc({X})
+# eval mean(GPA*PSI)
+# eval mean(GPA)*mean(PSI)
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+bundle b = lp_mfx($model, 2)
+lp_mfx_print(&b)
+
+foreign language=stata --send-data
+  quietly logit grade gpa tuce i.psi c.gpa#i.psi
+  margins, dydx(gpa tuce psi) atmeans
+  margins, dydx(gpa tuce psi)
+end foreign

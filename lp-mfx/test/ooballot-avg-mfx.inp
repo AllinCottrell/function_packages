@@ -1,0 +1,22 @@
+include ../lp-mfx.inp
+
+open ooballot -q
+
+# restrict to 'P' and 'O' countries
+smpl Status > 0 --restrict
+
+# ordered probit
+probit Vote 0 CPI
+bundle b = ordered_avg_mfx(Vote, $xlist, $coeff, $sample, 2)
+matrix m = b.mfx
+print m
+
+foreign language=stata --send-data
+  oprobit vote cpi
+  margins, dydx(cpi) predict(outcome(0))
+  margins, dydx(cpi) predict(outcome(1))
+  margins, dydx(cpi) predict(outcome(2))
+  margins, dydx(cpi) predict(outcome(3))
+end foreign
+
+

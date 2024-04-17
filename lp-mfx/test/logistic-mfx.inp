@@ -1,0 +1,45 @@
+include ../lp-mfx.inp
+
+open data4-10
+
+# Both ENROLL and CATHOL are proportions, between 0 and 1.
+# We first use them as-is, then convert them to percentages.
+
+ols ENROLL 0 CATHOL PUPIL
+matrix b_ols = $coeff
+logistic ENROLL 0 CATHOL PUPIL
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+print "OLS coeffs, for reference"
+eval b_ols[2:]
+# verify prediction at means of regressors
+scalar xb = {1, mean(CATHOL), mean(PUPIL)} * $coeff
+eval 1 / (1+exp(-xb))
+
+# percentages on both sides
+ENROLL *= 100
+CATHOL *= 100
+ols ENROLL 0 CATHOL PUPIL
+matrix b_ols = $coeff
+logistic ENROLL 0 CATHOL PUPIL
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+print "OLS coeffs, for reference"
+eval b_ols[2:]
+# verify prediction at means of regressors
+scalar xb = {1, mean(CATHOL), mean(PUPIL)} * $coeff
+eval 100 / (1+exp(-xb))
+
+# percentage on left only
+CATHOL /= 100
+ols ENROLL 0 CATHOL PUPIL
+matrix b_ols = $coeff
+logistic ENROLL 0 CATHOL PUPIL
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+print "OLS coeffs, for reference"
+eval b_ols[2:]
+# verify prediction at means of regressors
+scalar xb = {1, mean(CATHOL), mean(PUPIL)} * $coeff
+eval 100 / (1+exp(-xb))
+

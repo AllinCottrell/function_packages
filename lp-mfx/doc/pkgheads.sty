@@ -1,0 +1,20 @@
+\ProvidesPackage{pkgheads}
+
+\newcommand{\GUG}{the \textit{Gretl User's Guide}{}}
+
+\newcommand{\option}[1]{\texttt{-{}-#1}}
+\newcommand{\dollar}[1]{\texttt{\$#1}}
+
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+                                   {-3ex \@plus -1ex \@minus -.2ex}%
+                                   {.5ex \@plus .2ex}%
+                                   {\normalfont\Large\sffamily}}
+
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+                                     {-2.5ex\@plus -1ex \@minus -.2ex}%
+                                     {.2ex \@plus .5ex}%
+                                     {\normalfont\bfseries}}
+
+\DefineVerbatimEnvironment%
+{code}{Verbatim}
+{fontsize=\small, xleftmargin=1em}				     

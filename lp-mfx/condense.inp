@@ -1,0 +1,16 @@
+function matrix condense_linfo (matrix m)
+  scalar n = sumc(m[,1])
+  strings S = array(n)
+  matrix mc = zeros(n, cols(m))
+  scalar j = 1
+  loop i=1..rows(m) -q
+    if m[i,1] == 1
+      mc[j,1] = i
+      mc[j,2:] = m[i,2:]
+      S[j] = rnameget(m, i)
+      j++
+    endif
+  endloop
+  rnameset(mc, S)
+  return mc
+end function

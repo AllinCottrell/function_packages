@@ -1,0 +1,17 @@
+author = Allin Cottrell
+email = cottrell@wfu.edu
+version = 1.0
+date = 2019-04-29
+description = logit/probit marginal effects
+tags = C25
+min-version = 2019b
+gui-main = GUI_lp_mfx
+label = Marginal effects
+menu-attachment = MODELWIN/Analysis
+bundle-print = lp_mfx_print
+gui-precheck = lp_mfx_precheck
+public = GUI_lp_mfx lp_mfx lp_mfx_atx lp_mfx_print lp_mfx_fixlist
+menu-only = GUI_lp_mfx
+no-print = GUI_lp_mfx
+help = lp-mfx.pdf
+sample-script = lp-mfx-sample.inp

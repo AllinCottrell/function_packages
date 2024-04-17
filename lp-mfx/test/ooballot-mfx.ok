@@ -1,0 +1,153 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-26 13:56
+? run ooballot-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/ooballot-mfx.inp
+? include ../lp-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/../lp-mfx.inp
+? open ooballot -q
+Read datafile /opt/esl/share/gretl/data/misc/ooballot.gdt
+# restrict to 'P' and 'O' countries
+? smpl Status > 0 --restrict
+Full data set: 87 observations
+Current sample: 70 observations
+# ordered probit
+? probit Vote 0 CPI
+
+Function evaluations: 27
+Evaluations of gradient: 10
+
+Model 1: Ordered Probit, using observations 1-70
+Dependent variable: Vote
+Standard errors based on Hessian
+
+             coefficient   std. error     z      p-value 
+  -------------------------------------------------------
+  CPI         -0.197624    0.0569544    -3.470   0.0005   ***
+
+  cut1        -1.71786     0.348800     -4.925   8.43e-07 ***
+  cut2        -1.06343     0.334542     -3.179   0.0015   ***
+  cut3        -0.367894    0.314881     -1.168   0.2427  
+
+Mean dependent var   1.542857   S.D. dependent var   1.163275
+Log-likelihood      -90.57804   Akaike criterion     189.1561
+Schwarz criterion    198.1501   Hannan-Quinn         192.7286
+
+Number of cases 'correctly predicted' = 27 (38.6%)
+Likelihood ratio test: Chi-square(1) = 12.3049 [0.0005]
+
+Test for normality of residual -
+  Null hypothesis: error is normally distributed
+  Test statistic: Chi-square(2) = 24.355
+  with asymptotic p-value = 5.14505e-06
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Ordered probit marginal effects at means
+
+Outcome 1: (Vote = 0, Pr = 0.2333)
+
+           dp/dx        s.e.           z        pval        xbar
+CPI     0.060486    0.018040      3.3528  0.00079994      5.0086
+
+Outcome 2: (Vote = 1, Pr = 0.2374)
+
+           dp/dx        s.e.           z        pval        xbar
+CPI     0.018142   0.0091636      1.9798    0.047729      5.0086
+
+Outcome 3: (Vote = 2, Pr = 0.2623)
+
+           dp/dx        s.e.           z        pval        xbar
+CPI    -0.013650   0.0086496     -1.5781     0.11454      5.0086
+
+Outcome 4: (Vote = 3, Pr = 0.2670)
+
+           dp/dx        s.e.           z        pval        xbar
+CPI    -0.064977    0.019204     -3.3836  0.00071544      5.0086
+
+? foreign language=stata --send-data
+?   oprobit vote cpi
+?   mfx compute, predict(outcome(0))
+?   mfx compute, predict(outcome(1))
+?   mfx compute, predict(outcome(2))
+?   mfx compute, predict(outcome(3))
+? end foreign
+
+. quietly adopath + "/home/cottrell/.gretl/"
+
+. * load data from gretl
+. insheet using "/home/cottrell/.gretl/stata.csv"
+(4 vars, 70 obs)
+
+. oprobit vote cpi
+
+Iteration 0:   log likelihood = -96.730491  
+Iteration 1:   log likelihood = -90.584127  
+Iteration 2:   log likelihood = -90.578044  
+Iteration 3:   log likelihood = -90.578043  
+
+Ordered probit regression                         Number of obs   =         70
+                                                  LR chi2(1)      =      12.30
+                                                  Prob > chi2     =     0.0005
+Log likelihood = -90.578043                       Pseudo R2       =     0.0636
+
+------------------------------------------------------------------------------
+        vote |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         cpi |  -.1976243   .0569544    -3.47   0.001    -.3092528   -.0859958
+-------------+----------------------------------------------------------------
+       /cut1 |  -1.717859   .3487996                     -2.401494   -1.034224
+       /cut2 |  -1.063427   .3345422                     -1.719118   -.4077367
+       /cut3 |  -.3678938   .3148812                     -.9850496    .2492619
+------------------------------------------------------------------------------
+
+. mfx compute, predict(outcome(0))
+
+Marginal effects after oprobit
+      y  = Pr(vote==0) (predict, outcome(0))
+         =  .23329345
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     cpi |   .0604856      .01804    3.35   0.001   .025127  .095844   5.00857
+------------------------------------------------------------------------------
+
+. mfx compute, predict(outcome(1))
+
+Marginal effects after oprobit
+      y  = Pr(vote==1) (predict, outcome(1))
+         =  .23736607
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     cpi |   .0181418      .00916    1.98   0.048   .000182  .036102   5.00857
+------------------------------------------------------------------------------
+
+. mfx compute, predict(outcome(2))
+
+Marginal effects after oprobit
+      y  = Pr(vote==2) (predict, outcome(2))
+         =  .26234374
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     cpi |  -.0136502      .00865   -1.58   0.115  -.030603  .003303   5.00857
+------------------------------------------------------------------------------
+
+. mfx compute, predict(outcome(3))
+
+Marginal effects after oprobit
+      y  = Pr(vote==3) (predict, outcome(3))
+         =  .26699674
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     cpi |  -.0649772       .0192   -3.38   0.001  -.102616 -.027339   5.00857
+------------------------------------------------------------------------------
+
+. 
+end of do-file
+
+Done

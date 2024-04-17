@@ -1,0 +1,4 @@
+open keane.gdt -q
+smpl (year==87) --restrict
+logit status 0 educ exper expersq black --multinomial -w
+

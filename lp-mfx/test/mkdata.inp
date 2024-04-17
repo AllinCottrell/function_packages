@@ -1,0 +1,3 @@
+open http://www.stata-press.com/data/r10/fullauto.dta
+rename foreign1 isforeign
+store fullauto.gdt rep77 isforeign length mpg

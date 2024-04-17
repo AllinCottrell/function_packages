@@ -1,0 +1,20 @@
+include ../lp-mfx.inp
+
+open ooballot -q
+
+# restrict to 'P' and 'O' countries
+smpl Status > 0 --restrict
+
+# ordered probit
+list XL = CPI
+probit Vote XL
+matrix X = {XL}
+matrix Poo = zeros($T, 1)
+loop t=1..$T -q
+  Poo[t,] = ordered_dpj_dx($coeff, XL, X[t,], 1, 4, 2)
+  eval Poo[t,]
+endloop
+eval meanc(Poo)
+
+
+

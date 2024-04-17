@@ -1,0 +1,13 @@
+include ../lp-mfx.inp
+
+open fullauto.gdt -q
+series iact = isforeign * mpg
+probit rep77 0 isforeign length mpg iact
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+
+foreign language=stata --send-data
+  oprobit rep77 i.isforeign length mpg i.isforeign#c.mpg
+  margins, dydx(isforeign length mpg) atmeans
+  margins, dydx(isforeign length mpg) atmeans predict(outcome(5))
+end foreign

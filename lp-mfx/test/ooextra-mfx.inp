@@ -1,0 +1,23 @@
+include ../lp-mfx.inp
+
+open ooballot -q
+
+# restrict to 'P' and 'O' countries
+smpl Status > 0 --restrict
+
+# ordered probit
+set seed 3335411
+series x = normal()
+probit Vote 0 CPI x
+bundle b = ordered_mfx(Vote, $xlist, $coeff, $vcv, $sample, 2)
+lp_mfx_print(&b)
+
+foreign language=stata --send-data
+  oprobit vote cpi x
+  mfx compute, predict(outcome(0))
+  mfx compute, predict(outcome(1))
+  mfx compute, predict(outcome(2))
+  mfx compute, predict(outcome(3))
+end foreign
+
+

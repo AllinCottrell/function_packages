@@ -1,0 +1,165 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-26 13:59
+? run auto-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/auto-mfx.inp
+? include ../lp-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/../lp-mfx.inp
+? open auto.csv -q
+Read datafile /home/cottrell/stats/gfntest/lp-mfx/test/auto.csv
+? logit rep78 mpg weight foreign1
+
+Function evaluations: 90
+Evaluations of gradient: 29
+
+Model 1: Ordered Logit, using observations 1-74 (n = 69)
+Missing or incomplete observations dropped: 5
+Dependent variable: rep78
+Standard errors based on Hessian
+
+             coefficient   std. error      z      p-value 
+  --------------------------------------------------------
+  mpg        0.161288      0.0793061     2.034    0.0420   **
+  weight     0.00102588    0.000621199   1.651    0.0986   *
+  foreign1   3.29641       0.818970      4.025    5.70e-05 ***
+
+  cut1       3.39494       3.45447       0.9828   0.3257  
+  cut2       5.19822       3.40161       1.528    0.1265  
+  cut3       7.85136       3.45166       2.275    0.0229   **
+  cut4       9.97544       3.53605       2.821    0.0048   ***
+
+Mean dependent var   3.405797   S.D. dependent var   0.989932
+Log-likelihood      -76.65216   Akaike criterion     167.3043
+Schwarz criterion    182.9431   Hannan-Quinn         173.5087
+
+Number of cases 'correctly predicted' = 38 (55.1%)
+Likelihood ratio test: Chi-square(3) = 52.1168 [0.0000]
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Ordered logit marginal effects at means
+note: dp/dx based on discrete change for foreign1
+
+Outcome 1: (rep78 = 1, Pr = 0.0155)
+
+                dp/dx        s.e.           z        pval        xbar
+     mpg   -0.0024581   0.0020479     -1.2003     0.23004      21.290
+  weight  -1.5635e-05  1.4179e-05     -1.1026     0.27018      3032.0
+foreign1    -0.039532    0.028243     -1.3997     0.16160     0.30435
+
+Outcome 2: (rep78 = 2, Pr = 0.0716)
+
+                dp/dx        s.e.           z        pval        xbar
+     mpg    -0.010369   0.0058510     -1.7722    0.076365      21.290
+  weight  -6.5953e-05  4.4233e-05     -1.4910     0.13595      3032.0
+foreign1     -0.15744    0.056354     -2.7937   0.0052104     0.30435
+
+Outcome 3: (rep78 = 3, Pr = 0.4883)
+
+                dp/dx        s.e.           z        pval        xbar
+     mpg    -0.026579    0.014591     -1.8216    0.068523      21.290
+  weight  -0.00016906  0.00010933     -1.5463     0.12203      3032.0
+foreign1     -0.46972    0.091569     -5.1297  2.9018e-07     0.30435
+
+Outcome 4: (rep78 = 4, Pr = 0.3436)
+
+                dp/dx        s.e.           z        pval        xbar
+     mpg     0.027390    0.014684      1.8652    0.062147      21.290
+  weight   0.00017422  0.00011244      1.5494     0.12129      3032.0
+foreign1      0.23166    0.096281      2.4061    0.016122     0.30435
+
+Outcome 5: (rep78 = 5, Pr = 0.0811)
+
+                dp/dx        s.e.           z        pval        xbar
+     mpg     0.012016   0.0071382      1.6833    0.092318      21.290
+  weight   7.6426e-05  5.1647e-05      1.4798     0.13893      3032.0
+foreign1      0.43503     0.13880      3.1343   0.0017229     0.30435
+
+? foreign language=stata --send-data
+?   ologit rep78 mpg weight foreign1
+?   mfx compute, predict(outcome(1))
+?   mfx compute, predict(outcome(2))
+?   mfx compute, predict(outcome(5))
+? end foreign
+
+. quietly adopath + "/home/cottrell/.gretl/"
+
+. * load data from gretl
+. insheet using "/home/cottrell/.gretl/stata.csv"
+(4 vars, 74 obs)
+
+. ologit rep78 mpg weight foreign1
+
+Iteration 0:   log likelihood = -93.692061  
+Iteration 1:   log likelihood = -77.626693  
+Iteration 2:   log likelihood = -76.672519  
+Iteration 3:   log likelihood = -76.652173  
+Iteration 4:   log likelihood =  -76.65216  
+Iteration 5:   log likelihood =  -76.65216  
+
+Ordered logistic regression                       Number of obs   =         69
+                                                  LR chi2(3)      =      34.08
+                                                  Prob > chi2     =     0.0000
+Log likelihood =  -76.65216                       Pseudo R2       =     0.1819
+
+------------------------------------------------------------------------------
+       rep78 |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         mpg |   .1612877    .079306     2.03   0.042     .0058507    .3167246
+      weight |   .0010259   .0006212     1.65   0.099    -.0001916    .0022434
+    foreign1 |   3.296408   .8189694     4.03   0.000     1.691257    4.901558
+-------------+----------------------------------------------------------------
+       /cut1 |    3.39494   3.454465                     -3.375688    10.16557
+       /cut2 |   5.198216   3.401603                     -1.468803    11.86524
+       /cut3 |   7.851357    3.45165                      1.086247    14.61647
+       /cut4 |   9.975439    3.53604                      3.044928    16.90595
+------------------------------------------------------------------------------
+
+. mfx compute, predict(outcome(1))
+
+Marginal effects after ologit
+      y  = Pr(rep78==1) (predict, outcome(1))
+         =   .0154799
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     mpg |  -.0024581      .00205   -1.20   0.230  -.006472  .001556   21.2899
+  weight |  -.0000156      .00001   -1.10   0.270  -.000043  .000012   3032.03
+foreign1*|  -.0395319      .02824   -1.40   0.162  -.094887  .015823   .304348
+------------------------------------------------------------------------------
+(*) dy/dx is for discrete change of dummy variable from 0 to 1
+
+. mfx compute, predict(outcome(2))
+
+Marginal effects after ologit
+      y  = Pr(rep78==2) (predict, outcome(2))
+         =  .07163873
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     mpg |   -.010369      .00585   -1.77   0.076  -.021837  .001099   21.2899
+  weight |   -.000066      .00004   -1.49   0.136  -.000153  .000021   3032.03
+foreign1*|  -.1574382      .05635   -2.79   0.005   -.26789 -.046986   .304348
+------------------------------------------------------------------------------
+(*) dy/dx is for discrete change of dummy variable from 0 to 1
+
+. mfx compute, predict(outcome(5))
+
+Marginal effects after ologit
+      y  = Pr(rep78==5) (predict, outcome(5))
+         =  .08107072
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     mpg |   .0120156      .00714    1.68   0.092  -.001975  .026006   21.2899
+  weight |   .0000764      .00005    1.48   0.139  -.000025  .000178   3032.03
+foreign1*|   .4350311       .1388    3.13   0.002   .162991  .707071   .304348
+------------------------------------------------------------------------------
+(*) dy/dx is for discrete change of dummy variable from 0 to 1
+
+. 
+end of do-file
+
+Done

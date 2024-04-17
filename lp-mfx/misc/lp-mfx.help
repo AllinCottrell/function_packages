@@ -1,0 +1,98 @@
+This package serves to calculate marginal effects and associated
+statistics (standard errors, z-values and p-values) for certain
+limited dependent variable models: it covers binary logit and probit,
+ordered logit and probit, multinomial logit, and also logistic
+regression.
+
+The term "logistic regression" is sometimes used to refer to binary
+logit, but here we mean a the estimator supported by the "logistic"
+command in gretl: the dependent variable, y, is a (continuous)
+proportion or percentage, and the regressand is its logistic
+transformation, log(y/(1-y)) or log(y/(100-y)) for a percentage.
+
+The package offers a graphical interface which is designed to appear
+under the Analysis menu in gretl's model window; this is hard-wired to
+produce marginal effects at the sample means of all the regressors.
+In addition the package provides a set of functions which can be used
+to calculate marginal effects at any vector of regressor values.
+
+For each sort of dependent variable (binary, ordered, multinomial,
+continuous proportion) two public functions are available. Those named
+*_mfx calculate marginal effects for each possible outcome at the
+sample means, along with standard errors via the delta method, and
+they return a bundle containing all the results. The other functions
+accept a k-vector, x, containing the values of the regressors at which
+the marginal effects should be found, and they return the k-vector of
+effects pertaining to a specific selected outcome.
+
+Dummy regressors (0/1) are detected and the "marginal effect" is
+calculated as the effect of a discrete change from 0 to 1.
+
+Version 0.4 of this package fixed a bug whereby, if the list of
+regressors contains dummy variables, marginal effects of terms
+following the first dummy could be calculated at value 1 for the dummy
+rather than at its sample mean, as advertised. Support for logistic
+regression was added in version 0.5.
+
+* For binary logit and probit:
+
+function bundle binary_mfx (series y "dependent variable",
+    list XL "list of regressors",
+    matrix theta "parameter estimates",
+    matrix V "estimated variance matrix",
+    series sample "model sample",
+    int dist[1:2:1] "distribution" {"logit", "probit"})
+
+function matrix binary_dp_dx (matrix b "parameter estimates",
+    list XL "list of regressors",
+    matrix x "vector of x-values",
+    int dist[1:2:1] "distribution" {"logit", "probit"})
+
+* For ordered logit and probit:
+
+function bundle ordered_mfx (series y "dependent variable",
+    list XL "list of regressors",
+    matrix theta "parameter estimates",
+    matrix V "estimated variance matrix",
+    series sample "model sample",
+    int dist[1:2:1] "distribution" {"logit", "probit"})
+
+function matrix ordered_dp_dx (matrix theta "parameter estimates",
+    list XL "list of regressors",
+    matrix x "vector of regressors",
+    int j "1-based index of outcome",
+    int m "number of possible outcomes",
+    int dist[1:2:1] "distribution" {"logit", "probit"})
+
+* For multinomial logit:
+
+function bundle mlogit_mfx (series y "dependent variable",
+    list XL "list of regressors",
+    matrix theta "parameter estimates",
+    matrix V "estimated variance matrix",
+    series sample "model sample")
+
+function matrix mlogit_dpj_dx (matrix b "parameter estimates",
+    list XL "list of regressors",
+    matrix x "vector of x-values",
+    int j "1-based index of outcome",
+    int m "number of possible outcomes")
+
+* For logistic regression:
+
+function bundle logistic_mfx (series y "dependent variable",
+    list XL "list of regressors",
+    matrix theta "parameter estimates",
+    matrix V "estimated variance matrix",
+    series sample "model sample",
+    scalar lmax "max of dependent variable")
+
+function matrix logistic_dp_dx (matrix b "parameter estimates",
+    list XL "list of regressors",
+    matrix x "vector of x-values",
+    scalar lmax "max of dependent variable")
+
+* For printing the bundle returned by the *_mfx functions
+  (the bundle should be given in "pointer" form):
+
+function void lp_mfx_print (bundle *b)

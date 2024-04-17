@@ -1,0 +1,109 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-26 14:03
+? run mroz-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/mroz-mfx.inp
+? include ../lp-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/../lp-mfx.inp
+? open mroz87.gdt -q
+Read datafile /opt/esl/share/gretl/data/misc/mroz87.gdt
+? list Xlist = KL6 WA WE MTR
+Generated list Xlist
+? probit LFP 0 Xlist
+
+Model 1: Probit, using observations 1-753
+Dependent variable: LFP
+Standard errors based on Hessian
+
+             coefficient   std. error     z        slope   
+  ---------------------------------------------------------
+  const       1.32275      0.705847      1.874             
+  KL6        -0.852144     0.111001     -7.677   -0.334180 
+  WA         -0.0347571    0.00673706   -5.159   -0.0136305
+  WE          0.105956     0.0240874     4.399    0.0415522
+  MTR        -1.11720      0.639522     -1.747   -0.438127 
+
+Mean dependent var   0.568393   S.D. dependent var   0.495630
+McFadden R-squared   0.097742   Adjusted R-squared   0.088031
+Log-likelihood      -464.5482   Akaike criterion     939.0964
+Schwarz criterion    962.2167   Hannan-Quinn         948.0035
+
+Number of cases 'correctly predicted' = 503 (66.8%)
+f(beta'x) at mean of independent vars = 0.392
+Likelihood ratio test: Chi-square(4) = 100.65 [0.0000]
+
+           Predicted
+              0     1
+  Actual 0  156   169
+         1   81   347
+
+Test for normality of residual -
+  Null hypothesis: error is normally distributed
+  Test statistic: Chi-square(2) = 1.37852
+  with p-value = 0.501947
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Binary probit marginal effects at means
+
+LFP = 1, Pr = 0.5734
+
+           dp/dx        s.e.           z        pval        xbar
+KL6     -0.33418    0.043635     -7.6585  1.8805e-14     0.23772
+ WA    -0.013630   0.0026405     -5.1622  2.4410e-07      42.538
+ WE     0.041552   0.0094434      4.4001  1.0819e-05      12.287
+MTR     -0.43813     0.25076     -1.7472    0.080608     0.67886
+
+? foreign language=stata --send-data
+?   probit lfp kl6 wa we mtr
+?   mfx compute, predict()
+? end foreign
+
+. quietly adopath + "/home/cottrell/.gretl/"
+
+. * load data from gretl
+. insheet using "/home/cottrell/.gretl/stata.csv"
+(19 vars, 753 obs)
+
+. probit lfp kl6 wa we mtr
+
+Iteration 0:   log likelihood =  -514.8732  
+Iteration 1:   log likelihood = -464.57143  
+Iteration 2:   log likelihood = -464.54821  
+Iteration 3:   log likelihood = -464.54821  
+
+Probit regression                                 Number of obs   =        753
+                                                  LR chi2(4)      =     100.65
+                                                  Prob > chi2     =     0.0000
+Log likelihood = -464.54821                       Pseudo R2       =     0.0977
+
+------------------------------------------------------------------------------
+         lfp |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         kl6 |  -.8521438   .1110005    -7.68   0.000    -1.069701   -.6345868
+          wa |  -.0347571   .0067371    -5.16   0.000    -.0479615   -.0215527
+          we |   .1059562   .0240874     4.40   0.000     .0587458    .1531667
+         mtr |  -1.117203   .6395221    -1.75   0.081    -2.370644    .1362369
+       _cons |    1.32275   .7058465     1.87   0.061    -.0606842    2.706183
+------------------------------------------------------------------------------
+
+. mfx compute, predict()
+
+Marginal effects after probit
+      y  = Pr(lfp) (predict)
+         =  .57343684
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     kl6 |  -.3341801      .04363   -7.66   0.000  -.419703 -.248657   .237716
+      wa |  -.0136305      .00264   -5.16   0.000  -.018806 -.008455   42.5378
+      we |   .0415522      .00944    4.40   0.000   .023043  .060061   12.2869
+     mtr |  -.4381269      .25076   -1.75   0.081  -.929615  .053361   .678863
+------------------------------------------------------------------------------
+
+. 
+end of do-file
+
+Done

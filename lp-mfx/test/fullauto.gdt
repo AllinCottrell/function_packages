@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gretldata SYSTEM "gretldata.dtd">
+
+<gretldata version="1.4" name="fullauto" frequency="1" startobs="1" endobs="74" type="cross-section">
+<description>Automobile Models
+ 3 Mar 2007 06:53
+
+Data imported from Stata file 'fullauto.dta', 2019-04-29 18:48
+</description>
+<variables count="4">
+<variable name="rep77"
+ label="Repair Record 1977"
+ discrete="true"
+/>
+<variable name="isforeign"
+ label="Foreign"
+ discrete="true"
+/>
+<variable name="length"
+ label="Length (in.)"
+ discrete="true"
+/>
+<variable name="mpg"
+ label="Mileage (mpg)"
+ discrete="true"
+/>
+</variables>
+<observations count="74" labels="false">
+<obs>2 0 186 22 </obs>
+<obs>1 0 173 17 </obs>
+<obs>NA 0 168 22 </obs>
+<obs>3 1 174 23 </obs>
+<obs>2 1 189 17 </obs>
+<obs>4 1 177 25 </obs>
+<obs>3 0 196 20 </obs>
+<obs>4 0 222 15 </obs>
+<obs>4 0 218 18 </obs>
+<obs>NA 0 170 26 </obs>
+<obs>3 0 200 20 </obs>
+<obs>4 0 207 16 </obs>
+<obs>3 0 200 19 </obs>
+<obs>3 0 221 14 </obs>
+<obs>2 0 204 14 </obs>
+<obs>3 0 204 21 </obs>
+<obs>3 0 163 29 </obs>
+<obs>4 0 212 16 </obs>
+<obs>3 0 193 22 </obs>
+<obs>3 0 200 22 </obs>
+<obs>2 0 179 24 </obs>
+<obs>3 0 197 19 </obs>
+<obs>3 1 170 23 </obs>
+<obs>5 1 165 35 </obs>
+<obs>4 1 170 24 </obs>
+<obs>4 1 184 21 </obs>
+<obs>4 0 163 30 </obs>
+<obs>2 0 206 18 </obs>
+<obs>2 0 206 16 </obs>
+<obs>2 0 220 17 </obs>
+<obs>1 1 161 21 </obs>
+<obs>NA 0 147 28 </obs>
+<obs>3 0 179 21 </obs>
+<obs>5 1 172 25 </obs>
+<obs>4 1 149 28 </obs>
+<obs>4 0 233 12 </obs>
+<obs>4 0 230 12 </obs>
+<obs>3 0 201 14 </obs>
+<obs>4 1 154 30 </obs>
+<obs>3 0 169 22 </obs>
+<obs>3 0 221 14 </obs>
+<obs>4 0 217 14 </obs>
+<obs>2 0 212 15 </obs>
+<obs>NA 0 198 18 </obs>
+<obs>3 0 195 20 </obs>
+<obs>3 0 198 19 </obs>
+<obs>4 0 198 19 </obs>
+<obs>4 0 218 18 </obs>
+<obs>3 0 200 19 </obs>
+<obs>1 0 180 24 </obs>
+<obs>3 0 206 16 </obs>
+<obs>4 0 220 21 </obs>
+<obs>NA 1 192 14 </obs>
+<obs>3 0 170 38 </obs>
+<obs>4 0 157 34 </obs>
+<obs>NA 0 165 25 </obs>
+<obs>NA 0 182 26 </obs>
+<obs>2 0 201 18 </obs>
+<obs>4 0 214 18 </obs>
+<obs>2 0 198 18 </obs>
+<obs>3 0 201 19 </obs>
+<obs>3 0 199 19 </obs>
+<obs>NA 0 203 19 </obs>
+<obs>2 0 179 24 </obs>
+<obs>3 1 142 26 </obs>
+<obs>4 1 164 35 </obs>
+<obs>5 1 174 18 </obs>
+<obs>5 1 165 31 </obs>
+<obs>5 1 175 18 </obs>
+<obs>3 1 155 25 </obs>
+<obs>4 1 155 41 </obs>
+<obs>3 1 156 25 </obs>
+<obs>3 1 172 23 </obs>
+<obs>3 1 193 17 </obs>
+</observations>
+</gretldata>

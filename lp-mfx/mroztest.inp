@@ -1,0 +1,17 @@
+include lp-mfx.inp
+
+open mroz87.gdt
+probit LFP 0 KL6 K618 WA WE
+
+# effects at means
+bundle b = lp_mfx($model, 1)
+lp_mfx_print(&b)
+
+# average marginal effects
+bundle b = lp_mfx($model, 2)
+lp_mfx_print(&b)
+
+# effects at specified x-vector
+matrix x = {1, 0, 0, 30, 15}
+bundle b = lp_mfx_atx($model, x)
+lp_mfx_print(&b)

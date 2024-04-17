@@ -1,0 +1,14 @@
+include ../lp-mfx.inp
+
+open auto.csv -q
+
+logit rep78 mpg weight foreign1
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+
+foreign language=stata --send-data
+  ologit rep78 mpg weight foreign1
+  mfx compute, predict(outcome(1))
+  mfx compute, predict(outcome(2))
+  mfx compute, predict(outcome(5))
+end foreign

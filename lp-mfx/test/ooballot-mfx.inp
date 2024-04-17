@@ -1,0 +1,21 @@
+include ../lp-mfx.inp
+
+open ooballot -q
+
+# restrict to 'P' and 'O' countries
+smpl Status > 0 --restrict
+
+# ordered probit
+probit Vote 0 CPI
+bundle b = lp_mfx($model)
+lp_mfx_print(&b)
+
+foreign language=stata --send-data
+  oprobit vote cpi
+  mfx compute, predict(outcome(0))
+  mfx compute, predict(outcome(1))
+  mfx compute, predict(outcome(2))
+  mfx compute, predict(outcome(3))
+end foreign
+
+

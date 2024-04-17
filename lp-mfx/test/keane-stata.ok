@@ -1,0 +1,192 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-27 08:18
+? run keane-stata.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/keane-stata.inp
+? include ../lp-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/../lp-mfx.inp
+? open keane.gdt -q
+Read datafile /opt/esl/share/gretl/data/misc/keane.gdt
+? smpl (year==87) --restrict
+Full data set: 12723 observations
+Current sample: 1738 observations
+? logit status 0 educ exper expersq black --multinomial
+
+Model 1: Multinomial Logit, using observations 1-1738 (n = 1717)
+Missing or incomplete observations dropped: 21
+Dependent variable: status
+Standard errors based on Hessian
+
+             coefficient   std. error      z      p-value 
+  --------------------------------------------------------
+  status = 2
+  const      10.2779       1.13334       9.069    1.20e-19 ***
+  educ       -0.673631     0.0698999    -9.637    5.57e-22 ***
+  exper      -0.106215     0.173282     -0.6130   0.5399  
+  expersq    -0.0125152    0.0252291    -0.4961   0.6199  
+  black       0.813017     0.302723      2.686    0.0072   ***
+  status = 3
+  const       5.54380      1.08641       5.103    3.35e-07 ***
+  educ       -0.314657     0.0651096    -4.833    1.35e-06 ***
+  exper       0.848737     0.156986      5.406    6.43e-08 ***
+  expersq    -0.0773003    0.0229217    -3.372    0.0007   ***
+  black       0.311361     0.281534      1.106    0.2687  
+
+Mean dependent var   2.691322   S.D. dependent var   0.573502
+Log-likelihood      -907.8572   Akaike criterion     1835.714
+Schwarz criterion    1890.198   Hannan-Quinn         1855.874
+
+Number of cases 'correctly predicted' = 1366 (79.6%)
+Likelihood ratio test: Chi-square(8) = 583.722 [0.0000]
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Multinomial logit marginal effects at means
+note: dp/dx based on discrete change for black
+
+Outcome 1: (status = 1, Pr = 0.0212)
+
+             dp/dx        s.e.           z        pval        xbar
+ educ    0.0073312   0.0015143      4.8412  1.2907e-06      12.549
+exper   -0.0054125   0.0019287     -2.8063   0.0050119      3.4403
+black   -0.0073531   0.0055632     -1.3217     0.18625     0.37973
+
+Outcome 2: (status = 2, Pr = 0.1069)
+
+             dp/dx        s.e.           z        pval        xbar
+ educ    -0.034984   0.0036190     -9.6668  4.1718e-22      12.549
+exper    -0.047897   0.0044524     -10.758  5.4552e-27      3.4403
+black     0.051160    0.015561      3.2876   0.0010104     0.37973
+
+Outcome 3: (status = 3, Pr = 0.8719)
+
+             dp/dx        s.e.           z        pval        xbar
+ educ     0.027653   0.0038571      7.1694  7.5317e-13      12.549
+exper     0.053309   0.0047202      11.294  1.4057e-29      3.4403
+black    -0.043806    0.016568     -2.6441   0.0081913     0.37973
+
+? foreign language=stata --send-data
+?   mlogit status educ exper c.exper#c.exper i.black
+?   margins, dydx(educ exper black) predict(outcome(1)) atmeans
+?   margins, dydx(educ exper black) predict(outcome(2)) atmeans
+?   margins, dydx(educ exper black) predict(outcome(3)) atmeans
+? end foreign
+
+. quietly adopath + "/home/cottrell/.gretl/"
+
+. * load data from gretl
+. insheet using "/home/cottrell/.gretl/stata.csv"
+(18 vars, 1738 obs)
+
+. mlogit status educ exper c.exper#c.exper i.black
+
+Iteration 0:   log likelihood = -1199.7182  
+Iteration 1:   log likelihood = -960.26272  
+Iteration 2:   log likelihood =  -908.7673  
+Iteration 3:   log likelihood = -907.85992  
+Iteration 4:   log likelihood = -907.85723  
+Iteration 5:   log likelihood = -907.85723  
+
+Multinomial logistic regression                   Number of obs   =       1717
+                                                  LR chi2(8)      =     583.72
+                                                  Prob > chi2     =     0.0000
+Log likelihood = -907.85723                       Pseudo R2       =     0.2433
+
+------------------------------------------------------------------------------
+      status |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+1            |
+        educ |   .3146573   .0651096     4.83   0.000     .1870448    .4422699
+       exper |  -.8487367   .1569856    -5.41   0.000    -1.156423   -.5410507
+             |
+     c.exper#|
+     c.exper |   .0773003   .0229217     3.37   0.001     .0323746    .1222261
+             |
+     1.black |  -.3113612   .2815339    -1.11   0.269    -.8631574     .240435
+       _cons |  -5.543798   1.086409    -5.10   0.000    -7.673121   -3.414475
+-------------+----------------------------------------------------------------
+2            |
+        educ |  -.3589739   .0319425   -11.24   0.000    -.4215801   -.2963677
+       exper |  -.9549516   .0966353    -9.88   0.000    -1.144353   -.7655499
+             |
+     c.exper#|
+     c.exper |   .0647852   .0127634     5.08   0.000     .0397693    .0898011
+             |
+     1.black |   .5016554   .1484078     3.38   0.001     .2107814    .7925295
+       _cons |   4.734077    .461716    10.25   0.000      3.82913    5.639024
+-------------+----------------------------------------------------------------
+3            |  (base outcome)
+------------------------------------------------------------------------------
+
+. margins, dydx(educ exper black) predict(outcome(1)) atmeans
+
+Conditional marginal effects                      Number of obs   =       1717
+Model VCE    : OIM
+
+Expression   : Pr(status==1), predict(outcome(1))
+dy/dx w.r.t. : educ exper 1.black
+at           : educ            =    12.54921 (mean)
+               exper           =    3.440303 (mean)
+               0.black         =    .6202679 (mean)
+               1.black         =    .3797321 (mean)
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        educ |   .0073312   .0015143     4.84   0.000     .0043631    .0102992
+       exper |  -.0054125   .0019287    -2.81   0.005    -.0091928   -.0016323
+     1.black |  -.0073531   .0055632    -1.32   0.186    -.0182567    .0035505
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+. margins, dydx(educ exper black) predict(outcome(2)) atmeans
+
+Conditional marginal effects                      Number of obs   =       1717
+Model VCE    : OIM
+
+Expression   : Pr(status==2), predict(outcome(2))
+dy/dx w.r.t. : educ exper 1.black
+at           : educ            =    12.54921 (mean)
+               exper           =    3.440303 (mean)
+               0.black         =    .6202679 (mean)
+               1.black         =    .3797321 (mean)
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        educ |  -.0349842    .003619    -9.67   0.000    -.0420773   -.0278911
+       exper |  -.0478969   .0044524   -10.76   0.000    -.0566234   -.0391704
+     1.black |   .0511596   .0155613     3.29   0.001     .0206599    .0816592
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+. margins, dydx(educ exper black) predict(outcome(3)) atmeans
+
+Conditional marginal effects                      Number of obs   =       1717
+Model VCE    : OIM
+
+Expression   : Pr(status==3), predict(outcome(3))
+dy/dx w.r.t. : educ exper 1.black
+at           : educ            =    12.54921 (mean)
+               exper           =    3.440303 (mean)
+               0.black         =    .6202679 (mean)
+               1.black         =    .3797321 (mean)
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+        educ |   .0276531   .0038571     7.17   0.000     .0200933    .0352128
+       exper |   .0533094   .0047202    11.29   0.000     .0440581    .0625608
+     1.black |  -.0438065   .0165677    -2.64   0.008    -.0762786   -.0113343
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+. 
+end of do-file
+
+Done

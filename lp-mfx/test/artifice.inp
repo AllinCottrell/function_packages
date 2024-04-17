@@ -1,0 +1,17 @@
+set verbose off
+include ../lp-mfx.inp
+
+open greene19_1.gdt -q
+
+series GPA2 = GPA^2
+logit GRADE 0 GPA GPA2 TUCE PSI
+bundle b = binary_mfx(GRADE, $xlist, $coeff, $vcv, $sample, 1)
+lp_mfx_print(&b)
+bundle b = unitary_avg_mfx($model, 0)
+lp_mfx_print(&b)
+
+foreign language=stata --send-data
+  quietly logit grade gpa c.gpa#c.gpa tuce psi
+  margins, dydx(gpa tuce) atmeans
+  margins, dydx(gpa tuce)
+end foreign

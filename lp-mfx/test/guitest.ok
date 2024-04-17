@@ -1,0 +1,42 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-02 12:59
+? run guitest.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/guitest.inp
+? open keane.gdt -q
+Read datafile /opt/esl/share/gretl/data/misc/keane.gdt
+? smpl (year==87) --restrict
+Full data set: 12723 observations
+Current sample: 1738 observations
+? ml <- logit status 0 educ exper expersq black --multinomial
+
+ml: Multinomial Logit, using observations 1-1738 (n = 1717)
+Missing or incomplete observations dropped: 21
+Dependent variable: status
+Standard errors based on Hessian
+
+             coefficient   std. error      z      p-value 
+  --------------------------------------------------------
+  status = 2
+  const      10.2779       1.13334       9.069    1.20e-19 ***
+  educ       -0.673631     0.0698999    -9.637    5.57e-22 ***
+  exper      -0.106215     0.173282     -0.6130   0.5399  
+  expersq    -0.0125152    0.0252291    -0.4961   0.6199  
+  black       0.813017     0.302723      2.686    0.0072   ***
+  status = 3
+  const       5.54380      1.08641       5.103    3.35e-07 ***
+  educ       -0.314657     0.0651096    -4.833    1.35e-06 ***
+  exper       0.848737     0.156986      5.406    6.43e-08 ***
+  expersq    -0.0773003    0.0229217    -3.372    0.0007   ***
+  black       0.311361     0.281534      1.106    0.2687  
+
+Mean dependent var   2.691322   S.D. dependent var   0.573502
+Log-likelihood      -907.8572   Akaike criterion     1835.714
+Schwarz criterion    1890.198   Hannan-Quinn         1855.874
+
+Number of cases 'correctly predicted' = 1366 (79.6%)
+Likelihood ratio test: Chi-square(8) = 583.722 [0.0000]
+
+ml saved
+Done

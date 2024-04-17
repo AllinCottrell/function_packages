@@ -1,0 +1,15 @@
+include ../lp-mfx.inp
+
+open keane.gdt -q
+smpl year==87 --restrict
+logit status 0 educ exper expersq black --multinomial
+bundle b = lp_mfx($model, 2)
+lp_mfx_print(&b)
+
+foreign language=stata --send-data
+  mlogit status educ exper c.exper#c.exper i.black, baseoutcome(1)
+  margins, dydx(educ exper black) predict(outcome(1))
+  margins, dydx(educ exper black) predict(outcome(2))
+  margins, dydx(educ exper black) predict(outcome(3))
+end foreign
+

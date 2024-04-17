@@ -1,0 +1,189 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-26 14:01
+? run greene-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/greene-mfx.inp
+? include ../lp-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/../lp-mfx.inp
+? open greene19_1.gdt -q
+Read datafile /opt/esl/share/gretl/data/greene/greene19_1.gdt
+? logit GRADE 0 GPA TUCE PSI
+
+Model 1: Logit, using observations 1-32
+Dependent variable: GRADE
+Standard errors based on Hessian
+
+             coefficient   std. error      z        slope  
+  ---------------------------------------------------------
+  const      -13.0213       4.93132     -2.641             
+  GPA          2.82611      1.26294      2.238    0.533859 
+  TUCE         0.0951577    0.141554     0.6722   0.0179755
+  PSI          2.37869      1.06456      2.234    0.456498 
+
+Mean dependent var   0.343750   S.D. dependent var   0.482559
+McFadden R-squared   0.374038   Adjusted R-squared   0.179786
+Log-likelihood      -12.88963   Akaike criterion     33.77927
+Schwarz criterion    39.64221   Hannan-Quinn         35.72267
+
+Number of cases 'correctly predicted' = 26 (81.2%)
+f(beta'x) at mean of independent vars = 0.189
+Likelihood ratio test: Chi-square(3) = 15.4042 [0.0015]
+
+           Predicted
+             0    1
+  Actual 0  18    3
+         1   3    8
+
+Excluding the constant, p-value was highest for variable 2 (TUCE)
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Binary logit marginal effects at means
+note: dp/dx based on discrete change for PSI
+
+GRADE = 1, Pr = 0.2528
+
+            dp/dx        s.e.           z        pval        xbar
+ GPA      0.53386     0.23704      2.2522    0.024309      3.1172
+TUCE     0.017975    0.026237     0.68512     0.49327      21.938
+ PSI      0.45650     0.18105      2.5213    0.011691     0.43750
+
+? probit GRADE 0 GPA TUCE PSI
+
+Model 2: Probit, using observations 1-32
+Dependent variable: GRADE
+Standard errors based on Hessian
+
+             coefficient   std. error      z        slope  
+  ---------------------------------------------------------
+  const      -7.45232      2.54247      -2.931             
+  GPA         1.62581      0.693882      2.343    0.533347 
+  TUCE        0.0517289    0.0838903     0.6166   0.0169697
+  PSI         1.42633      0.595038      2.397    0.464426 
+
+Mean dependent var   0.343750   S.D. dependent var   0.482559
+McFadden R-squared   0.377478   Adjusted R-squared   0.183225
+Log-likelihood      -12.81880   Akaike criterion     33.63761
+Schwarz criterion    39.50055   Hannan-Quinn         35.58101
+
+Number of cases 'correctly predicted' = 26 (81.2%)
+f(beta'x) at mean of independent vars = 0.328
+Likelihood ratio test: Chi-square(3) = 15.5459 [0.0014]
+
+           Predicted
+             0    1
+  Actual 0  18    3
+         1   3    8
+
+Excluding the constant, p-value was highest for variable 2 (TUCE)
+
+Test for normality of residual -
+  Null hypothesis: error is normally distributed
+  Test statistic: Chi-square(2) = 3.61059
+  with p-value = 0.164426
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Binary probit marginal effects at means
+note: dp/dx based on discrete change for PSI
+
+GRADE = 1, Pr = 0.2658
+
+            dp/dx        s.e.           z        pval        xbar
+ GPA      0.53335     0.23246      2.2943    0.021772      3.1172
+TUCE     0.016970    0.027120     0.62573     0.53149      21.938
+ PSI      0.46443     0.17028      2.7274   0.0063833     0.43750
+
+? foreign language=stata --send-data
+?   logit grade gpa tuce psi
+?   mfx compute, predict()
+?   probit grade gpa tuce psi
+?   mfx compute, predict()
+? end foreign
+
+. quietly adopath + "/home/cottrell/.gretl/"
+
+. * load data from gretl
+. insheet using "/home/cottrell/.gretl/stata.csv"
+(4 vars, 32 obs)
+
+. logit grade gpa tuce psi
+
+Iteration 0:   log likelihood =  -20.59173  
+Iteration 1:   log likelihood = -13.259768  
+Iteration 2:   log likelihood = -12.894606  
+Iteration 3:   log likelihood = -12.889639  
+Iteration 4:   log likelihood = -12.889633  
+Iteration 5:   log likelihood = -12.889633  
+
+Logistic regression                               Number of obs   =         32
+                                                  LR chi2(3)      =      15.40
+                                                  Prob > chi2     =     0.0015
+Log likelihood = -12.889633                       Pseudo R2       =     0.3740
+
+------------------------------------------------------------------------------
+       grade |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         gpa |   2.826113   1.262941     2.24   0.025     .3507938    5.301432
+        tuce |   .0951577   .1415542     0.67   0.501    -.1822835    .3725988
+         psi |   2.378688   1.064564     2.23   0.025       .29218    4.465195
+       _cons |  -13.02135   4.931325    -2.64   0.008    -22.68657    -3.35613
+------------------------------------------------------------------------------
+
+. mfx compute, predict()
+
+Marginal effects after logit
+      y  = Pr(grade) (predict)
+         =  .25282025
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     gpa |   .5338589      .23704    2.25   0.024   .069273  .998445   3.11719
+    tuce |   .0179755      .02624    0.69   0.493  -.033448  .069399   21.9375
+     psi*|   .4564984      .18105    2.52   0.012    .10164  .811357     .4375
+------------------------------------------------------------------------------
+(*) dy/dx is for discrete change of dummy variable from 0 to 1
+
+. probit grade gpa tuce psi
+
+Iteration 0:   log likelihood =  -20.59173  
+Iteration 1:   log likelihood = -12.908126  
+Iteration 2:   log likelihood = -12.818963  
+Iteration 3:   log likelihood = -12.818803  
+Iteration 4:   log likelihood = -12.818803  
+
+Probit regression                                 Number of obs   =         32
+                                                  LR chi2(3)      =      15.55
+                                                  Prob > chi2     =     0.0014
+Log likelihood = -12.818803                       Pseudo R2       =     0.3775
+
+------------------------------------------------------------------------------
+       grade |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         gpa |    1.62581   .6938825     2.34   0.019     .2658255    2.985795
+        tuce |   .0517289   .0838903     0.62   0.537    -.1126929    .2161508
+         psi |   1.426332   .5950379     2.40   0.017     .2600795    2.592585
+       _cons |   -7.45232   2.542472    -2.93   0.003    -12.43547   -2.469166
+------------------------------------------------------------------------------
+
+. mfx compute, predict()
+
+Marginal effects after probit
+      y  = Pr(grade) (predict)
+         =  .26580809
+------------------------------------------------------------------------------
+variable |      dy/dx    Std. Err.     z    P>|z|  [    95% C.I.   ]      X
+---------+--------------------------------------------------------------------
+     gpa |   .5333471      .23246    2.29   0.022   .077726  .988968   3.11719
+    tuce |   .0169697      .02712    0.63   0.531  -.036184  .070123   21.9375
+     psi*|    .464426      .17028    2.73   0.006   .130682   .79817     .4375
+------------------------------------------------------------------------------
+(*) dy/dx is for discrete change of dummy variable from 0 to 1
+
+. 
+end of do-file
+
+Done

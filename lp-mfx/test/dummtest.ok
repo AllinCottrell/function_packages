@@ -1,0 +1,77 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-26 13:54
+? run dummtest.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/dummtest.inp
+? open nels_small.gdt -q
+Read datafile /opt/esl/share/gretl/data/POE4/nels_small.gdt
+? include ../lp-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/../lp-mfx.inp
+? list X1 = const grades faminc female black
+Generated list X1
+? list X2 = const grades faminc black female
+Generated list X2
+? logit psechoice X1 --multinomial -q
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Multinomial logit marginal effects at means
+note: dp/dx based on discrete change for female,black
+
+Outcome 1: (psechoice = 1, Pr = 0.1541)
+
+              dp/dx        s.e.           z        pval        xbar
+grades     0.076332   0.0062871      12.141  6.3905e-34      6.5304
+faminc   -0.0022896  0.00044365     -5.1608  2.4589e-07      51.394
+female    0.0063391    0.023003     0.27557     0.78288     0.49600
+ black     -0.11520    0.020979     -5.4911  3.9952e-08    0.056000
+
+Outcome 2: (psechoice = 2, Pr = 0.2866)
+
+              dp/dx        s.e.           z        pval        xbar
+grades     0.053403   0.0082803      6.4493  1.1235e-10      6.5304
+faminc  -0.00084888  0.00048022     -1.7677    0.077110      51.394
+female     0.045331    0.031624      1.4334     0.15173     0.49600
+ black     -0.14105    0.048413     -2.9136   0.0035733    0.056000
+
+Outcome 3: (psechoice = 3, Pr = 0.5593)
+
+              dp/dx        s.e.           z        pval        xbar
+grades     -0.12974    0.010034     -12.929  3.0819e-38      6.5304
+faminc    0.0031384  0.00057063      5.4999  3.7991e-08      51.394
+female    -0.051670    0.037108     -1.3924     0.16379     0.49600
+ black      0.25625    0.055170      4.6448  3.4047e-06    0.056000
+
+? logit psechoice X2 --multinomial -q
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Multinomial logit marginal effects at means
+note: dp/dx based on discrete change for black,female
+
+Outcome 1: (psechoice = 1, Pr = 0.1541)
+
+              dp/dx        s.e.           z        pval        xbar
+grades     0.076332   0.0062871      12.141  6.3905e-34      6.5304
+faminc   -0.0022896  0.00044365     -5.1608  2.4589e-07      51.394
+ black     -0.11520    0.020979     -5.4911  3.9952e-08    0.056000
+female    0.0063391    0.023003     0.27557     0.78288     0.49600
+
+Outcome 2: (psechoice = 2, Pr = 0.2866)
+
+              dp/dx        s.e.           z        pval        xbar
+grades     0.053403   0.0082803      6.4493  1.1235e-10      6.5304
+faminc  -0.00084888  0.00048022     -1.7677    0.077110      51.394
+ black     -0.14105    0.048413     -2.9136   0.0035733    0.056000
+female     0.045331    0.031624      1.4334     0.15173     0.49600
+
+Outcome 3: (psechoice = 3, Pr = 0.5593)
+
+              dp/dx        s.e.           z        pval        xbar
+grades     -0.12974    0.010034     -12.929  3.0819e-38      6.5304
+faminc    0.0031384  0.00057063      5.4999  3.7991e-08      51.394
+ black      0.25625    0.055170      4.6448  3.4047e-06    0.056000
+female    -0.051670    0.037108     -1.3924     0.16379     0.49600
+
+Done

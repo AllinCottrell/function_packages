@@ -1,0 +1,782 @@
+function matrix condense_linfo (matrix m)
+    scalar n = sumc(m[,1])
+    strings S = array(n)
+    matrix mc = zeros(n, cols(m))
+    scalar j = 1
+    loop i=1..rows(m) -q
+        if m[i,1] == 1
+            mc[j,1] = i
+            mc[j,2:] = m[i,2:]
+            S[j] = rnameget(m, i)
+            j++
+        endif
+    endloop
+    rnameset(mc, S)
+    return mc
+end function
+
+function void lp_mfx_fixlist (list L)
+    matrix m = _listinfo(L, 2)
+    string s
+    loop foreach i L -q
+        if m[i,1] == 0
+            if m[i,3] > 0
+                s = sprintf("= %s squared", varname(L[m[i,3]]))
+            elif m[i,4] > 0
+                s = sprintf("%s * %s", varname(L[m[i,4]]), varname(L[m[i,5]]))
+	    endif
+	    setinfo L.$i --description="@s"
+        endif
+    endloop
+end function
+
+function string dummy_names_string (const matrix m)
+    string s = ""
+    loop i=1..rows(m) -q
+        if m[i,2]
+            s ~= rnameget(m, i)
+            s ~= " "
+        endif
+    endloop
+    return s
+end function
+
+function bundle multi_bundle_from_mod (const bundle mod,
+                                       const string method)
+    bundle b
+    if inbundle(mod, "multinom")
+        b.model = "Multinomial"
+	b.dist = 1
+    else
+        b.model = "Ordered"
+	b.dist = mod.command == "logit" ? 1 : 2
+    endif
+    b.method = method
+    b.yvals = values(mod.ylist[1])
+    b.n_outcomes = rows(b.yvals)
+    b.yname = mod.depvar
+    return b
+end function
+
+function bundle unitary_bundle_from_mod (const bundle mod,
+                                         const string method)
+    bundle b
+    if mod.command == "logistic"
+        b.model = "Logistic"
+        b.dist = 3
+	b.lmax = mod.lmax
+    else
+        b.model = "Binary"
+        b.dist = mod.command == "logit" ? 1 : 2
+    endif
+    b.method = method
+    b.yname = mod.depvar
+    return b
+end function
+
+function scalar logit_pdf (scalar x)
+    scalar z = exp(-x)
+    return z / (1+z)^2
+end function
+
+# handles binary logit, probit and logistic
+
+function scalar unitary_prob (const matrix b, const matrix x,
+                              int dist, scalar lmax)
+    scalar xb = x*b
+    if dist == 1
+        return 1 / (1 + exp(-xb))
+    elif dist == 2
+        return cnorm(xb)
+    else
+        return lmax / (1 + exp(-xb))
+    endif
+end function
+
+function matrix dumx (const matrix m, const matrix x, int i)
+    scalar cmax = cols(m)
+    matrix s = x | x
+
+    # returns a matrix of size 2 x nelem(x): row 1 holds the
+    # values to be used when the dummy at row i of @m is zero
+    # and row 2 the values to be used when it's set to 1
+
+    scalar j = m[i,1]
+    s[1,j] = 0
+    s[2,j] = 1
+    scalar c = 4
+    loop while c < cmax --quiet
+        # interactions with this dummy
+	j = m[i,c+1]
+        if j > 0
+	    s[1,j] = 0
+            s[2,j] = x[m[i,c]]
+        endif
+        c += 2
+    endloop
+
+    return s
+end function
+
+function matrix didx_dx (const matrix b, const matrix x, const matrix m)
+    scalar nd = rows(m)
+    scalar cmax = cols(m)
+    matrix s = zeros(nd, 1)
+    scalar sj, c
+
+    loop i=1..nd -q
+ 	if m[i,2] == 0
+	    # not a dummy; augment coeff if needed
+	    j = m[i,1] # list position
+            sj = b[j] # own coefficient
+            if m[i,3] > 0
+                # handle squared term
+                sj += 2*b[m[i,3]]*x[j]
+            else
+                c = 4
+                loop while c < cmax --quiet
+                    if m[i,c] > 0
+                        # handle interaction
+                        sj += b[m[i,c+1]]*x[m[i,c]]
+                    endif
+                    c += 2
+                endloop
+            endif
+            s[i] = sj
+        endif
+    endloop
+
+    return s
+end function
+
+# handles binary logit, probit, and logistic
+
+function matrix unitary_dp_dx (const matrix b "parameter estimates",
+                               const matrix x "vector of x-values",
+                               const matrix m "info on reg. list",
+                               int dist[1:3:1] "distribution",
+                               scalar lmax[1] "logistic asymptote")
+
+    # Computes the slope of the probability that y = 1
+    # with respect to each "primary" regressor and returns
+    # a (row) k-vector.
+
+    if dist == 1   # logit
+        fxb = logit_pdf(x*b)
+    elif dist == 2 # probit
+        fxb = dnorm(x*b)
+    else # logistic
+        fxb = lmax * logit_pdf(x*b)
+    endif
+
+    matrix d = zeros(1, rows(m))
+    matrix s = didx_dx(b, x, m)
+
+    loop i=1..rows(m) -q
+        if m[i,2] == 1
+            # handle dummy variable
+	    matrix xd = dumx(m, x, i)
+	    # print x xd
+            scalar p0 = unitary_prob(b, xd[1,], dist, lmax)
+	    scalar p1 = unitary_prob(b, xd[2,], dist, lmax)
+            d[i] = p1 - p0
+        else
+	    # not a dummy
+	    d[i] = s[i] * fxb
+        endif
+    endloop
+
+    return d
+end function
+
+function matrix ordered_func (scalar xb, const matrix cut,
+                              int dist, bool deriv)
+    scalar n = rows(cut)
+    matrix ret = zeros(1, n)
+    scalar arg
+    loop j=1..n -q
+        arg = cut[j] - xb
+        if dist == 1
+            ret[j] = deriv ? logit_pdf(arg) : 1 / (1 + exp(-arg))
+        else
+            ret[j] = deriv ? dnorm(arg) : cnorm(arg)
+        endif
+    endloop
+    return ret
+end function
+
+function matrix ordered_pj (const matrix theta, const matrix x,
+                            int ny, int dist)
+    # Computes the probability of each outcome, j=1,...,ny, for
+    # the given parameter vector theta and regressor vector x.
+    # dist = 1 for logit, 2 for probit
+    #
+    # Returns a row vector of ny probabilities
+
+    scalar k = cols(x)
+    matrix b = theta[1:k]
+    matrix cut = theta[k+1:]
+    matrix fc = ordered_func(x*b, cut, dist, 0)
+    matrix prob = zeros(1, ny)
+
+    loop j=1..ny -q
+        if j == 1
+            prob[j] = fc[j]
+        elif j < ny
+            prob[j] = fc[j] - fc[j-1]
+        else
+            prob[j] = 1 - fc[j-1]
+        endif
+    endloop
+
+    return prob
+end function
+
+function matrix mlogit_pj (const matrix b, const matrix x, int ny)
+    # Computes the probability of each outcome, j=1,...,ny, for
+    # the given parameter vector b and regressor vector x.
+    #
+    # Returns a row vector of ny probabilities
+
+    # nb = number of parameters per outcome
+    scalar nb = rows(b) / (ny-1)
+    # to hold exp(x*bj) per outcome
+    matrix num = ones(1, ny)
+    # to hold \sum_j Xb_j
+    scalar den = 1
+    k = 1
+    loop j=2..ny -q
+        matrix bj = b[k:k+nb-1]
+        num[j] = exp(x*bj)
+        den += num[j]
+        k += nb
+    endloop
+    return num / den
+end function
+
+function matrix ordered_dpj_dx (const matrix theta "parameter estimates",
+                                const matrix x "vector of regressors",
+                                int ny "number of possible outcomes",
+				const matrix m "info on regressors",
+                                int dist[1:2:1] "distribution" {"logit", "probit"})
+
+    # Computes the "slope" of the probability that each outcome
+    # occurs, with respect to each primary regressor. Assumes a
+    # "condensed" m matrix
+
+    scalar k = cols(x)
+    matrix b = theta[1:k]
+    matrix dfc = ordered_func(x*b, theta[k+1:], dist, 1)
+
+    k = rows(m)
+    matrix dp = zeros(ny, k)
+    matrix s = didx_dx(b, x, m)
+
+    loop i=1..k -q
+        loop j=1..ny -q
+            if j == 1
+                dp[j,i] = -s[i] * dfc[1]
+            elif j < ny
+                dp[j,i] = -s[i] * (dfc[j] - dfc[j-1])
+            else
+                dp[j,i] = s[i] * dfc[j-1]
+            endif
+	endloop
+    endloop
+
+    loop i=1..k -q
+        if m[i,2] == 1
+            # handle dummy variable
+	    matrix xd = dumx(m, x, i)
+            matrix p0 = ordered_pj(theta, xd[1,], ny, dist)
+	    matrix p1 = ordered_pj(theta, xd[2,], ny, dist)
+            dp[,i] = p1 - p0
+	endif
+    endloop
+
+    return dp
+end function
+
+function matrix mlogit_dpj_dx (const matrix b "parameter estimates",
+                               const matrix x "vector of x-values",
+                               int ny "number of possible outcomes",
+			       const matrix m "info on reg. list")
+
+    # Computes the slope of the probability that each outcome
+    # occurs with respect to each primary regressor.
+
+    matrix p = mlogit_pj(b, x, ny)
+    scalar nb = rows(b) / (ny-1)
+    scalar nd = rows(m)
+    matrix bbar = zeros(nd, 1)
+    matrix bj = zeros(nd, ny)
+
+    scalar pos = 1
+    loop l=2..ny -q
+        bj[,l] = didx_dx(b[pos:pos+nb-1], x, m)
+	bbar += p[l] * bj[,l]
+        pos += nb
+    endloop
+    matrix dp = (p' .* (bj .- bbar)')
+
+    loop i=1..nd -q
+        if m[i,2] == 1
+            # handle dummy variable
+	    matrix xd = dumx(m, x, i)
+            matrix p0 = mlogit_pj(b, xd[1,], ny)
+	    matrix p1 = mlogit_pj(b, xd[2,], ny)
+            dp[,i] = p1 - p0
+	endif
+    endloop
+
+    return dp
+end function
+
+# compute vector of means, allowing for squares and
+# interaction terms
+
+function matrix atmeans_vec (list XL, const matrix m,
+                             bundle *b)
+    scalar cmax = cols(m)
+
+    # compute mean X, etc.
+    matrix x = ones(1, nelem(XL))
+    list D = null
+    loop foreach i XL -q
+        if varnum(XL.$i) > 0
+            if m[i,1] == 0 && m[i,3] > 0
+                # squared term: use square of mean
+                x[i] = mean(XL[m[i,3]])^2
+            elif m[i,1] == 0 && m[i,4] > 0
+                # interaction term(s): use product of means
+                x[i] = mean(XL[m[i,4]]) * mean(XL[m[i,5]])
+                c = 6
+                loop while c < cmax --quiet
+                    x[i] += mean(XL[m[i,c]]) * mean(XL[m[i,c+1]])
+                    c += 2
+                endloop
+            else
+                # regular term: use own mean
+                x[i] = mean(XL[i])
+            endif
+            if m[i,2] > 0
+                # dummy: add to list
+                D += XL.$i
+            endif
+        endif
+    endloop
+    if nelem(D) > 0
+        # attach dummy names to bundle
+        b.Dnames = varname(D)
+    endif
+
+    return x
+end function
+
+# handles binary logit, probit and logistic
+
+function bundle unitary_atvals_mfx (const bundle mod,
+                                    const matrix x[null],
+                                    bool skip_se[0])
+
+    string method = exists(x) ? "atvals" : "atmeans"
+    bundle ret = unitary_bundle_from_mod(mod, method)
+    list XL = mod.xlist
+    series sample = mod.sample
+    scalar dist = ret.dist
+    scalar lmax = inbundle(ret, "lmax") ? ret.lmax : 0
+
+    # ensure we're using the model's estimation sample
+    smpl sample --dummy
+
+    matrix m = _listinfo(XL)
+    if method == "atmeans"
+        matrix x = atmeans_vec(XL, m, &ret)
+    endif
+    scalar ret.refprob = unitary_prob(mod.coeff, x, dist, lmax)
+    matrix m = condense_linfo(m)
+    matrix xval = x[m[,1]']'
+
+    do_se = !skip_se
+    
+    string xlabel = method == "atmeans" ? "xbar" : "xval"
+
+    # now compute marginal effects
+    matrix dp = unitary_dp_dx(mod.coeff, x, m, dist, lmax)'
+    if do_se
+        matrix theta = mod.coeff
+        matrix J = fdjac(theta, unitary_dp_dx(theta, x, m, dist, lmax))
+	matrix se = sqrt(diag(qform(J, mod.vcv)))
+        matrix zval = dp ./ se
+        matrix pval = 2 * pvalue(z, abs(zval))
+        matrix res = dp ~ se ~ zval ~ pval ~ xval
+        cnameset(res, "dp/dx s.e. z pval " ~ xlabel)
+    else
+        matrix res = dp ~ xval
+        cnameset(dp, "dp/dx " ~ xlabel)
+    endif
+
+    rnameset(res, rnameget(m))
+    ret.mfx = res
+
+    return ret
+end function
+
+function bundle unitary_average_mfx (const bundle mod, bool perobs[0],
+                                     bool skip_se[0])
+
+    bundle ret = unitary_bundle_from_mod(mod, "average")
+    list XL = mod.xlist
+    series sample = mod.sample
+    scalar dist = ret.dist
+    scalar lmax = inbundle(ret, "lmax") ? ret.lmax : 0
+
+    scalar skipped = 0
+    if perobs
+        skipped = mod.t2 - mod.t1 + 1 - mod.T
+        if skipped > 0
+            genr index
+        endif
+    endif
+
+    ret.method = perobs ? "perobs" : "average"
+    scalar do_se = !perobs && !skip_se
+
+    smpl sample --dummy
+    scalar T = $nobs
+
+    matrix m = _listinfo(XL, 1)
+    scalar nd = rows(m)
+    matrix mfx = zeros(T, nd + (skipped > 0))
+    matrix X = {XL}
+
+    strings cnames = rnameget(m)
+    if skipped
+        cnames += "obs"
+    endif
+
+    if sumc(m[,2]) > 0
+        ret.Dnames = dummy_names_string(m)
+    endif
+
+    if do_se
+        matrix J = zeros(nd, cols(X))
+    endif
+
+    loop t=1..T --quiet
+        matrix Xt = X[t,]
+        mfx[t,1:nd] = unitary_dp_dx(mod.coeff, Xt, m, dist, lmax)
+        if do_se
+            matrix theta = mod.coeff
+            J += fdjac(theta, unitary_dp_dx(theta, Xt, m, dist, lmax))
+        endif
+        if skipped
+            mfx[t,nd+1] = index[t]
+        endif
+    endloop
+
+    if do_se
+        res = meanc(mfx)'
+        matrix Vdp = qform(J/T, mod.vcv)
+        matrix se = sqrt(diag(Vdp))
+        matrix zval = res ./ se
+        matrix pval = 2 * pvalue(z, abs(zval))
+        matrix mfx = res ~ se ~ zval ~ pval
+        cnameset(mfx, "dp/dx s.e. z pval")
+        rnameset(mfx, cnames)
+    else
+        cnameset(mfx, cnames)
+    endif
+
+    ret.mfx = mfx
+    return ret
+end function
+
+function bundle multi_atvals_mfx (const bundle mod,
+                                  const matrix x[null],
+                                  bool skip_se[0])
+
+    # ensure we're using the model's estimation sample
+    series sample = mod.sample
+    smpl sample --dummy
+
+    string method = exists(x) ? "atvals" : "atmeans"
+    bundle ret = multi_bundle_from_mod(mod, method)
+    list XL = mod.xlist
+    scalar dist = ret.dist
+
+    ny = ret.n_outcomes
+    ordered = (ret.model == "Ordered")
+
+    matrix m = _listinfo(XL)
+    if method == "atmeans"
+        matrix x = atmeans_vec(XL, m, &ret)
+    endif
+
+    if ordered
+        matrix ret.refprob = ordered_pj(mod.coeff, x, ny, dist)
+    else
+        matrix ret.refprob = mlogit_pj(mod.coeff, x, ny)
+    endif
+
+    matrix m = condense_linfo(m)
+    matrix xval = x[m[,1]']'
+
+    scalar do_se = !skip_se
+
+    # now compute marginal effects for each outcome
+    matrix theta = mod.coeff
+    if ordered
+        matrix dp = ordered_dpj_dx(mod.coeff, x, ny, m, dist)'
+	if do_se
+            matrix J = fdjac(theta, vec(ordered_dpj_dx(theta, x, ny, m, dist)))
+	endif
+    else
+        matrix dp = mlogit_dpj_dx(mod.coeff, x, ny, m)'
+	if do_se
+            matrix J = fdjac(theta, vec(mlogit_dpj_dx(theta, x, ny, m)))
+	endif
+    endif
+
+    if do_se
+        matrix se = sqrt(diag(qform(J, mod.vcv)))
+        se = mshape(se, ny, rows(dp))'
+        matrix zval = dp ./ se
+        matrix pval = 2 * pvalue(z, abs(zval))
+    endif
+    
+    string xlabel = method == "atmeans" ? "xbar" : "xval"
+
+    # create a submatrix per outcome
+    loop j=1..ny -q
+        if do_se
+            matrix mfx = dp[,j] ~ se[,j] ~ zval[,j] ~ pval[,j] ~ xval
+            cnameset(mfx, "dp/dx s.e. z pval " ~ xlabel)
+	else
+	    matrix mfx = dp[,j] ~ xval
+	    cnameset(mfx, "dp/dx " ~ xlabel)
+	endif
+	rnameset(mfx, rnameget(m))
+        string matname = sprintf("mfx_%d", j)
+        ret[matname] = mfx
+    endloop
+
+    return ret
+end function
+
+function bundle multi_average_mfx (const bundle mod, bool skip_se[0])
+
+    # ensure we're using the model's estimation sample
+    series sample = mod.sample
+    smpl sample --dummy
+    scalar T = $nobs
+
+    bundle ret = multi_bundle_from_mod(mod, "average")
+    list XL = mod.xlist
+    scalar dist = ret.dist
+
+    ny = ret.n_outcomes
+    ordered = (ret.model == "Ordered")
+
+    matrix m = _listinfo(XL,1)
+    scalar nd = rows(m)
+
+    matrix dp = zeros(nd, ny)
+    matrix J = zeros(nd*ny, rows(mod.vcv))
+    matrix X = {XL}
+
+    if sumc(m[,2]) > 0
+        ret.Dnames = dummy_names_string(m)
+    endif
+
+    scalar do_se = !skip_se
+    if do_se
+        matrix J = zeros(nd*ny, rows(mod.vcv))
+    endif
+
+    # now compute average marginal effects for each outcome
+    matrix theta = mod.coeff
+    loop t=1..T -q
+        matrix Xt = X[t,]
+        if ordered
+	    dp += ordered_dpj_dx(mod.coeff, Xt, ny, m, dist)'
+	    if do_se
+	        J += fdjac(theta, vec(ordered_dpj_dx(theta, Xt, ny, m, dist)))
+	    endif
+	else
+	    dp += mlogit_dpj_dx(mod.coeff, Xt, ny, m)'
+	    if do_se
+	        J += fdjac(theta, vec(mlogit_dpj_dx(theta, Xt, ny, m)))
+	    endif
+        endif
+    endloop
+
+    dp /= T
+    if do_se
+        matrix se = sqrt(diag(qform(J/T, mod.vcv)))
+        se = mshape(se, ny, rows(dp))'
+        matrix zval = dp ./ se
+        matrix pval = 2 * pvalue(z, abs(zval))
+    endif
+
+    # create a submatrix per outcome
+    loop j=1..ny -q
+        if do_se
+            matrix mfx = dp[,j] ~ se[,j] ~ zval[,j] ~ pval[,j]
+            cnameset(mfx, "dp/dx s.e. z pval")
+	else
+	    matrix mfx = dp[,j]
+	    cnameset(mfx, "dp/dx")
+	endif
+	rnameset(mfx, rnameget(m))
+        string matname = sprintf("mfx_%d", j)
+        ret[matname] = mfx
+    endloop
+
+    return ret
+end function
+
+function void lp_mfx_print (bundle *b)
+
+    string model = b.model
+    if model != "Logistic"
+        scalar dist = b.dist
+    endif
+
+    if model != "Binary" && model != "Logistic"
+        scalar m = b.n_outcomes
+        matrix yvals = b.yvals
+    else
+        scalar m = 1
+    endif
+
+    string yname = b.yname
+    catch string Dnames = b.Dnames
+
+    if model == "Logistic"
+        string label = model
+    else
+        string dstr = (dist == 1)? "logit" : "probit"
+        string label = sprintf("%s %s", model, dstr)
+    endif
+
+    if b.method == "average"
+        printf "\n%s average marginal effects\n", label
+    elif b.method == "atmeans"
+        printf "\n%s marginal effects at means\n", label
+    elif b.method == "atvals"
+        printf "\n%s marginal effects at specified x\n", label
+    else
+        printf "\n%s marginal effects per observation\n", label
+    endif
+
+    if exists(Dnames)
+        printf "note: dp/dx based on discrete change for %s\n", Dnames
+    endif
+    printf "\n"
+
+    if m == 1
+        if inbundle(b, "refprob")
+            scalar mp = b.refprob
+            if model == "Logistic"
+                printf "%s, point prediction %g\n\n", yname, mp
+            else
+                printf "%s = 1, Pr = %.4f\n\n", yname, mp
+            endif
+        endif
+        printf "%#12.5g\n", b.mfx
+    else
+        if inbundle(b, "refprob")
+            matrix mp = b.refprob
+	endif
+        loop j=1..m -q
+            matname = sprintf("mfx_%d", j)
+            matrix res = b[matname]
+	    if exists(mp)
+                printf "Outcome %d: (%s = %d, Pr = %.4f)\n\n%#12.5g\n", j, yname,
+                yvals[j], mp[j], res
+	    else
+                printf "Outcome %d: (%s = %d)\n\n%#12.5g\n", j, yname,
+                yvals[j], res
+            endif
+        endloop
+    endif
+end function
+
+function scalar lp_mfx_precheck (void)
+    scalar err = 0
+    string cmd = $command
+    if cmd != "logit" && cmd != "probit" && cmd != "logistic"
+        err = 1
+    else
+        catch scalar qp = $["quadpoints"]
+        scalar err = ($error == 0)
+        if err
+            print "lp_mfx: can't handle random effects probit yet"
+        endif
+    endif
+    return err
+end function
+
+function bundle lp_mfx_atx (const bundle mod "model",
+                            const matrix x "at values",
+			    bool skip_se[0] "no standard errors")
+
+    string cmd = mod.command
+    if cmd != "logit" && cmd != "probit" && cmd != "logistic"
+        funcerr "unsupported estimator"
+    elif inbundle(mod, "quadpoints")
+        funcerr "random effects probit is not supported"
+    endif
+    
+    if rows(x) != 1 || cols(x) != rows(mod.vcv)
+        funcerr "invalid x matrix"
+    endif
+
+    bundle b = null
+
+    if inbundle(mod, "multinom") || inbundle(mod, "ordered")
+        b = multi_atvals_mfx(mod, x, skip_se)
+    else
+        b = unitary_atvals_mfx(mod, x, skip_se)
+    endif
+
+    return b
+end function
+
+function bundle lp_mfx (const bundle mod "model",
+                        int mode[1:3:1] {"at means", "average", "per observation"},
+			bool skip_se[0] "no standard errors")
+
+    string cmd = mod.command
+    if cmd != "logit" && cmd != "probit" && cmd != "logistic"
+        funcerr "unsupported estimator"
+    elif inbundle(mod, "quadpoints")
+        funcerr "random effects probit is not supported"
+    endif
+
+    bundle b = null
+
+    if inbundle(mod, "multinom") || inbundle(mod, "ordered")
+        if mode == 1
+            b = multi_atvals_mfx(mod, null, skip_se)
+	else
+	    b = multi_average_mfx(mod, skip_se)
+	endif
+    else
+        if mode == 1
+            b = unitary_atvals_mfx(mod, null, skip_se)
+	else
+	    b = unitary_average_mfx(mod, mode==3, skip_se)
+	endif
+    endif
+
+    return b
+end function
+
+function bundle GUI_lp_mfx (int mode[1:3:1] "mode" \
+                            {"at means", "average", "per observation"},
+			    bool skip_se[0] "no standard errors")
+    bundle model = $model
+    return lp_mfx(model, mode, skip_se)
+end function

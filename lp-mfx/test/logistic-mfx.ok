@@ -1,0 +1,231 @@
+gretl version 2019b-git
+Copyright Ramu Ramanathan, Allin Cottrell and Riccardo "Jack" Lucchetti
+This is free software with ABSOLUTELY NO WARRANTY
+Current session: 2019-04-26 13:57
+? run logistic-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/logistic-mfx.inp
+? include ../lp-mfx.inp
+ /home/cottrell/stats/gfntest/lp-mfx/test/../lp-mfx.inp
+? open data4-10
+
+Read datafile /opt/esl/share/gretl/data/ramanathan/data4-10.gdt
+periodicity: 1, maxobs: 51
+observations range: 1 to 51
+
+Listing 11 variables:
+  0) const      1) ENROLL     2) CATHOL     3) PUPIL      4) WHITE    
+  5) ADMEXP     6) REV        7) MEMNEA     8) INCOME     9) COLLEGE  
+ 10) REGION   
+
+# Both ENROLL and CATHOL are proportions, between 0 and 1.
+# We first use them as-is, then convert them to percentages.
+? ols ENROLL 0 CATHOL PUPIL
+
+Model 1: OLS, using observations 1-51
+Dependent variable: ENROLL
+
+             coefficient   std. error   t-ratio   p-value
+  -------------------------------------------------------
+  const       0.0855655    0.0579350     1.477    0.1462 
+  CATHOL      0.206523     0.0515958     4.003    0.0002  ***
+  PUPIL      -0.00169675   0.00302524   -0.5609   0.5775 
+
+Mean dependent var   0.095569   S.D. dependent var   0.052215
+Sum squared resid    0.092189   S.E. of regression   0.043825
+R-squared            0.323733   Adjusted R-squared   0.295555
+F(2, 48)             11.48893   P-value(F)           0.000084
+Log-likelihood       88.68548   Akaike criterion    -171.3710
+Schwarz criterion   -165.5755   Hannan-Quinn        -169.1563
+
+? matrix b_ols = $coeff
+Generated matrix b_ols
+? logistic ENROLL 0 CATHOL PUPIL
+
+Model 2: Logistic, using observations 1-51
+Dependent variable: ENROLL
+yhat =~ E(1 / (1 + exp(-X*b)))
+
+             coefficient   std. error   t-ratio   p-value
+  -------------------------------------------------------
+  const      -2.40395      0.819638     -2.933    0.0051  ***
+  CATHOL      2.49545      0.729954      3.419    0.0013  ***
+  PUPIL      -0.0286463    0.0427997    -0.6693   0.5065 
+
+Statistics based on the transformed data:
+
+Sum squared resid    18.45191   S.E. of regression   0.620012
+R-squared            0.270139   Adjusted R-squared   0.239728
+F(2, 48)             8.882970   P-value(F)           0.000522
+Log-likelihood      -46.44109   Akaike criterion     98.88219
+Schwarz criterion    104.6777   Hannan-Quinn         101.0968
+
+Statistics based on the original data:
+
+Mean dependent var   0.095569   S.D. dependent var   0.052215
+Sum squared resid    0.101735   S.E. of regression   0.046038
+Log-likelihood       87.62230   Akaike criterion    -169.2446
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Logistic marginal effects at means
+
+ENROLL, point prediction 0.0813282
+
+              dp/dx        s.e.           z        pval        xbar
+CATHOL      0.18644    0.056197      3.3177  0.00090757     0.19104
+ PUPIL   -0.0021403   0.0032015    -0.66852     0.50380      17.357
+
+OLS coeffs, for reference
+? eval b_ols[2:]
+     0.20652 
+  -0.0016967 
+
+# verify prediction at means of regressors
+? scalar xb = {1, mean(CATHOL), mean(PUPIL)} * $coeff
+Generated scalar xb = -2.42444
+? eval 1 / (1+exp(-xb))
+0.081328239
+# percentages on both sides
+? ENROLL *= 100
+Replaced series ENROLL (ID 1)
+? CATHOL *= 100
+Replaced series CATHOL (ID 2)
+? ols ENROLL 0 CATHOL PUPIL
+
+Model 3: OLS, using observations 1-51
+Dependent variable: ENROLL
+
+             coefficient   std. error   t-ratio   p-value
+  -------------------------------------------------------
+  const        8.55655     5.79350       1.477    0.1462 
+  CATHOL       0.206523    0.0515958     4.003    0.0002  ***
+  PUPIL       -0.169675    0.302524     -0.5609   0.5775 
+
+Mean dependent var   9.556863   S.D. dependent var   5.221504
+Sum squared resid    921.8910   S.E. of regression   4.382472
+R-squared            0.323733   Adjusted R-squared   0.295555
+F(2, 48)             11.48893   P-value(F)           0.000084
+Log-likelihood      -146.1782   Akaike criterion     298.3564
+Schwarz criterion    304.1519   Hannan-Quinn         300.5710
+
+? matrix b_ols = $coeff
+Replaced matrix b_ols
+? logistic ENROLL 0 CATHOL PUPIL
+
+Model 4: Logistic, using observations 1-51
+Dependent variable: ENROLL
+yhat =~ E(100 / (1 + exp(-X*b)))
+
+             coefficient   std. error   t-ratio   p-value
+  -------------------------------------------------------
+  const      -2.40395      0.819638     -2.933    0.0051  ***
+  CATHOL      0.0249545    0.00729954    3.419    0.0013  ***
+  PUPIL      -0.0286463    0.0427997    -0.6693   0.5065 
+
+Statistics based on the transformed data:
+
+Sum squared resid    18.45191   S.E. of regression   0.620012
+R-squared            0.270139   Adjusted R-squared   0.239728
+F(2, 48)             8.882970   P-value(F)           0.000522
+Log-likelihood      -46.44109   Akaike criterion     98.88219
+Schwarz criterion    104.6777   Hannan-Quinn         101.0968
+
+Statistics based on the original data:
+
+Mean dependent var   9.556863   S.D. dependent var   5.221504
+Sum squared resid    1017.354   S.E. of regression   4.603788
+Log-likelihood      -147.2414   Akaike criterion     300.4828
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Logistic marginal effects at means
+
+ENROLL, point prediction 8.13282
+
+              dp/dx        s.e.           z        pval        xbar
+CATHOL      0.18644    0.056197      3.3177  0.00090757      19.104
+ PUPIL     -0.21403     0.32015    -0.66852     0.50380      17.357
+
+OLS coeffs, for reference
+? eval b_ols[2:]
+     0.20652 
+    -0.16967 
+
+# verify prediction at means of regressors
+? scalar xb = {1, mean(CATHOL), mean(PUPIL)} * $coeff
+Replaced scalar xb = -2.42444
+? eval 100 / (1+exp(-xb))
+8.1328239
+# percentage on left only
+? CATHOL /= 100
+Replaced series CATHOL (ID 2)
+? ols ENROLL 0 CATHOL PUPIL
+
+Model 5: OLS, using observations 1-51
+Dependent variable: ENROLL
+
+             coefficient   std. error   t-ratio   p-value
+  -------------------------------------------------------
+  const        8.55655      5.79350      1.477    0.1462 
+  CATHOL      20.6523       5.15958      4.003    0.0002  ***
+  PUPIL       -0.169675     0.302524    -0.5609   0.5775 
+
+Mean dependent var   9.556863   S.D. dependent var   5.221504
+Sum squared resid    921.8910   S.E. of regression   4.382472
+R-squared            0.323733   Adjusted R-squared   0.295555
+F(2, 48)             11.48893   P-value(F)           0.000084
+Log-likelihood      -146.1782   Akaike criterion     298.3564
+Schwarz criterion    304.1519   Hannan-Quinn         300.5710
+
+? matrix b_ols = $coeff
+Replaced matrix b_ols
+? logistic ENROLL 0 CATHOL PUPIL
+
+Model 6: Logistic, using observations 1-51
+Dependent variable: ENROLL
+yhat =~ E(100 / (1 + exp(-X*b)))
+
+             coefficient   std. error   t-ratio   p-value
+  -------------------------------------------------------
+  const      -2.40395      0.819638     -2.933    0.0051  ***
+  CATHOL      2.49545      0.729954      3.419    0.0013  ***
+  PUPIL      -0.0286463    0.0427997    -0.6693   0.5065 
+
+Statistics based on the transformed data:
+
+Sum squared resid    18.45191   S.E. of regression   0.620012
+R-squared            0.270139   Adjusted R-squared   0.239728
+F(2, 48)             8.882970   P-value(F)           0.000522
+Log-likelihood      -46.44109   Akaike criterion     98.88219
+Schwarz criterion    104.6777   Hannan-Quinn         101.0968
+
+Statistics based on the original data:
+
+Mean dependent var   9.556863   S.D. dependent var   5.221504
+Sum squared resid    1017.354   S.E. of regression   4.603788
+Log-likelihood      -147.2414   Akaike criterion     300.4828
+
+? bundle b = lp_mfx($model)
+? lp_mfx_print(&b)
+
+Logistic marginal effects at means
+
+ENROLL, point prediction 8.13282
+
+              dp/dx        s.e.           z        pval        xbar
+CATHOL       18.644      5.6197      3.3177  0.00090757     0.19104
+ PUPIL     -0.21403     0.32015    -0.66852     0.50380      17.357
+
+OLS coeffs, for reference
+? eval b_ols[2:]
+      20.652 
+    -0.16967 
+
+# verify prediction at means of regressors
+? scalar xb = {1, mean(CATHOL), mean(PUPIL)} * $coeff
+Replaced scalar xb = -2.42444
+? eval 100 / (1+exp(-xb))
+8.1328239
+Done
