@@ -1,0 +1,110 @@
+function matrix get_almon_betas (const matrix gamma, scalar k,
+                                 scalar p, scalar q)
+   scalar gmin = k + 1
+   matrix beta = zeros(gmin+p,1)
+   beta[1:k] = gamma[1:k]
+   loop i=0..p --quiet
+      loop j=0..q --quiet
+         beta[i+gmin] += gamma[j+gmin] * i^j
+      endloop
+   endloop
+   return beta
+end function
+
+function bundle almonreg (series y "dependent variable",
+                          series x "series for PDL",
+                          int p[2::4] "max lag",
+                          int q[2::2] "polynomial order",
+                          bool c[1] "include a constant",
+                          list X[null] "other regressors",
+                          bool quiet[0])
+   bundle b
+
+   # form the variables z_0 to z_q
+   list Z = null
+   list XL = x || lags(p, x)
+   Pi = seq(0, p)' .^ seq(0, q)
+   loop j=0..q --quiet
+      sname = sprintf("z_%d", j)
+      Z += genseries(sname, lincomb(XL, Pi[,j+1]))
+   endloop
+
+   if c && !inlist(X, 0)
+      X = const X
+   endif
+
+   # regress the dependent variable on X and the z's and
+   # retrieve the coefficients as gamma
+   ols y X Z
+   matrix gamma = $coeff
+   matrix V = $vcv
+   scalar k = nelem(X)
+
+   # recover the constrained betas
+   beta = get_almon_betas(gamma, k, p, q)
+
+   # and calculate standard errors
+   matrix J = fdjac(gamma, get_almon_betas(gamma, k, p, q))
+   matrix V2 = qform(J, V)
+   se = sqrt(diag(V2))
+   matrix res = beta ~ se
+
+   b.gamma = gamma
+   b.beta = beta
+   b.se = se
+   b.xname = argname(x)
+   b.p = p
+   b.q = q
+   b.k = k
+
+   if !quiet
+      almon_print(&b)
+   endif
+
+   return b
+end function
+
+function void almon_print (bundle *b)
+   string xname = b.xname
+   if strlen(xname) == 0
+      xname = "x"
+   endif
+
+   strings cnames = array(b.p + 1)
+   cnames[1] = xname
+   loop i=1..b.p --quiet
+      cnames[i+1] = sprintf("%s(-%d)", xname, i)
+   endloop
+
+   matrix res = (b.beta ~ b.se)[b.k+1:,]
+
+   printf "Almon lag, polynomial order %d\n", b.q
+   modprint res cnames
+end function
+
+function bundle GUI_almon (series y "dependent variable",
+                           series x "series for PDL",
+                           int p[2::4] "max lag",
+                           int q[2::2] "polynomial order",
+                           bool c[1] "include a constant",
+                           list X[null] "other regressors")
+   string yname = argname(y)
+   string xname = argname(x)
+
+   if strlen(yname) > 0
+      rename y @yname
+   else
+      yname = "y"
+   endif
+   if strlen(xname) > 0
+      rename x @xname
+   else
+      xname = "x"
+   endif
+
+   bundle b = almonreg(@yname, @xname, p, q, c, X)
+   return b
+end function
+
+
+
