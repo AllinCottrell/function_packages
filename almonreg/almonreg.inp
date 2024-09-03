@@ -33,9 +33,14 @@ function bundle almonreg (series y "dependent variable",
       X = const X
    endif
 
+   string yname = argname(y, "y")
+   if yname != "y"
+      rename y @yname
+   endif
+
    # regress the dependent variable on X and the z's and
    # retrieve the coefficients as gamma
-   ols y X Z
+   ols @yname X Z
    matrix gamma = $coeff
    matrix V = $vcv
    scalar k = nelem(X)
@@ -88,18 +93,14 @@ function bundle GUI_almon (series y "dependent variable",
                            int q[2::2] "polynomial order",
                            bool c[1] "include a constant",
                            list X[null] "other regressors")
-   string yname = argname(y)
-   string xname = argname(x)
+   string yname = argname(y, "y")
+   string xname = argname(x, "y")
 
-   if strlen(yname) > 0 && yname != "y"
+   if yname != "y"
       rename y @yname
-   else
-      yname = "y"
    endif
-   if strlen(xname) > 0 && xname != "x"
+   if xname != "x"
       rename x @xname
-   else
-      xname = "x"
    endif
 
    bundle b = almonreg(@yname, @xname, p, q, c, X)
