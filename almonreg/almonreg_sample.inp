@@ -1,8 +1,7 @@
 include almonreg.gfn
 open almon.gdt --frompkg=almonreg
-genr dummy
 
-list X = dq1 dq2 dq3
+list X = seasonals(4)
 scalar p = 5 # maximum lag length
 scalar q = 2 # order of Almon polynomial
 

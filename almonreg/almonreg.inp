@@ -21,9 +21,9 @@ function bundle almonreg (series y "dependent variable",
    bundle b
 
    # form the variables z_0 to z_q
-   list Z = null
    list XL = x || lags(p, x)
    Pi = seq(0, p)' .^ seq(0, q)
+   list Z
    loop j=0..q
       sname = sprintf("z_%d", j)
       Z += genseries(sname, lincomb(XL, Pi[,j+1]))
@@ -94,7 +94,7 @@ function bundle GUI_almon (series y "dependent variable",
                            bool c[1] "include a constant",
                            list X[null] "other regressors")
    string yname = argname(y, "y")
-   string xname = argname(x, "y")
+   string xname = argname(x, "x")
 
    if yname != "y"
       rename y @yname

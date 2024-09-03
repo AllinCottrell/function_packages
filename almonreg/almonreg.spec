@@ -1,6 +1,6 @@
 author = Allin Cottrell
 email = cottrell@wfu.edu
-version = 0.6
+version = 1.0
 date = 2024-09-03
 description = PDL (Almon lag) model
 tags = C22

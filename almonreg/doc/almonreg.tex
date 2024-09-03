@@ -10,7 +10,7 @@
 \usepackage[letterpaper,body={6.3in,9.15in},top=.8in,left=1.1in]{geometry}
 % \usepackage[a4paper,body={6.1in,9.7in},top=.8in,left=1.1in]{geometry}
 
-\hypersetup{pdftitle={Almonreg 0.6},
+\hypersetup{pdftitle={Almonreg 1.0},
             pdfauthor={Allin Cottrell},
             colorlinks=true,
             linkcolor=blue,
@@ -26,7 +26,7 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
 
-\title{Almonreg 0.6}
+\title{Almonreg 1.0}
 \author{Allin Cottrell}
 \maketitle
 
@@ -137,17 +137,17 @@ include almonreg.gfn
 open almon.gdt --frompkg=almonreg
 \end{code}
 %
-The data file \texttt{almon.gdt} contains two quarterly time series
-running from 1952Q1 to 1966Q4, namely \texttt{ce} (capital
-expenditures) and \texttt{ca} (capital appropriations). These are
-National Industrial Conference Board data, a variant of the data used
-by Shirley Almon. The next two lines generate a list, \texttt{X},
-containing dummy variables representing the first, second and third
-quarters, to allow for seasonality.
+The data file \texttt{almon.gdt} contains two quarterly time series running
+from 1952Q1 to 1966Q4, namely \texttt{ce} (capital expenditures) and
+\texttt{ca} (capital appropriations). These are National Industrial
+Conference Board data, a variant of the data used by Shirley Almon. The next
+line generates a list \texttt{X} containing quarterly dummy variables to
+allow for seasonality. The argument 4 to the \texttt{seasonals} function
+omits the dummy for the fourth quarter, hence permitting inclusion of a
+constant.
 %
 \begin{code}
-genr dummy
-list X = dq1 dq2 dq3
+list X = seasonals(4)
 \end{code}
 %
 We then select the lag and polynomial orders and invoke
@@ -159,8 +159,8 @@ scalar q = 2 # order of Almon polynomial
 bundle B = almonreg(ce, ca, p, q, 1, X)
 \end{code}
 %
-If we hadn't wanted to include seasonal dummies the function call
-could have been abbreviated to
+If we hadn't wanted to include seasonal dummies the function call could have
+been abbreviated to
 \begin{code}
 bundle B = almonreg(ce, ca, p)
 \end{code}
@@ -168,12 +168,12 @@ bundle B = almonreg(ce, ca, p)
 in which case the model would have used $q = 2$ and included a
 constant, these being the defaults.
 
-Partial output from the sample script is shown in
-Listing~\ref{output}. The first block displays the results of the
-initial OLS using the ``artificial regressors'' $z_j$, $j=0,1,2$.  The
-second block shows the computed coefficients on current \texttt{ca}
-and the 5 specified lags. The final portion exposes the contents of
-the bundle returned by \texttt{almonreg}.
+Partial output from the sample script is shown in Listing~\ref{output}. The
+first block displays the results of the initial OLS using the seasonals
+\texttt{S1} to \texttt{S3} and the ``artificial regressors'' $z_j$,
+$j=0,1,2$.  The second block shows the computed coefficients on current
+\texttt{ca} and the 5 specified lags. The final portion exposes the contents
+of the bundle returned by \texttt{almonreg}.
 
 \begin{script}[htbp]
 \begin{scodebit}
@@ -185,9 +185,9 @@ Dependent variable: y
              coefficient    std. error    t-ratio   p-value
   ---------------------------------------------------------
   const      210.011        73.2524        2.867    0.0061  ***
-  dq1        -10.5515       61.0634       -0.1728   0.8635
-  dq2        -20.9887       59.9386       -0.3502   0.7277
-  dq3        -30.4337       59.9004       -0.5081   0.6137
+  S1         -10.5515       61.0634       -0.1728   0.8635
+  S2         -20.9887       59.9386       -0.3502   0.7277
+  S3         -30.4337       59.9004       -0.5081   0.6137
   z_0          0.0894672     0.0359914     2.486    0.0165  **
   z_1          0.0108136     0.0487294     0.2219   0.8253
   z_2          0.00403575    0.00970653    0.4158   0.6794
@@ -268,7 +268,7 @@ save the results bundle and/or any of its contents.
 
 \section{Change log}
 
-Version 0.6, 2024-09-03: Correct a small error in the documentation
+Version 1.0, 2024-09-03: Correct a small error in the documentation
 and update requirement to gretl 2020c for quiet loops and the second
 argument to \texttt{argname()}.
 
