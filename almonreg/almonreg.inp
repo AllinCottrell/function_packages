@@ -3,8 +3,8 @@ function matrix get_almon_betas (const matrix gamma, scalar k,
    scalar gmin = k + 1
    matrix beta = zeros(gmin+p,1)
    beta[1:k] = gamma[1:k]
-   loop i=0..p --quiet
-      loop j=0..q --quiet
+   loop i=0..p
+      loop j=0..q
          beta[i+gmin] += gamma[j+gmin] * i^j
       endloop
    endloop
@@ -24,7 +24,7 @@ function bundle almonreg (series y "dependent variable",
    list Z = null
    list XL = x || lags(p, x)
    Pi = seq(0, p)' .^ seq(0, q)
-   loop j=0..q --quiet
+   loop j=0..q
       sname = sprintf("z_%d", j)
       Z += genseries(sname, lincomb(XL, Pi[,j+1]))
    endloop
@@ -72,7 +72,7 @@ function void almon_print (bundle *b)
 
    strings cnames = array(b.p + 1)
    cnames[1] = xname
-   loop i=1..b.p --quiet
+   loop i=1..b.p
       cnames[i+1] = sprintf("%s(-%d)", xname, i)
    endloop
 
@@ -91,12 +91,12 @@ function bundle GUI_almon (series y "dependent variable",
    string yname = argname(y)
    string xname = argname(x)
 
-   if strlen(yname) > 0
+   if strlen(yname) > 0 && yname != "y"
       rename y @yname
    else
       yname = "y"
    endif
-   if strlen(xname) > 0
+   if strlen(xname) > 0 && xname != "x"
       rename x @xname
    else
       xname = "x"
@@ -105,6 +105,3 @@ function bundle GUI_almon (series y "dependent variable",
    bundle b = almonreg(@yname, @xname, p, q, c, X)
    return b
 end function
-
-
-
