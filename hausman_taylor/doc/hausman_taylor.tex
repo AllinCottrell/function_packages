@@ -1,0 +1,229 @@
+\documentclass{article}
+\usepackage{doc,url,verbatim,fancyvrb}
+%\usepackage{pifont}
+\usepackage[authoryear]{natbib}
+\usepackage[pdftex]{graphicx}
+\usepackage{gretl}
+\usepackage[letterpaper,body={6.3in,9.15in},top=.8in,left=1.1in]{geometry}
+\usepackage{color,hyperref}
+
+% \usepackage[a4paper,body={6.1in,9.7in},top=.8in,left=1.1in]{geometry}
+
+\definecolor{steel}{rgb}{0.03,0.20,0.45}
+
+\hypersetup{pdftitle={hausman\_taylor version 0.3},
+            pdfauthor={Allin Cottrell},
+            colorlinks=true,
+            linkcolor=blue,
+            urlcolor=red,
+            citecolor=steel,
+            bookmarksnumbered=true,
+            plainpages=false
+}
+
+\begin{document}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1ex}
+
+\newcommand{\argname}[1]{\textsl{#1}}
+
+\title{hausman\_taylor version 0.3}
+\author{Allin Cottrell}
+\date{October 11, 2024}
+\maketitle
+
+\section{Introduction}
+
+This package estimates a panel-data model using the method of
+\cite{hausman-taylor81}. As is well known (see the chapter titled
+``Panel data'' in the \textit{Gretl User's Guide} for an extended
+discussion)
+%
+\begin{itemize}
+\item the standard fixed-effects estimator cannot handle
+  time-invariant variables (since nothing remains of such variables
+  after sweeping out the individual means), while
+\item the random-effects estimator cannot handle (on pain of
+  inconsistency) regressors that are correlated with the unobserved
+  individual effects.
+\end{itemize}
+
+The Hausman--Taylor estimator bridges this gap: it permits estimation
+of a model that includes both time-invariant terms and regressors that
+are correlated with the individual effects. The ``price of admission''
+(more formally, the condition for identification) is that there must
+be at least as many time-varying exogenous regressors---``exogenous''
+in the sense of being uncorrelated with the individual effects---as 
+there are time-invariant regressors that are suspected of endogeneity,
+that is, of being correlated with the individual effects.
+
+\section{The model}
+\label{sec:model}
+
+Let $i=1,\dots,N$ index individuals and $t=1,\dots,T$ index time. The
+model is
+\begin{equation}
+\label{eq:htmod}
+y_{it} = \beta_0 + x_{1it}'\beta_1 + x_{2it}'\beta_2 +
+ z_{1i}'\alpha_1 + z_{2i}'\alpha_2 + u_i + \epsilon_{it}
+\end{equation}
+where $x_1$ and $x_2$ are time-varying and $z_1$ and $z_2$ are
+time-invariant. The variables $x_1$ and $z_1$ are exogenous
+(uncorrelated with the individual effects, $u_i$) while $x_2$ and
+$z_2$ are assumed to be so correlated. All of the regressors are
+assumed to be uncorrelated with $\epsilon_{it}$.
+
+In general, $x_{1it}$, $x_{2it}$, $z_{1i}$ and $z_{2i}$ are vectors
+of length $k_1$, $k_2$, $g_1$ and $g_2$, respectively, subject to the
+identification requirement $k_1 \geq g_2$.
+
+The algorithm for the Hausman--Taylor estimator---for a balanced panel
+in which the time-series length, $T$, is the same for all
+individuals---is commonly given as follows:
+
+\begin{enumerate}
+\item Regress $\tilde{y} = (y_{it} - \bar{y}_i)$ on
+  $\tilde{x}_1 = (x_{1it} - \bar{x}_{1i})$ and
+  $\tilde{x}_2 = (x_{2it} - \bar{x}_{2i})$ to obtain initial estimates
+  of $\beta_1$ and $\beta_2$. Use the residuals from this regression,
+  $e_{it}$, to estimate the ``within'' error variance
+  $\sigma^2_{\epsilon}$.
+\item Perform an IV regression of the stacked individual means of
+  $e_{it}$ on $z_1$ and $z_2$, using as instruments $z_1$ and $x_1$.
+\item Use the residual variance from step 2, namely $s_2^2$, to
+  estimate $\sigma^2_u$ as $s_2^2 - \hat{\sigma}^2_{\epsilon}/T$, and
+  calculate the GLS coefficient
+\begin{equation}
+\label{eq:theta}
+\theta = 1 - \left(\frac{\hat{\sigma}^2_{\epsilon}}
+  {\hat{\sigma}^2_{\epsilon} + T\hat{\sigma}^2_u}\right)^{0.5}
+\end{equation}
+\item Finally, perform an IV regression of $y_{it}^* = (y_{it} -
+  \theta\bar{y}_i)$ on $w_{it}^* = (w_{it} - \theta\bar{w}_{i})$,
+  where $w_{it} = (x_{1it}, x_{2it}, z_{1i}, z_{2i})$, using as
+  instruments $\tilde{x}_1$, $\tilde{x}_2$, $\bar{x}_{1}$ and
+  $z_{1}$.
+\end{enumerate}
+
+In an unbalanced panel the time-series length, $T_i$, differs across
+individuals. In that case step 3 above has to be modified. First, the
+calculuation of $\hat{\sigma}^2_u$ uses the harmonic mean of the
+$T_i$s in place of a common $T$. Second, the value of $\theta$ differs
+across individuals:
+%
+\begin{equation}
+\label{eq:theta-unbal}
+\theta_i = 1 - \left(\frac{\hat{\sigma}^2_{\epsilon}}
+  {\hat{\sigma}^2_{\epsilon} + T_i\hat{\sigma}^2_u}\right)^{0.5}
+\end{equation}
+%
+Section~\ref{sec:unbal} below takes up a further issue pertaining to
+the unbalanced case.
+
+\section{The hausman\_taylor function}
+
+The signature of this function is
+%
+\begin{code}
+bundle hausman_taylor (series y "dependent variable", 
+                       list X1 "time-varying exogenous vars",
+                       list X2 "time-varying endogenous vars", 
+                       list Z1 "time-invariant exogenous vars",
+                       list Z2 "time-invariant endogenous vars",
+                       int verbosity[0:2:1],
+                       bool stata_style[1])
+\end{code}
+
+The series \texttt{y} is the dependent variable, and the four list
+arguments correspond the subsets of regressors $x_1$, $x_2$, $z_1$ and
+$z_2$ as shown in equation~(\ref{eq:htmod}).
+
+The \texttt{verbosity} parameter accepts values 0, 1 or 2: a value of
+0 means that nothing is printed; 1 means that the Hausman--Taylor
+estimates are printed; 2 means that in addition the results of the
+preliminary regressions (described in section~\ref{sec:model}) are
+printed. The default value is 1.
+
+By way of return value, this function offers a gretl bundle containing
+the items shown in Table~\ref{tab:bun}.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{llp{.6\textwidth}}
+  \textit{name}   & \textit{type} & \textit{description} \\[4pt]
+  \texttt{yname} & string & name of the dependent variable \\
+  \texttt{xnames} & string & names of regressors (space separated) \\
+  \texttt{coeff} & matrix & regression coefficients \\
+  \texttt{stderr} & matrix & standard errors \\
+  \texttt{vcv} & matrix & variance--covariance matrix \\
+  \texttt{s\_e} & scalar & square root of ``within'' variance, 
+    $\hat{\sigma}^2_{\epsilon}$ \\
+  \texttt{s\_u} & scalar & square root of $\hat{\sigma}^2_{u}$ \\
+  \texttt{ninst} & scalar & number of instruments \\
+  \texttt{nobs} & scalar & total number of obsevations used \\
+  \texttt{effn} & scalar & number of units included \\
+  \texttt{Tmin} & scalar & minimum $T_i$ value \\
+  \texttt{Tmax} & scalar & maximum $T_i$ value \\
+  \texttt{theta} & scalar & GLS coefficient, $\theta$ \\
+  \texttt{Htest} & matrix & Hausman test results \\
+  \texttt{Stest} & matrix & Sargan test results \\
+\end{tabular}
+\caption{Items in hausman\_taylor bundle}
+\label{tab:bun}
+\end{table}
+
+Some comments on the bundle members follow.
+
+\begin{itemize}
+
+\item In the case of an unbalanced panel, the GLS coefficients
+  $\theta_i$ will differ across individuals; the \texttt{theta} value
+  is then the mean of the $\theta_i$s.
+
+\item The \texttt{Htest} and \texttt{Stest} matrices, if present, are
+  row vectors containing test statistic, degrees of freedom and
+  $P$-value pertaining to the Hausman or Sargan test, respectively.
+\end{itemize}
+
+\section{Sample script}
+
+The sample script for this package estimates two models of (log) wages
+for 595 individuals observed annually from 1976 to 1982.  The
+data---taken from the US Panel Study of Income Dynamics---were
+originally analysed by \cite{cornwell88} and employed for assessing
+various instrumental-variable estimators for panel models (including
+the Hausman--Taylor model). These data are also analysed by
+\cite{baltagi-akom90} and in chapter 7 of \cite{baltagi05}. The two
+models are the original specification from Cornwell and Rupert, and a
+modified specification from Baltagi.
+
+\section{Graphical interface}
+
+An entry-point for \textsf{hausman\_taylor} can be found under the
+\textsf{Panel} sub-menu of gretl's \textsf{Model} menu: the label is
+``Hausman--Taylor.'' %See Figure~\ref{fig:gui}.
+
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[scale=0.6]{ivpanel-gui}
+%   \caption{Specify arguments for ivpanel}
+%   \label{fig:gui}
+% \end{figure}
+
+\section{Auxiliary printing function}
+
+The auxiliary public function \texttt{ht\_print()} is provided to
+``pretty-print'' the results contained in the bundle provided by
+\texttt{hausman\_taylor()}; \texttt{ht\_print()} takes a pointer to
+the bundle as its sole argument.
+
+\section{More on the unbalanced case}
+\label{sec:unbal}
+
+
+
+\bibliographystyle{gretl}
+\bibliography{gretl}
+
+\end{document}

@@ -1,0 +1,313 @@
+function matrix hausman_test (matrix *bfe,
+                              matrix *bht,
+                              matrix *Vfe,
+                              matrix *Vht)
+   matrix Htest = {}
+   matrix bdiff = (bfe - bht)'
+   catch scalar H = qform(bdiff, inv(Vfe - Vht))
+   if $error == 0 && H > 0
+      scalar df = rows(bfe)
+      Htest = zeros(1,3)
+      Htest[1] = H
+      Htest[2] = df
+      Htest[3] = pvalue(X, df, H)
+   endif
+   return Htest
+end function
+
+function scalar time_varying (list L)
+   scalar retval = 1
+   loop foreach i L
+      if max(psd(L.$i)) == 0
+         retval = 0
+         break
+      endif
+   endloop
+   return retval
+end function
+
+function scalar time_invariant (list L)
+   scalar retval = 1
+   loop foreach i L
+      if max(psd(L.$i)) > 0
+         retval = 0
+         break
+      endif
+   endloop
+   return retval
+end function
+
+function scalar hausman_taylor_init (list X1,
+                                     list X2,
+                                     list Z1,
+                                     list Z2)
+   scalar oid = nelem(X1) - nelem(Z2)
+   if oid < 0
+      funcerr "X1 must have at least as many members as Z2"
+   endif
+   if nelem(X1 && X2) > 0
+      funcerr "X1 and X2 cannot have members in common"
+   endif
+   if nelem(Z1 && Z2) > 0
+      funcerr "Z1 and Z2 cannot have members in common"
+   endif
+   list X = X1 X2
+   list Z = Z1 Z2
+   if nelem(X && Z) > 0
+      funcerr "the X and Z lists cannot have members in common"
+   endif
+   if !time_varying(X)
+      funcerr "X1 and X2 should be time-varying"
+   endif
+   if !time_invariant(Z)
+      funcerr "Z1 and Z2 should be time-invariant"
+   endif
+   return oid
+end function
+
+function scalar calculate_Tbar (series *Ti,
+                                scalar effn)
+   # find the harmonic mean of the Ti's
+   matrix mTi = pshrink(Ti)
+   return effn / sumc(1 ./ mTi)
+end function
+
+function bundle hausman_taylor (series y "dependent variable",
+                                list X1 "time-varying exogenous vars",
+                                list X2 "time-varying endogenous vars",
+                                list Z1 "time-invariant exogenous vars",
+                                list Z2[null] "time-invariant endogenous vars",
+                                int verbosity[0:2:1],
+                                bool stata_style[1])
+   bundle b
+   scalar oid = hausman_taylor_init(X1, X2, Z1, Z2)
+   list X = X1 X2
+   list Z = Z1 Z2
+   
+   # determine and enforce the usable sample
+   list tmp = y X Z
+   series all_ok = ok(tmp)
+   if min(all_ok) == 0
+      y = all_ok ? y : NA
+   endif
+   
+   string qopt = (verbosity > 1)? "" : "-q"
+   
+   # H-T step 1: fixed effects to get sigma^2_e
+   panel y 0 X @qopt
+   matrix bfe = $coeff
+   scalar k = $ncoeff
+   X = const X
+   series eit = pmean(y - lincomb(X, bfe))
+   eit = all_ok ? eit : NA
+   bfe = bfe[2:k]
+   matrix Vfe = $vcv[2:k,2:k]
+   X = X1 X2
+   scalar Tmin = $["Tmin"]
+   scalar Tmax = $["Tmax"]
+   scalar effn = $["n_included_units"]
+   
+   # calculate variance a la Stata
+   scalar s2e = $ess / ($T - effn)
+   
+   # H-T step 2: auxiliary IV estimation
+   tsls eit 0 Z ; 0 Z1 X1 @qopt --no-tests
+   # again, in agreement with Stata
+   scalar s2star = $ess / effn
+   
+   if Tmax == Tmin
+      # balanced: theta is a scalar
+      scalar s2u = (s2star - s2e) / Tmax
+      if s2u < 0
+         s2u = 0
+         scalar theta = 0
+      else
+         scalar theta = 1 - sqrt(s2e / (s2e + Tmax*s2u))
+      endif
+      b.theta = theta
+   else
+      # unbalanced: calculate theta per unit
+      series Ti = ok(y)? pnobs(y) : NA
+      scalar Tbar = calculate_Tbar(&Ti, effn)
+      scalar s2u = (s2star - s2e) / Tbar
+      if s2u < 0
+         s2u = 0
+         scalar theta = 0
+         b.theta = 0
+      else
+         series theta = 1 - sqrt(s2e / (s2e + Ti*s2u))
+         b.theta = mean(theta)
+      endif
+   endif
+   
+   # the transformed dependent variable
+   series gy = y - theta*pmean(y)
+   # the transformed constant
+   series gcons = 1 - theta
+   
+   # quasi-demeaned X, gX
+   string vname
+   list gX = null
+   loop foreach i X -q
+      vname = sprintf("gx%d", i)
+      gX += genseries(vname, X.$i - theta*pmean(X.$i, all_ok))
+   endloop
+   
+   # quasi-demeaned Z, gZ
+   list gZ = null
+   loop foreach i Z -q
+      vname = sprintf("gz%d", i)
+      gZ += genseries(vname, (1 - theta) * Z.$i)
+   endloop
+   
+   # the transformed instruments, W
+   list W = null
+   # quasi-demeaned X1?
+   if s2u > 0 && Tmax > Tmin && !stata_style
+      loop i=1..nelem(X1) -q
+         W += gx$i
+      endloop
+   endif
+   
+   # demeaned X1 and X2
+   loop foreach i X -q
+      vname = sprintf("dmx%d", i)
+      W += genseries(vname, X.$i - pmean(X.$i, all_ok))
+   endloop
+   
+   # plus plain X1 and Z1
+   W += X1 Z1
+   list tmp = const X Z
+   string xnames = varname(tmp)
+   
+   # H-T final step: IV estimation on transformed data
+   # To emulate R's plm substitute "const" for "gcons"
+   # among the instruments
+   tsls gy gcons gX gZ ; gcons W @qopt
+   matrix bht = $coeff[2:k]
+   matrix Vht = $vcv[2:k,2:k]
+   b.nobs = $T
+   b.Tmin = Tmin
+   b.Tmax = Tmax
+   b.effn = effn
+   b.yname = argname(y)
+   b.xnames = xnames
+   b.s_e = sqrt(s2e)
+   b.s_u = sqrt(s2u)
+   b.coeff = $coeff
+   b.stderr = $stderr
+   b.vcv = $vcv
+   b.ninst = $["ninst"]
+   
+   matrix Htest = hausman_test(&bfe, &bht, &Vfe, &Vht)
+   if cols(Htest) > 0
+      b.Htest = Htest
+   endif
+   if oid > 0
+      # grab Sargan test from tsls estimation
+      catch matrix Stest = $sargan
+      if $error == 0
+         b.Stest = Stest
+      endif
+   endif
+   if verbosity > 0
+      ht_print(&b)
+   endif
+   return b
+end function
+
+function void ht_print (bundle *b)
+   string yname = b.yname
+   string xnames = b.xnames
+   scalar nobs = b.nobs
+   scalar effn = b.effn
+   scalar Tmin = b.Tmin
+   scalar Tmax = b.Tmax
+   scalar unbal = Tmin != Tmax
+   if strlen(yname) > 0
+      printf "\nHausman-Taylor estimates for %s\n", yname
+   else
+      printf "\nHausman-Taylor estimates\n"
+   endif
+   printf "using %d observations (n = %d, ", nobs, effn
+   if unbal
+      printf "Tmin = %d, Tmax = %d)\n", Tmin, Tmax
+   else
+      printf "T = %d)\n", Tmin
+   endif
+   matrix B = b.coeff ~ b.stderr
+   modprint B xnames
+   scalar theta = b.theta
+   printf "  sigma_u = %#.8g\n", b.s_u
+   printf "  sigma_e = %#.8g\n", b.s_e
+   printf "  theta   = %#.8g", theta
+   if unbal && theta > 0
+      printf " (average)\n\n"
+   else
+      printf "\n\n"
+   endif
+   scalar ntests = 0
+   if inbundle(b, "Htest")
+      ntests++
+      matrix Htest = b.Htest
+      printf "Hausman test: chi-square(%d) = %g [%.4f]\n", Htest[2], Htest[1], Htest[3]
+   endif
+   if inbundle(b, "Stest")
+      ntests++
+      matrix Stest = b.Stest
+      printf "Sargan over-identification test: chi-square(%d) = %g [%.4f]\n", Stest[2], Stest[1], Stest[3]
+   endif
+   if ntests > 0
+      printf "\n"
+   endif
+end function
+
+function bundle GUI_hausman_taylor (series y "dependent variable",
+                                    list X1 "time-varying exogenous vars",
+                                    list X2 "time-varying endogenous vars",
+                                    list Z1 "time-invariant exogenous vars",
+                                    list Z2 "time-invariant endogenous vars")
+   string yname = argname(y)
+   if strlen(yname) > 0
+      rename y @yname
+   else
+      yname = "y"
+   endif
+   bundle b = hausman_taylor(@yname, X1, X2, Z1, Z2, 1)
+   return b
+end function
+
+function bundle auto_ht (series y "dependent",
+                         list X "exog",
+                         list Z[null] "endog")
+   nx = nelem(X)
+   list x1 = null
+   list x2 = null
+   
+   loop i=1..nx -q
+      tv = max(pmax(X[i]) - pmin(X[i]))
+      if tv > 0
+         x1 +=X[i]
+      else
+         x2 +=X[i]
+      endif
+   endloop
+   
+   nz = nelem(Z)
+   list z1 = null
+   list z2 = null
+   
+   loop i=1..nz -q
+      tv = max(pmax(Z[i]) - pmin(Z[i]))
+      if tv > 0
+         z1 +=Z[i]
+      else
+         z2 +=Z[i]
+      endif
+   endloop
+   
+   bundle ret = hausman_taylor(y, x1, z1, x2, z2)
+   list zz = const x1 z1 x2 z2
+   ret["xlist"] = zz
+   return ret
+end function

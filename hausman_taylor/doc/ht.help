@@ -1,0 +1,44 @@
+The hausman_taylor() function estimates a panel-data model using the
+method of Hausman and Taylor (1981).
+
+For this method, the regressors are divided into four categories:
+
+X1 denotes the list of regressors that are time-varying, and exogenous
+in the sense of being uncorrelated with the unobserved individual
+effects.
+
+X2 denotes regressors that are time-varying but that are suspected to
+be correlated with the fixed effects ("endogenous").
+
+Z1 and Z2 are lists of time-invariant regressors; the elements of Z1
+are presumed to be exogenous as defined above while the Z2 variables
+are presumed endogenous.
+
+The presence of the endogenous variables X2 and Z2 means that the
+standard random-effects estimator is inconsistent; and the presence of
+the time-invariant terms Z1 and Z2 means that the standard
+fixed-effects estimator cannot be used.
+
+The Hausman and Taylor procedure involves IV estimation using
+regressors that have been transformed in a similar manner to the
+random-effects estimator -- that is, they are quasi-demeaned using an
+estimate of the proportion of the residual variance that is due to the
+individual effects. The instruments used are (a) the elements of X1
+and X2 with the group means subtracted, plus (b) the elements of the
+lists of exogenous variables, X1 and Z1. The condition for
+identification of the model is that X1 must have at least as many
+members as Z2, that is, there must be at least as many time-varying
+exogenous regressors as there are time-invariant endogenous ones.
+
+For a discussion of the Hausman-Taylor approach with an empirical
+application, see for instance Baltagi and Khanti-Akom (1990).
+
+References
+
+Baltagi, B. H. and S. Khanti-Akom (1990), "On Efficient Estimation
+with Panel Data: An Empirical Comparison of Instrumental Variables
+Estimators", Journal of Applied Econometrics, 5, pp. 401-406.
+
+Hausman, J. A. and W. E. Taylor (1981), "Panel data and unobservable
+individual effects", Econometrica, 49, pp. 1377-98.
+

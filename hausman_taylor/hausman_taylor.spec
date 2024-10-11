@@ -1,0 +1,16 @@
+author = Allin Cottrell
+email = cottrell@wfu.edu
+version = 0.22
+date = 2017-11-25
+description = Hausman-Taylor panel model
+tags = C23 C26
+min-version = 2017c
+data-requirement = needs-panel-data
+gui-main = GUI_hausman_taylor
+label = Hausman-Taylor
+menu-attachment = MAINWIN/Model/PanelModels
+bundle-print = ht_print
+public = hausman_taylor ht_print GUI_hausman_taylor h_t 
+help = ht.help
+sample-script = ht_sample.inp
+data-files = PSID7682.gdt
