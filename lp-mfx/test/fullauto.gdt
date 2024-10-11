@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE gretldata SYSTEM "gretldata.dtd">
 
-<gretldata version="1.4" name="fullauto" frequency="1" startobs="1" endobs="74" type="cross-section">
+<gretldata version="1.5" name="fullauto" frequency="1" n="74" startobs="1" endobs="74" type="cross-section">
 <description>Automobile Models
  3 Mar 2007 06:53
 
-Data imported from Stata file 'fullauto.dta', 2019-04-29 18:48
+Data imported from Stata file 'fullauto.dta', 2024-04-17 19:34
 </description>
 <variables count="4">
 <variable name="rep77"

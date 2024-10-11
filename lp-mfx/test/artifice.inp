@@ -1,11 +1,11 @@
 set verbose off
-include ../lp-mfx.inp
+include lp-mfx.gfn
 
 open greene19_1.gdt -q
 
 series GPA2 = GPA^2
 logit GRADE 0 GPA GPA2 TUCE PSI
-bundle b = binary_mfx(GRADE, $xlist, $coeff, $vcv, $sample, 1)
+bundle b = lp_mfx(GRADE, $xlist, $coeff, $vcv, $sample, 1)
 lp_mfx_print(&b)
 bundle b = unitary_avg_mfx($model, 0)
 lp_mfx_print(&b)
