@@ -18,7 +18,7 @@ end function
 function scalar time_varying (list L)
    scalar retval = 1
    loop foreach i L
-      if max(psd(L.$i)) == 0
+      if max(pmax(L.$i) - pmin(L.$i)) == 0
          retval = 0
          break
       endif
@@ -29,7 +29,7 @@ end function
 function scalar time_invariant (list L)
    scalar retval = 1
    loop foreach i L
-      if max(psd(L.$i)) > 0
+      if max(pmax(L.$i) - pmin(L.$i)) > 0
          retval = 0
          break
       endif
@@ -83,16 +83,16 @@ function bundle hausman_taylor (series y "dependent variable",
    scalar oid = hausman_taylor_init(X1, X2, Z1, Z2)
    list X = X1 X2
    list Z = Z1 Z2
-   
+
    # determine and enforce the usable sample
    list tmp = y X Z
    series all_ok = ok(tmp)
    if min(all_ok) == 0
       y = all_ok ? y : NA
    endif
-   
+
    string qopt = (verbosity > 1)? "" : "-q"
-   
+
    # H-T step 1: fixed effects to get sigma^2_e
    panel y 0 X @qopt
    matrix bfe = $coeff
@@ -106,60 +106,76 @@ function bundle hausman_taylor (series y "dependent variable",
    scalar Tmin = $["Tmin"]
    scalar Tmax = $["Tmax"]
    scalar effn = $["n_included_units"]
-   
+
    # calculate variance a la Stata
    scalar s2e = $ess / ($T - effn)
-   
+
    # H-T step 2: auxiliary IV estimation
+   set warnings off
    tsls eit 0 Z ; 0 Z1 X1 @qopt --no-tests
    # again, in agreement with Stata
    scalar s2star = $ess / effn
-   
+
+   scalar theta = 0
+   series s_theta
+   scalar vartheta = 0
+
    if Tmax == Tmin
       # balanced: theta is a scalar
       scalar s2u = (s2star - s2e) / Tmax
       if s2u < 0
          s2u = 0
-         scalar theta = 0
       else
-         scalar theta = 1 - sqrt(s2e / (s2e + Tmax*s2u))
+         theta = 1 - sqrt(s2e / (s2e + Tmax*s2u))
       endif
-      b.theta = theta
    else
       # unbalanced: calculate theta per unit
-      series Ti = ok(y)? pnobs(y) : NA
+      series Ti = ok(y) ? pnobs(y) : NA
       scalar Tbar = calculate_Tbar(&Ti, effn)
       scalar s2u = (s2star - s2e) / Tbar
       if s2u < 0
          s2u = 0
-         scalar theta = 0
-         b.theta = 0
       else
-         series theta = 1 - sqrt(s2e / (s2e + Ti*s2u))
-         b.theta = mean(theta)
+         s_theta = 1 - sqrt(s2e / (s2e + Ti*s2u))
+         vartheta = 1
       endif
    endif
-   
-   # the transformed dependent variable
-   series gy = y - theta*pmean(y)
-   # the transformed constant
-   series gcons = 1 - theta
-   
+
+   # record theta in bundle
+   b.theta = vartheta ? mean(s_theta) : theta
+
+   # transformed dep. var. and constant
+   if vartheta
+      series gy = y - s_theta * pmean(y)
+      series gcons = 1 - s_theta
+   else
+      series gy = y - theta * pmean(y)
+      series gcons = 1 - theta
+   endif
+
    # quasi-demeaned X, gX
    string vname
    list gX = null
    loop foreach i X -q
       vname = sprintf("gx%d", i)
-      gX += genseries(vname, X.$i - theta*pmean(X.$i, all_ok))
+      if vartheta
+         gX += genseries(vname, X.$i - s_theta * pmean(X.$i, all_ok))
+      else
+         gX += genseries(vname, X.$i - theta * pmean(X.$i, all_ok))
+      endif
    endloop
-   
+
    # quasi-demeaned Z, gZ
    list gZ = null
    loop foreach i Z -q
       vname = sprintf("gz%d", i)
-      gZ += genseries(vname, (1 - theta) * Z.$i)
+      if vartheta
+         gZ += genseries(vname, (1 - s_theta) * Z.$i)
+      else
+         gZ += genseries(vname, (1 - theta) * Z.$i)
+      endif
    endloop
-   
+
    # the transformed instruments, W
    list W = null
    # quasi-demeaned X1?
@@ -168,24 +184,26 @@ function bundle hausman_taylor (series y "dependent variable",
          W += gx$i
       endloop
    endif
-   
+
    # demeaned X1 and X2
    loop foreach i X -q
       vname = sprintf("dmx%d", i)
       W += genseries(vname, X.$i - pmean(X.$i, all_ok))
    endloop
-   
+
    # plus plain X1 and Z1
    W += X1 Z1
    list tmp = const X Z
    string xnames = varname(tmp)
-   
+
    # H-T final step: IV estimation on transformed data
    # To emulate R's plm substitute "const" for "gcons"
    # among the instruments
    tsls gy gcons gX gZ ; gcons W @qopt
    matrix bht = $coeff[2:k]
    matrix Vht = $vcv[2:k,2:k]
+
+   # record results from tsls
    b.nobs = $T
    b.Tmin = Tmin
    b.Tmax = Tmax
@@ -198,7 +216,7 @@ function bundle hausman_taylor (series y "dependent variable",
    b.stderr = $stderr
    b.vcv = $vcv
    b.ninst = $["ninst"]
-   
+
    matrix Htest = hausman_test(&bfe, &bht, &Vfe, &Vht)
    if cols(Htest) > 0
       b.Htest = Htest
@@ -283,7 +301,7 @@ function bundle auto_ht (series y "dependent",
    nx = nelem(X)
    list x1 = null
    list x2 = null
-   
+
    loop i=1..nx -q
       tv = max(pmax(X[i]) - pmin(X[i]))
       if tv > 0
@@ -292,11 +310,11 @@ function bundle auto_ht (series y "dependent",
          x2 +=X[i]
       endif
    endloop
-   
+
    nz = nelem(Z)
    list z1 = null
    list z2 = null
-   
+
    loop i=1..nz -q
       tv = max(pmax(Z[i]) - pmin(Z[i]))
       if tv > 0
@@ -305,7 +323,7 @@ function bundle auto_ht (series y "dependent",
          z2 +=Z[i]
       endif
    endloop
-   
+
    bundle ret = hausman_taylor(y, x1, z1, x2, z2)
    list zz = const x1 z1 x2 z2
    ret["xlist"] = zz
