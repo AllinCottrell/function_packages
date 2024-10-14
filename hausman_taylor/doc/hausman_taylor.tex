@@ -1,8 +1,9 @@
 \documentclass{article}
-\usepackage{doc,url,verbatim,fancyvrb}
+\usepackage{doc,verbatim,fancyvrb}
 %\usepackage{pifont}
 \usepackage[authoryear]{natbib}
-\usepackage[pdftex]{graphicx}
+% \usepackage[pdftex]{graphicx}
+\usepackage{pict2e}
 \usepackage{gretl}
 \usepackage[letterpaper,body={6.3in,9.15in},top=.8in,left=1.1in]{geometry}
 \usepackage{color,hyperref}
@@ -132,7 +133,7 @@ bundle hausman_taylor (series y "dependent variable",
                        list Z1 "time-invariant exogenous vars",
                        list Z2 "time-invariant endogenous vars",
                        int verbosity[0:2:1],
-                       bool stata_style[1])
+                       bool emulate_stata[0])
 \end{code}
 
 The series \texttt{y} is the dependent variable, and the four list
@@ -142,11 +143,24 @@ $z_2$ as shown in equation~(\ref{eq:htmod}).
 The \texttt{verbosity} parameter accepts values 0, 1 or 2: a value of
 0 means that nothing is printed; 1 means that the Hausman--Taylor
 estimates are printed; 2 means that in addition the results of the
-preliminary regressions (described in section~\ref{sec:model}) are
+preliminary regressions (described in Section~\ref{sec:model}) are
 printed. The default value is 1.
 
+The \texttt{emulate\_stata} boolean can be used to produce results
+comparable with Stata's \textsf{xthtaylor} command; an explanation of
+this option is given on page~\pageref{stata2}.\label{stata1}
+
 By way of return value, this function offers a gretl bundle containing
-the items shown in Table~\ref{tab:bun}.
+the items shown in Table~\ref{tab:bun}. Most of the contents should be
+fairly self-explanatory, but the following comments may be useful.
+\begin{itemize}
+\item In the case of an unbalanced panel, the GLS coefficients
+  $\theta_i$ will differ across individuals; the \texttt{theta} value
+  is then the mean of the $\theta_i$s.
+\item The \texttt{Htest} and \texttt{Stest} matrices, if present, are
+  row vectors containing test statistic, degrees of freedom and
+  $P$-value pertaining to the Hausman or Sargan test, respectively.
+\end{itemize}
 
 \begin{table}[htbp]
 \centering
@@ -173,19 +187,6 @@ the items shown in Table~\ref{tab:bun}.
 \label{tab:bun}
 \end{table}
 
-Some comments on the bundle members follow.
-
-\begin{itemize}
-
-\item In the case of an unbalanced panel, the GLS coefficients
-  $\theta_i$ will differ across individuals; the \texttt{theta} value
-  is then the mean of the $\theta_i$s.
-
-\item The \texttt{Htest} and \texttt{Stest} matrices, if present, are
-  row vectors containing test statistic, degrees of freedom and
-  $P$-value pertaining to the Hausman or Sargan test, respectively.
-\end{itemize}
-
 \section{Sample script}
 
 The sample script for this package estimates two models of (log) wages
@@ -202,8 +203,9 @@ modified specification from Baltagi.
 
 An entry-point for \textsf{hausman\_taylor} can be found under the
 \textsf{Panel} sub-menu of gretl's \textsf{Model} menu: the label is
-``Hausman--Taylor.'' %See Figure~\ref{fig:gui}.
+\textsf{Hausman-Taylor}.
 
+% See Figure~\ref{fig:gui}.
 % \begin{figure}[htbp]
 %   \centering
 %   \includegraphics[scale=0.6]{ivpanel-gui}
@@ -221,7 +223,164 @@ the bundle as its sole argument.
 \section{More on the unbalanced case}
 \label{sec:unbal}
 
+A noteworthy aspect of the Hausman--Taylor estimator is the treatment
+of $x_1^*$---that is, quasi-demeaned $x_1$---in the final IV
+regression. If the panel is balanced $x_1^*$ is effectively treated as
+exogenous. It does not appear explicitly among the instruments, but we
+have the exact linear relationship
+\[
+x^*_{1it} \equiv (x_{1it} -\theta \bar{x}_{1i}) = 
+  (x_{1it} - \bar{x}_{1i}) + (1-\theta) \bar{x}_{1i}
+ = \tilde{x}_{1it} + (1-\theta) \bar{x}_{1i}
+\]
+so that $x_1^*$ is ``perfectly instrumented'' by $\tilde{x}_{1}$ and
+$\bar{x}_1$. This is as it should be. By assumption $x_{1it}$ is
+independent of $u_i$, and therefore so is $\bar{x}_{1i}$. The
+transformation $x^*_{1it} = x_{1it} - \theta \bar{x}_{1i}$ clearly
+does not introduce any dependence on $u_i$. So $x_1^*$ ought to be
+treated as exogenous. It is not included as an instrument simply
+because it would be redundant, given the point made above.
 
+Now consider the unbalanced case. It is standard to calculate
+$\sigma^2_u$ as $\sigma^{*2} - \sigma^2_{\epsilon}/\bar{T}$, where
+$\bar{T}$ is the harmonic mean of the $T_i$s. And $\theta$ varies by
+individual according to (\ref{eq:theta-unbal}) above.  This means
+there is no longer an exact linear relationship between $x_1^*$ and
+the instruments $\tilde{x}_1$ and $\bar{x}_1$, which raises the
+question, should $x_1^*$ be added to the set of instruments in the
+final IV step of Hausman--Taylor?
+
+The alternative---including $\tilde{x}_1$ and $\bar{x}_1$ as
+instruments, but not $x_1^*$---amounts to treating $x_1^*$ as
+endogenous, but there is no reason for this. When the panel is
+unbalanced, $x^*_{1it}$ is defined by
+\[
+x^*_{1it} = x_{1it} - \theta_i \bar{x}_{1i}
+\]
+The substitution of $\theta_i$ for the common $\theta$ in the balanced
+case doesn't make any relevant difference to the status of $x_1^*$.
+The only way in which individual-specific information enters
+$\theta_i$ is via the number of observations, $T_i$, and there is no
+reason to believe that $T_i$ should be correlated with $u_i$.
+
+I conclude that failing to include $x_1^*$ as an instrument in the
+unbalanced case will degrade the efficiency of the estimator. Yet this
+is what is done in Stata's \textsf{xthtaylor} command and in R's
+\textsf{plm} package.
+
+If the argument above is correct, it should be possible to show via
+simulation the degradation of the efficiency of Hausman--Taylor when
+quasi-demeaned $x_1$ is treated as endogenous in the final IV
+regression, given unbalanced data. Conversely, if my argument
+is wrong then presumably simulation should produce evidence of
+inconsistency when quasi-demeaned $x_1$ is added as an instrument.
+
+To explore this I ran a simulation of the following form. 
+\begin{enumerate}
+\item For $K = 5000$ iterations, generate a random dataset with a
+  known set of parameter values and a correlation structure that
+  respects the Hausman--Taylor assumptions. Randomly assign missing
+  values to some proportion of the observations.
+\item For each dataset, run the Hausman--Taylor procedure both ways
+  (respectively omitting and including $x_1^*$ as an instrument in the
+  final stage) and record the parameter estimates.
+\item Calculate the mean and standard deviation of $\hat{\theta} -
+  \theta$ for each parameter $\theta$.
+\end{enumerate}
+
+Specifically, I constructed datasets containing one variable in each
+of the categories $x_1$, $x_2$, $z_1$ and $z_2$, using the parameter
+values $\beta_0 = \beta_1 = \beta_2 = \alpha_1 = \alpha_2 =
+1$. The panel comprised $T=10$ observations for each of $N$
+individuals. The series were constructed as follows:
+\begin{align*}
+ u_{i} &= N(0,1) \\
+ x_{1it} &= N(0,1) \\
+ x_{2it} &= N(0,1) + au_i \\
+ z_{1i} &= N(0,1) \\
+ z_{2i} &= N(0,1) + au_i + b\bar{x}_{1i} \\
+ \epsilon_{it} &= N(0,1) \\
+\end{align*}
+with $a = 0.3$ and $b=0.5$.  The formula for $x_{2it}$ ensures that
+$x_2$ is endogenous; and that for $z_{2i}$ ensures both the
+endogeneity of $z_2$ and its correlation with $x_1$, which is wanted
+so that $x_1$ can serve as an instrument for $z_2$.
+In the case of the time-invariant variables, random sequences of
+length $N$ were generated and the value for each individual
+was entered at all $T$ observations.
+
+After constructing the data a uniform random series, $v$, was
+generated on $[0,1)$ and the value of the dependent variable was set
+to ``missing'' at observations for which $v_{it} < 0.04$, giving an
+expectation of 4 percent unusable observations, hence unbalancing the
+panel.
+
+One further point should be noted. Since $\sigma^2_u$ is estimated
+indirectly, it is quite possible in finite samples to get a zero or
+negative value for $\hat{\sigma}^2_u$, in which case the standard
+procedure is to set $\theta = 0$. This destroys the distinction I'm
+interested in, between the two variants of the Hausman--Taylor
+estimator. It's therefore necessary to calibrate the simulation so
+that a non-positive $\hat{\sigma}^2_u$ doesn't arise too
+often.\footnote{In addition I discarded iterations in which
+  $\hat{\sigma}^2_u$ was non-positive, continuing until the specified
+  number of replications was reached with non-zero $\theta$.}
+
+Figure~\ref{fig:means} shows results for the mean error of
+estimation, relevant to assessing consistency. Points are shown for
+four values of $N$, 20, 50, 100 and 200. Note that the results differ
+only marginally for $\beta_1$ and $\beta_2$, while for $\beta_0$,
+$\alpha_1$ and $\alpha_2$ the results are better when $x_1^*$ included
+as an instrument. There's no evidence of inconsistency in the latter
+case.
+
+Figure~\ref{fig:sds} shows the standard deviation of estimate minus
+parameter, relevant to assessing efficiency; results are again given
+for $N$ equal to 20, 50, 100 and 200.  Here we see that the relative
+performance of the variants strongly supports the contention made
+above. While performance with respect $\beta_1$ and $\beta_2$ is
+virtually identical, the $\beta_0$ and $\alpha$ estimates show
+\textit{much} greater variance when $x_1^*$ is not included as an
+instrument; indeed, the variance of the $\alpha$ estimates is
+such that they may be useless in practice.
+
+We're now in a position to explain the \texttt{emulate\_stata} option
+for the \texttt{hausman\_taylor} function mentioned on
+page~\pageref{stata1}.\label{stata2} This option has no effect for
+balanced panels, but in the unbalanced case it means ``Do what Stata
+does---that is omit $x_1^*$ as an instrument in the final
+regression---even though we reckon it's wrong.''
+
+As a practical point, it should be noted that the inclusion (in the
+unbalanced case) of $x_1^*$ as an instrument alongside $\tilde{x}_1$
+and $\bar{x}_1$ in the final Hausman--Taylor regression may produce
+near-singularity of the instrument matrix, depending on the dataset
+(this was evident in the simulations). However, with modern
+econometric software this does not pose a serious problem, since
+redundant instruments will be dropped automatically.
+
+
+\begin{figure}[p]
+  \centering
+\input means.tex
+\caption{Mean error of estimates ($y$-axis) against number of individuals,
+$N$, in sample ($x$-axis).
+{\color{red} Red}: $x_1^*$ excluded from the set of instruments;
+{\color{blue} blue}, $x_1^*$ included.
+$T = 10$ and 5000 replications.}
+\label{fig:means}
+\end{figure}
+
+\begin{figure}[p]
+  \centering
+\input sds.tex
+\caption{Standard error of estimates ($y$-axis) against number of individuals,
+$N$, in sample ($x$-axis).
+{\color{red} Red}: $x_1^*$ excluded from the set of instruments;
+{\color{blue} blue} $x_1^*$ included.
+$T = 10$ and 5000 replications.}
+\label{fig:sds}
+\end{figure}
 
 \bibliographystyle{gretl}
 \bibliography{gretl}

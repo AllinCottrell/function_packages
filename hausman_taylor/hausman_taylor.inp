@@ -1,3 +1,5 @@
+set verbose off
+
 function matrix hausman_test (matrix *bfe,
                               matrix *bht,
                               matrix *Vfe,
@@ -78,7 +80,7 @@ function bundle hausman_taylor (series y "dependent variable",
                                 list Z1 "time-invariant exogenous vars",
                                 list Z2[null] "time-invariant endogenous vars",
                                 int verbosity[0:2:1],
-                                bool stata_style[1])
+                                bool emulate_stata[0])
    bundle b
    scalar oid = hausman_taylor_init(X1, X2, Z1, Z2)
    list X = X1 X2
@@ -107,7 +109,7 @@ function bundle hausman_taylor (series y "dependent variable",
    scalar Tmax = $["Tmax"]
    scalar effn = $["n_included_units"]
 
-   # calculate variance a la Stata
+   # calculate variance à la Stata
    scalar s2e = $ess / ($T - effn)
 
    # H-T step 2: auxiliary IV estimation
@@ -179,7 +181,7 @@ function bundle hausman_taylor (series y "dependent variable",
    # the transformed instruments, W
    list W = null
    # quasi-demeaned X1?
-   if s2u > 0 && Tmax > Tmin && !stata_style
+   if s2u > 0 && Tmax > Tmin && !emulate_stata
       loop i=1..nelem(X1) -q
          W += gx$i
       endloop
@@ -285,14 +287,8 @@ function bundle GUI_hausman_taylor (series y "dependent variable",
                                     list X2 "time-varying endogenous vars",
                                     list Z1 "time-invariant exogenous vars",
                                     list Z2 "time-invariant endogenous vars")
-   string yname = argname(y)
-   if strlen(yname) > 0
-      rename y @yname
-   else
-      yname = "y"
-   endif
-   bundle b = hausman_taylor(@yname, X1, X2, Z1, Z2, 1)
-   return b
+   string yname = argname(y, "y")
+   return hausman_taylor(@yname, X1, X2, Z1, Z2, 1)
 end function
 
 function bundle auto_ht (series y "dependent",
@@ -305,9 +301,9 @@ function bundle auto_ht (series y "dependent",
    loop i=1..nx -q
       tv = max(pmax(X[i]) - pmin(X[i]))
       if tv > 0
-         x1 +=X[i]
+         x1 += X[i]
       else
-         x2 +=X[i]
+         x2 += X[i]
       endif
    endloop
 
@@ -318,9 +314,9 @@ function bundle auto_ht (series y "dependent",
    loop i=1..nz -q
       tv = max(pmax(Z[i]) - pmin(Z[i]))
       if tv > 0
-         z1 +=Z[i]
+         z1 += Z[i]
       else
-         z2 +=Z[i]
+         z2 += Z[i]
       endif
    endloop
 
