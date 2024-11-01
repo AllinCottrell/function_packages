@@ -1,0 +1,7 @@
+open griliches.gdt -q
+
+# TSLS, schooling (s) treated as endogenous
+series exprsq = expr^2
+list xlist = const age expr exprsq s
+list zlist = const expr exprsq age iq med
+tsls lw xlist ; zlist -w

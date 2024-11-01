@@ -1,0 +1,123 @@
+function matrix exogtest (const bundle m, list x, bool quiet[0])
+   scalar ntest = nelem(x)
+   list ylist = m.ylist
+   list zlist = m.instlist
+   list xlist = m.xlist
+
+   if ntest == 0
+      funcerr "You must specify at least one regressor to test"
+   endif
+
+   loop i=1..ntest -q
+      string vname = varname(x[i])
+      if !inlist(xlist, x[i])
+         string s = sprintf("'%s' is not specified as a regressor", vname)
+         funcerr s
+      elif inlist(zlist, x[i])
+         string s = sprintf("'%s' is specified as an instrument", vname)
+         funcerr s
+      endif
+   endloop
+
+   scalar oidrank = nelem(zlist) - nelem(xlist)
+
+   if quiet
+      setopt tsls persist --quiet
+      setopt ols persist --quiet
+   else
+      printf "\n=== diff-in-Sargan test ===\n\n"
+      printf "Initial overidentification rank = %d\n", oidrank
+   endif
+
+   if oidrank > 0
+      # take a look at the Sargan test on the incoming model:
+      # if it rejects the joint null of correct specification
+      # and valid instruments then we really shouldn't be doing
+      # a diff-in-Sargan test
+      scalar stest = m.sargan_test.test
+      scalar spv = m.sargan_test.pvalue
+      if spv < 0.05
+         printf "Warning: original Sargan test = %.3f [%.4f]\n", stest, spv
+      endif
+   endif
+
+   # initialize two Sargan test statistics: below we'll make
+   # sure that we calculate them both using the same variance
+   # estimate (denominator)
+   scalar s1 = 0
+   scalar s2 = 0
+
+   if oidrank > 0
+      # calculate Sargan numerator: explained sum of squares
+      scalar tss1 = m.ess
+      series ivuhat = m.uhat
+      ols ivuhat zlist -q
+      scalar s1num = tss1 - $ess
+   endif
+
+   # revise the instrument list
+   zlist += x
+   scalar nendo = nelem(xlist - zlist)
+   if !quiet
+      if ntest == 1
+         printf "With %s exogenous, ", vname
+         printf "number of endogenous regressors = %d\n", nendo
+      else
+         printf "With the specified variable(s) treated as exogenous,\n"
+         printf " number of endogenous regressors = %d\n", nendo
+      endif
+   endif
+
+   # estimate revised ("unrestricted") model
+   string yname = varname(ylist[1])
+   series @yname = ylist[1]
+   if nendo == 0
+      # no endogenous regressors left: use OLS
+      ols @yname xlist
+      scalar MSEu = $ess / $T
+      scalar tss2 = $ess
+      series olsuhat = $uhat
+      ols olsuhat zlist -q
+      s2 = (tss2 - $ess) / MSEu
+   else
+      # still some endogenous regressor(s): use TSLS
+      tsls @yname xlist ; zlist
+      scalar s2 = $model.sargan_test.test
+      scalar MSEu = $ess / $T
+   endif
+
+   if oidrank > 0
+      # complete the calculation of the Sargan test
+      s1 = s1num / MSEu
+   endif
+
+   scalar ds = s2 - s1
+   matrix ret = {ds, ntest, pvalue(X, ntest, ds)}
+
+   if !quiet
+      if ntest == 1
+         printf "Test for exogeneity of %s:\n", vname
+      else
+         printf "Test for exogeneity of %d specified variables:\n", ntest
+      endif
+      printf " chi-square(%d) = %g - %g = %g [%.4f]\n", ntest, s2, s1,
+        ret[1], ret[3]
+   endif
+   cnameset(ret, "test df p-value")
+
+   return ret
+end function
+
+function list exogtest_listmaker (void)
+   bundle m = $model
+   list L = m.xlist - m.instlist
+   if nelem(L) == 0
+      funcerr "No endogenous regressors were found"
+   endif
+   return L
+end function
+
+function bundle GUI_exogtest (int xvar[$mylist] "regressor to test")
+   matrix ds = exogtest($model, deflist(xvar))
+   return _(test = ds[1], df = ds[2], pval = ds[3])
+end function

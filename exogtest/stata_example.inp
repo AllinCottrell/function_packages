@@ -1,0 +1,27 @@
+set verbose off
+include exogtest.gfn
+open mroz87.gdt -q
+
+# restrict the sample to members of the labor force
+smpl LFP --dummy
+
+# TSLS, educ treated as endogenous
+series exper = AX
+series expersq = AX^2
+series educ = WE
+series age = WA
+series lwage = log(WW)
+list xlist = const exper expersq educ
+list zlist = const exper expersq age KL6 K618
+tsls lwage xlist ; zlist
+bundle m = $model
+matrix dstest = exogtest(m, educ)
+print dstest
+quit
+
+# Case where original model is just identified
+zlist = const exper expersq age
+tsls lwage xlist ; zlist
+bundle m = $model
+dstest = diff_in_sargan(m, educ)
+print dstest

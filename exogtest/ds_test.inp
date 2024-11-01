@@ -1,0 +1,12 @@
+open mroz87.gdt -q
+
+# TSLS, educ treated as endogenous
+rename AX exper -q
+rename WE educ -q
+rename WA age -q
+series expersq = exper^2
+series lwage = log(WW)
+list xlist = const exper expersq educ
+list zlist = const exper expersq age KL6 K618
+tsls lwage xlist ; zlist -w
+

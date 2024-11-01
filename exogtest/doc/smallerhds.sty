@@ -1,0 +1,23 @@
+%% smallhds.sty, written by Allin Cottrell, <1995/07/21>
+%%
+%% Makes only top-level section-headings numbered, reduces the
+%% size of those headings, and puts the (unnumbered) second-level
+%% section heads in italics rather than boldface.  
+%%
+\ProvidesPackage{smallerhds}
+\setcounter{secnumdepth}{1}
+\renewcommand\section{\@startsection {section}{1}{\z@}%
+                                   {-2.5ex \@plus -1ex \@minus -.2ex}%
+                                   {1.2ex \@plus.2ex}%
+                                   {\normalfont\large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+                                     {-2.5ex\@plus -1ex \@minus -.2ex}%
+                                     {1.0ex \@plus .2ex}%
+                                     {\normalfont\normalsize\itshape}}
+\renewcommand\subsubsection{\@startsection{subsubsection}{2}{\z@}%
+                                     {-3.0ex\@plus -1ex \@minus -.2ex}%
+                                     {1.1ex \@plus .2ex}%
+                                     {\normalfont\normalsize\itshape}}
+			     
+\endinput
+%% end of smallerhds.sty
