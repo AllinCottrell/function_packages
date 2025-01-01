@@ -144,7 +144,7 @@ function void print_dgemm_matrix (const matrix m,
     printf "dgemm experiment %d, variant %d, ", j, k
     if times
         printf "time (seconds)\n"
-        printf "\n%#10.4v\n", m
+        printf "\n%#10.5vf\n", m
     else
         printf "speed (Gflops)\n"
         printf "\n%#10.5v\n", m

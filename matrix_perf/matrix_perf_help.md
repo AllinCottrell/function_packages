@@ -1,6 +1,6 @@
 # Basics
 
-The package provides a single public function, `matrix_perf()`, which
+This package provides a single public function, `matrix_perf()`, which
 performs several tests of performance in respect of dgemm
 (double-precision general matrix multiplication). It is designed to
 help determine what is the fastest method on a given system, from a
@@ -27,11 +27,11 @@ The matrix multiplication methods examined are as follows:
   multi-threaded mode with the help of OpenMP. This is available
   only if gretl has been built with OpenMP support and the host
   machine has more than one processor.
-* `sysblas`: system blas, the implementation of the BLAS (Basic 
+* `sysblas`: system blas, the implementation of the BLAS (Basic
   Linear Algebra Subprograms) against which gretl is linked. This
   may or may not be optimized for the host architecture and may or
   may not be multi-threaded.
-  
+
 Each individual test involves multiplying an (*m* x *k*) matrix into a
 (*k* x *n*) matrix, for a total of 2*mnk* floating-point operations;
 For smaller matrices the multiplication is repeated many times.  The
@@ -41,12 +41,12 @@ floating-point operations by (the elapsed time in seconds times
 elapsed time was reported as zero, which in effect means that the
 system timer does not have very good resolution, though the result can
 probably be read as "very fast".
-  
+
 The general expectation is that if `sysblas` is optimized it will
 be faster than `vanilla` (except perhaps at small matrix sizes).
 If OpenMP is enabled then `omp` will be probably be faster than
 `vanilla` (at least for large matrices) but will likely be slower
-than an optimized, multi-threaded system blas library. 
+than an optimized, multi-threaded system BLAS library.
 
 Some points to note:
 
@@ -95,3 +95,8 @@ or times in seconds.
 
 The package offers a GUI hook: an item named "Matrix performance"
 under the Tools menu in the gretl main window.
+
+# Change log
+
+Version 1.2, 2025-01-01: add options, add matrix return value, add GUI
+hook
