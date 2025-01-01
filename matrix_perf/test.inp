@@ -1,0 +1,5 @@
+include matrix_perf.gfn
+
+matrix MP = matrix_perf(0, _(times=1))
+print MP
+

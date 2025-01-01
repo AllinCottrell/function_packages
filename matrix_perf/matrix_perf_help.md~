@@ -1,0 +1,43 @@
+`matrix_perf` performs some tests of performance in respect of dgemm
+(double-precision general matrix multiplication). It is designed to
+help determine what is the fastest method on a given system, from a 
+short list of candidates as follows.
+
+* `vanilla`: this is gretl's native matrix multiplication code in
+  single-threaded mode.
+* `omp`: gretl's native matrix multiplication code running in
+  multi-threaded mode with the help of OpenMP. This is available
+  only if gretl has been built with OpenMP support and the host
+  machine has more than one processor.
+* `sysblas`: system blas, the implementation of the BLAS (Basic 
+  Linear Algebra Subprograms) against which gretl is linked. This
+  may or may not be optimized for the host architecture and may or
+  may not be multi-threaded.
+  
+Each individual test involves multiplying an (m x k) matrix into
+a (k x n) matrix, for a total of 2mnk floating-point operations;
+For smaller matrices the multiplication is repeated many times. 
+The Gflops figure is then derived by dividing the total number
+of floating-point operations by (the elapsed time in seconds
+times 1.0e09). If you see `inf` in any of the results this means
+that the elapsed time was reported as zero, which in effect means
+that the system timer does not have very good resolution, though
+the result can probably be read as "very fast".
+  
+The general expectation is that if `sysblas` is optimized it will
+be faster than `vanilla` (except perhaps at small matrix sizes).
+If OpenMP is enabled then `omp` will be probably be faster than
+`vanilla` (at least for large matrices) but will likely be slower
+than an optimized, multi-threaded system blas library. 
+
+Some points to note:
+
+* The tests may take a few minutes to run, depending on your
+  hardware.
+* You may need to run the test script 2 or 3 times to get a good 
+  sense of which results are robust and which may be quirky.
+* The public function matrix_perf takes a single (optional) 
+  argument, namely the seed for the random number generator (the
+  matrices that get multiplied are filled with pseudo-random normal
+  drawings). If you leave this at its default value of zero the 
+  seed is set from the system time.

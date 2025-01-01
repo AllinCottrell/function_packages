@@ -1,0 +1,15 @@
+author = Allin Cottrell
+email = cottrell@wfu.edu
+version = 1.2
+date = 2025-01-01
+description = Matrix multiplication performance test
+tags = C88
+min-version = 2024a
+data-requirement = no-data-ok
+label = Matrix speed
+public = matrix_perf gui_matrix_perf
+gui-main = gui_matrix_perf
+menu-attachment = MAINWIN/Tools
+label = Matrix performance
+help = matrix_perf_help.md
+sample-script = matrix_perf_sample.inp

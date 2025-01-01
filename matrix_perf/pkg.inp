@@ -1,0 +1,7 @@
+set echo off
+set messages off
+
+string dtd = "/opt/esl/share/gretl/functions/gretlfunc.dtd"
+
+include matrix_perf.inp
+makepkg matrix_perf.gfn --dtd="@dtd"

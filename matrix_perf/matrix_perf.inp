@@ -1,0 +1,394 @@
+function matrix multime (int m,
+                         int n,
+                         int k,
+                         int h,
+                         int iters,
+                         int variant,
+                         int times,
+                         matrix *szmat[null])
+    matrix M = zeros(iters, 1)
+    scalar mnk
+    scalar crit, et
+    matrix c
+
+    # printf "     mnk    secs     Gflops\n"
+    loop i=1..iters
+        matrix a = mnormal(m,k)
+        matrix b = mnormal(k,n)
+        mnk = m*n*k
+        scalar h1 = h
+        if h*mnk < 1.0e8
+            h1 *= int(1.0e8 / (h*mnk))
+        endif
+        set stopwatch
+        if h1 == 1
+            set stopwatch
+            matrix c = a*b
+            et = $stopwatch
+        else
+            set stopwatch
+            loop h1
+                matrix c = a*b
+            endloop
+            et = $stopwatch
+        endif
+        if times
+            crit = et
+        elif et == 0
+            crit = 1/0
+        else
+            crit = 2*h1*mnk/(1.0e9*et)
+        endif
+        # printf "%10d %6.3fs %10.5f\n", mnk, et, gflops
+        if exists(szmat)
+            szmat[i,] = {m, n, k}
+        endif
+        M[i] = crit
+        if h > 1
+            m *= 2
+            h /= 2
+        elif variant == 1
+            k *= 2
+        elif variant == 2
+            m *= 2
+            n *= 2
+        elif variant == 3
+            m *= 2
+            n *= 2
+            k *= 2
+        endif
+    endloop
+
+    return M
+end function
+
+function matrix dgemm_test1 (int m,
+                             int n,
+                             int k,
+                             int h,
+                             int iters,
+                             int variant,
+                             const bundle opts,
+                             bool use_omp)
+    matrix M = {}
+    matrix szmat = zeros(iters, 3)
+
+    # printf "\nVanilla native code:\n\n"
+    set blas_mnk_min -1
+    set omp_mnk_min -1
+    M ~= multime(m, n, k, h, iters, variant, opts.times, &szmat)
+
+    if use_omp
+        # printf "\nNative code with OpenMP:\n\n"
+        set omp_mnk_min opts.omp_min
+        M ~= multime(m, n, k, h, iters, variant, opts.times)
+    endif
+
+    # printf "\nsystem BLAS:\n\n"
+    set blas_mnk_min opts.blas_min
+    M ~= multime(m, n, k, h, iters, variant, opts.times)
+
+    return szmat ~ M
+end function
+
+function matrix dgemm_test2 (int setup,
+                             const bundle opts,
+                             bool use_omp)
+    scalar m n k h iters
+    matrix M = {}
+
+    if setup == 1
+        m = 8      # rows of A
+        n = 8      # cols of B
+        k = 8      # cols of A = rows of B
+        h = 100000 # initial number of iterations
+        iters = 10 # number of doublings in multime()
+    elif setup == 2
+        m = 10     # rows of A
+        n = 2      # cols of B
+        k = 1000   # cols of A = rows of B
+        h = 50000  # initial number of iterations
+        iters = 10 # number of doublings in multime()
+    else
+        m = 10    # rows of A
+        n = 10    # cols of B
+        k = 1000  # cols of A = rows of B
+        h = 2000  # initial number of iterations
+        iters = 6 # number of doublings in multime()
+    endif
+
+    matrix szmat = zeros(iters, 3)
+
+    # printf "\nVanilla native code:\n\n"
+    set blas_mnk_min -1
+    set omp_mnk_min -1
+    M = multime(m, n, k, h, iters, 0, opts.times, &szmat)
+
+    if use_omp
+        # printf "\nNative code with OpenMP:\n\n"
+        set omp_mnk_min opts.omp_min
+        M ~= multime(m, n, k, h, iters, 1, opts.times)
+    endif
+
+    # printf "\nsystem BLAS:\n\n"
+    set blas_mnk_min opts.blas_min
+    M ~= multime(m, n, k, h, iters, 2, opts.times)
+
+    return szmat ~ M
+end function
+
+function void print_dgemm_matrix (const matrix m,
+                                  int j,
+                                  int k,
+                                  bool times)
+    printf "dgemm experiment %d, variant %d, ", j, k
+    if times
+        printf "time (seconds)\n"
+        printf "\n%#10.4v\n", m
+    else
+        printf "speed (Gflops)\n"
+        printf "\n%#10.5v\n", m
+    endif
+end function
+
+function scalar dominant (const matrix m)
+    scalar ret = 0
+    if minc(m) == maxc(m)
+        ret = minc(m)
+    endif
+    return ret
+end function
+
+function string method_string (int k,
+                               bool omp)
+    if k == 1
+        return "vanilla"
+    elif !omp
+        return $sysinfo.blas
+    elif k == 2
+        return "openmp"
+    else
+        return $sysinfo.blas
+    endif
+end function
+
+function string blas_long_string (string s)
+    if s == "netlib"
+        return "Netlib"
+    elif s == "atlas"
+        return "ATLAS"
+    elif s == "openblas"
+        return "OpenBLAS"
+    elif s == "mkl"
+        return "Intel MKL"
+    elif s == "veclib"
+        return "Apple VecLib"
+    else
+        return s
+    endif
+end function
+
+function string os_string (void)
+    string s = $sysinfo.os
+    scalar wlen = $sysinfo.wordlen
+    string ws = wlen == 32 ? "32-bit" : "64-bit"
+    string os
+    if s == "windows"
+        os = sprintf("Windows (%s)", ws)
+    elif s == "osx" || s == "macos"
+        os = sprintf("macOS (%s)", ws)
+    elif s == "linux"
+        os = sprintf("Linux (%s)", ws)
+    else
+        os = sprintf("other (%s)", ws)
+    endif
+    return os
+end function
+
+function void print_system_info (string blas)
+    printf "Operating system: %s\n", os_string()
+    printf "BLAS library: %s\n", blas_long_string(blas)
+    printf "Number of processors: %d\n", $sysinfo.nproc
+    printf "OpenMP enabled: %s\n", $sysinfo.omp ? "yes" : "no"
+end function
+
+function void analyse_dgemm_matrix (const matrix m,
+                                    int times,
+                                    matrix *score)
+    scalar nc = cols(score)
+    matrix myscore = zeros(3, nc)
+    matrix best = times ? iminr(m[,4:]) : imaxr(m[,4:])
+    scalar omp = nc > 2
+    scalar d = dominant(best)
+    
+    printf "result: "
+    if d > 0
+        printf "%s dominates\n", method_string(d, omp)
+        myscore[1,d] = 1
+    else
+        loop i=2..rows(m)
+            scalar mnk = m[i,1] * m[i,2] * m[i,3]
+            d = dominant(best[i:])
+            if d > 0
+                printf "%s dominates for mnk >= %d\n", method_string(d, omp), mnk
+                myscore[2,d] = mnk
+                dsml = dominant(best[1:i-1])
+                if dsml > 0
+                    printf "  %s dominates for mnk < %d\n", method_string(dsml, omp), mnk
+                    myscore[3,dsml] = mnk
+                endif
+                break
+            endif
+        endloop
+    endif
+    
+    score |= myscore
+    if d == 0
+        printf "no method dominates\n"
+    endif
+    printf "\n"
+end function
+
+function void printvec (const matrix v)
+    scalar n = nelem(v)
+    if n == 1
+        printf "%d\n", v[1]
+    else
+        printf "("
+        loop i=1..n
+            printf "%d", v[i]
+            if i < n
+                printf ", "
+            endif
+        endloop
+        printf ")\n"
+    endif
+end function
+
+function void analyse_score (const matrix score)
+    scalar ntests = rows(score) / 3
+    scalar hi lo
+    loop j=1..cols(score)
+        printf "\n%s -\n", cnameget(score, j)
+        scalar d0 = 0
+        scalar d1 = 0
+        scalar d2 = 0
+        matrix above = {}
+        matrix below = {}
+        scalar i = 1
+        loop k=1..ntests
+            d0 += score[i,j]
+            hi = score[i+1,j]
+            if hi > 0
+                above ~= {hi}
+                d1++
+            endif
+            lo = score[i+2,j]
+            if lo > 0
+                below ~= {lo}
+                d2++
+            endif
+            i += 3
+        endloop
+        printf "  dominates outright in %d out of %d tests\n", d0, ntests
+        if d1 > 0
+            printf "  dominates in %d test(s) for mnk >= ", d1
+            printvec(above)
+        endif
+        if d2 > 0
+            printf "  dominates in %d test(s) for mnk < ", d2
+            printvec(below)
+        endif
+    endloop
+    printf "\n"
+end function
+
+function matrix matrix_perf (int rseed[0] "seed for RNG",
+                             const bundle argb[null])
+
+    matrix Res = {}
+    bundle opts = _(blas_min=0, omp_min=0, times=0, verbosity=2)
+    if exists(argb)
+        errorif(bcheck(&opts, argb), "Invalid option")
+    endif
+    
+    if rseed > 0
+        set seed rseed
+    endif
+ 
+    scalar use_omp = $sysinfo.omp
+    if opts.omp_min < 0
+        # drop 'native' OpenMP from comparison
+        use_omp = 0
+    endif
+
+    string blas = $sysinfo.blas
+    if blas == "unknown"
+        blas = "sysblas"
+    endif
+
+    string cnames
+    if use_omp
+        cnames = sprintf("m n k vanilla openmp %s", blas)
+    else
+        cnames = sprintf("m n k vanilla %s", blas)
+    endif
+
+    matrix scorecard = zeros(0, use_omp ? 3 : 2)
+    scalar idx = 1
+
+    # dgemm-1: first set of experiments
+
+    scalar m = 128   # rows of A
+    scalar n = 128   # cols of B
+    scalar k = 128   # cols of A = rows of B
+    scalar h = 1     # initial number of iterations
+    scalar iters = 5 # number of doublings in multime()
+
+    loop i=1..3
+        matrix mm = dgemm_test1(m, n, k, h, iters, i, opts, use_omp)
+        if opts.verbosity > 1
+            cnameset(mm, cnames)
+            print_dgemm_matrix(mm, 1, i, opts.times)
+            analyse_dgemm_matrix(mm, opts.times, &scorecard)
+            flush
+        endif
+        Res |= idx ~ mm
+        idx++
+    endloop
+
+    # dgemm-2: second set of experiments
+
+    loop i=1..3
+        matrix mm = dgemm_test2(i, opts, use_omp)
+        if opts.verbosity > 1
+            cnameset(mm, cnames)
+            print_dgemm_matrix(mm, 2, i, opts.times)
+            analyse_dgemm_matrix(mm, opts.times, &scorecard)
+            flush
+        endif
+        Res |= idx ~ mm
+        idx++
+    endloop
+
+    if opts.verbosity
+        print_system_info(blas)
+        if opts.verbosity > 1
+            printf "\nPerformance summary:\n"
+            cnameset(scorecard, cnames + 6)
+            analyse_score(scorecard)
+        endif
+    endif
+    
+    cnameset(Res, sprintf("test %s", cnames))
+    return Res
+end function
+
+function void gui_matrix_perf (int rseed[0] "seed for RNG",
+                               int blas_min[0:50000:0] "Min size for BLAS",
+                               int omp_min[-1:50000:0] "Min size for OpenMP",
+                               bool times[0] "show times, not speed",
+                               int verbosity[0:2:2])
+    bundle argb = _(blas_min, omp_min, times, verbosity)
+    matrix_perf(rseed, argb)
+end function
