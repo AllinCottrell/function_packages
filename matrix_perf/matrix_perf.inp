@@ -151,10 +151,23 @@ function void print_dgemm_matrix (const matrix m,
     endif
 end function
 
-function scalar dominant (const matrix m)
+function scalar dominant (const matrix best, scalar *except[null])
     scalar ret = 0
-    if minc(m) == maxc(m)
-        ret = minc(m)
+    matrix v = values(best)
+    if nelem(v) == 1
+        # one method is best for all (m,n,k)
+        ret = v[1]
+    elif exists(except)
+        # try for a method that's best with one (m,n,k) exception
+        r = rows(best)
+        loop i=1..nelem(v)
+            chk = best .= v[i]
+            if sumc(chk) == r - 1
+                ret = v[i]
+                except = iminc(chk)
+                break
+            endif
+        endloop
     endif
     return ret
 end function
@@ -219,15 +232,22 @@ function void analyse_dgemm_matrix (const matrix m,
     matrix myscore = zeros(3, nc)
     matrix best = times ? iminr(m[,4:]) : imaxr(m[,4:])
     scalar omp = nc > 2
-    scalar d = dominant(best)
-    
+    scalar x = 0
+    scalar d = dominant(best, &x)
+    scalar mnk
+
     printf "result: "
     if d > 0
-        printf "%s dominates\n", method_string(d, omp)
-        myscore[1,d] = 1
+        if x > 0
+            mnk = m[x,1] * m[x,2] * m[x,3]
+            printf "%s dominates, except for mnk = %d\n", method_string(d, omp), mnk
+        else
+            printf "%s dominates\n", method_string(d, omp)
+            myscore[1,d] = 1
+        endif
     else
         loop i=2..rows(m)
-            scalar mnk = m[i,1] * m[i,2] * m[i,3]
+            mnk = m[i,1] * m[i,2] * m[i,3]
             d = dominant(best[i:])
             if d > 0
                 printf "%s dominates for mnk >= %d\n", method_string(d, omp), mnk
@@ -241,7 +261,7 @@ function void analyse_dgemm_matrix (const matrix m,
             endif
         endloop
     endif
-    
+
     score |= myscore
     if d == 0
         printf "no method dominates\n"
@@ -311,11 +331,11 @@ function matrix matrix_perf (int rseed[0] "seed for RNG",
     if exists(argb)
         errorif(bcheck(&opts, argb), "Invalid option")
     endif
-    
+
     if rseed > 0
         set seed rseed
     endif
- 
+
     scalar use_omp = $sysinfo.omp
     if opts.omp_min < 0
         # drop 'native' OpenMP from comparison
@@ -379,7 +399,7 @@ function matrix matrix_perf (int rseed[0] "seed for RNG",
             analyse_score(scorecard)
         endif
     endif
-    
+
     cnameset(Res, sprintf("test %s", cnames))
     return Res
 end function
