@@ -98,5 +98,5 @@ under the Tools menu in the gretl main window.
 
 # Change log
 
-Version 1.2, 2025-01-01: add options, add matrix return value, add GUI
+Version 1.2, 2025-01-06: add options, add matrix return value, add GUI
 hook

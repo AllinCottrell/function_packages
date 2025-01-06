@@ -229,7 +229,7 @@ function void analyse_dgemm_matrix (const matrix m,
                                     int times,
                                     matrix *score)
     scalar nc = cols(score)
-    matrix myscore = zeros(3, nc)
+    matrix myscore = zeros(4, nc)
     matrix best = times ? iminr(m[,4:]) : imaxr(m[,4:])
     scalar omp = nc > 2
     scalar x = 0
@@ -241,6 +241,7 @@ function void analyse_dgemm_matrix (const matrix m,
         if x > 0
             mnk = m[x,1] * m[x,2] * m[x,3]
             printf "%s dominates, except for mnk = %d\n", method_string(d, omp), mnk
+            myscore[4,d] = mnk
         else
             printf "%s dominates\n", method_string(d, omp)
             myscore[1,d] = 1
@@ -286,15 +287,18 @@ function void printvec (const matrix v)
 end function
 
 function void analyse_score (const matrix score)
-    scalar ntests = rows(score) / 3
-    scalar hi lo
+    scalar ntests = rows(score) / 4
+    scalar hi lo x
+
     loop j=1..cols(score)
         printf "\n%s -\n", cnameget(score, j)
         scalar d0 = 0
         scalar d1 = 0
         scalar d2 = 0
+        scalar d3 = 0
         matrix above = {}
         matrix below = {}
+        matrix except = {}
         scalar i = 1
         loop k=1..ntests
             d0 += score[i,j]
@@ -308,7 +312,12 @@ function void analyse_score (const matrix score)
                 below ~= {lo}
                 d2++
             endif
-            i += 3
+            x = score[i+3,j]
+            if x > 0
+                except ~= {x}
+                d3++
+            endif
+            i += 4
         endloop
         printf "  dominates outright in %d out of %d tests\n", d0, ntests
         if d1 > 0
@@ -318,6 +327,10 @@ function void analyse_score (const matrix score)
         if d2 > 0
             printf "  dominates in %d test(s) for mnk < ", d2
             printvec(below)
+        endif
+        if d3 > 0
+            printf "  dominates in %d test(s) for mnk != ", d3
+            printvec(except)
         endif
     endloop
     printf "\n"

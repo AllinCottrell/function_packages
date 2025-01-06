@@ -1,7 +1,7 @@
 author = Allin Cottrell
 email = cottrell@wfu.edu
 version = 1.2
-date = 2025-01-01
+date = 2025-01-06
 description = Matrix multiplication performance test
 tags = C88
 min-version = 2024a
