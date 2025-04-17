@@ -233,9 +233,10 @@ function bundle GUI_rf (series y "dependent variable",
                         int verbosity [1:2:2],
                         bool use_seed[0] "set random seed",
                         int seed[0:2147483647:1234567])
-   if $datatype == 3
-      funcerr "random_forest: panel data not yet supported"
-   endif
+   errorif($datatype == 3, "panel data not supported")
+   errorif(n_train >= $nobs,
+     "the training set must be a subset of the available data")
+
    bundle opts
    scalar opts.n_train = n_train
    scalar opts.verbose = verbosity
