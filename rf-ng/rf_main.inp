@@ -117,9 +117,8 @@ function bundle random_forest (const series y, list X, const bundle opts)
       n1 = opts.n_train
       n2 = $nobs - n1
    endif
-   if n1 <= 0 || n2 <= 0
-      funcerr "We need both training and testing observations"
-   endif
+   errorif(n1 <= 0 || n2 <= 0,
+     "The training observations must be a subset of the current sample range")
 
    # handle the various options
    verbose = args.verbose
@@ -235,7 +234,7 @@ function bundle GUI_rf (series y "dependent variable",
                         int seed[0:2147483647:1234567])
    errorif($datatype == 3, "panel data not supported")
    errorif(n_train >= $nobs,
-     "the training set must be a subset of the available data")
+     "The training observations must be a subset of the current sample range")
 
    bundle opts
    scalar opts.n_train = n_train
