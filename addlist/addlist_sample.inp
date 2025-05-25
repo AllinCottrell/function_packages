@@ -1,0 +1,24 @@
+include addlist.gfn
+open data4-10 --quiet
+
+list l1 = const CATHOL INCOME
+list l2 = PUPIL WHITE ADMEXP REV MEMNEA COLLEGE
+
+# use AIC
+list final = addlist(ENROLL, l1, l2)
+list final print
+
+# use CVC
+final = addlist(ENROLL, l1, l2, 4)
+list final print
+
+# comment out 'quit' for a panel-data example
+quit
+
+open grunfeld.gdt --quiet
+
+list l1 = const
+list l2 = value kstock time
+# BIC, fixed-effects
+list final = addlist(invest, l1, l2, 2, 2)
+list final print

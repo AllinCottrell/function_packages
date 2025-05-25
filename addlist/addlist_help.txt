@@ -1,0 +1,48 @@
+The addlist() function takes the following arguments.
+
+Required arguments
+
+y:      dependent variable
+list0:  list of regressors to be included unconditionally
+list1:  list of candidate regressors for addition
+
+Optional (integer) arguments
+
+criterion: 1 = AIC (default), 2 = BIC, 3 = HQC, 4 = CVC
+estimator: 1 = OLS (default), 2 = fixed effects, 3 = random effects
+verbose:   0 for quiet, 1 (default) for summary output, 2 for
+           detailed output
+
+The available selection criteria:
+
+AIC: Akaike Information Criterion
+BIC: Bayesian Information Criterion (Schwarz)
+HQC: Hannan-Quinn Criterion
+CVC: Cross-Validation Criterion
+
+Note that for all four criteria, smaller values are better. For
+details see the chapter titled "Model selection criteria" in the
+Gretl User's Guide and, for cross-validation, the help for the
+"leverage" command.
+
+Algorithm:
+
+1. Regress y on list0 using the selected estimator, then scan list1
+   for the variable that, if added, improves the estimates according
+   to the selected criterion to the greatest extent.
+
+2. If improvement is possible, add the new regressor to list0 and
+   remove it from list1, and go to step 1; if not, stop.
+
+Returns the final list of regressors. By default prints some
+information about the variable selection process and also prints
+the "best" model on completion (if it differs from the original
+specification), but this can be suppressed by setting setting
+"verbose" to 0.
+
+Changes in version 2.0:
+
+- Add Hannan-Quinn and Cross-validation to the set of criteria
+- Add option to control verbosity
+- Add option to use a panel-data estimator
+- Update hansl idioms
