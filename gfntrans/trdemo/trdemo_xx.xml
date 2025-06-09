@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<translation lang="xx">
+ <msg en="Translation demo"></msg>
+ <msg en="This is the trdemo package"></msg>
+ <msg en="The square root of %g is %g\n"></msg>
+ <msg en="The cube root of %g is %g\n"></msg>
+ <msg en="argument"></msg>
+ <msg en="result"></msg>
+ <msg en="square root"></msg>
+ <msg en="cube root"></msg>
+</translation>

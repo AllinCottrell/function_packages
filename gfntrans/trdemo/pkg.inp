@@ -1,0 +1,2 @@
+include trdemo.inp
+makepkg trdemo.gfn --translation

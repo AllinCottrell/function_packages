@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<translation lang="it">
+  <msg en="number">quantità</msg>
+  <msg en="species">specie</msg>
+  <msg en="color">colore</msg>
+  <msg en="one">uno</msg>
+  <msg en="two">due</msg>
+  <msg en="three">tre</msg>
+  <msg en="red">rosso</msg>
+  <msg en="green">verde</msg>
+  <msg en="blue">blu</msg>
+  <msg en="four">quattro</msg>
+  <msg en="cats">gatte</msg>
+  <msg en="dogs">cani</msg>
+  <msg en="elephants">elefanti</msg>
+  <msg en="You chose">Hai scelto</msg>
+</translation>

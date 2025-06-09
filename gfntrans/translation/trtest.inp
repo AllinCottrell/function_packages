@@ -1,0 +1,46 @@
+function void trtest (bool more[0])
+   printf "%s %s\n", T_("two"), T_("cats")
+   printf "%s %s\n", T_("three"), T_("dogs")
+   printf "%s %s\n", T_("four"), T_("elephants")
+   string s = more ? "dogs" : "cats"
+   eval T_(s)
+end function
+
+function string number_name (int i)
+   if i == 1
+      return T_("one")
+   elif i == 2
+      return T_("two")
+   elif i == 3
+      return T_("three")
+   else
+      return T_("four")
+   endif
+end function
+
+function string color_name (int i)
+   if i == 1
+      return T_("red")
+   elif i == 2
+      return T_("green")
+   else
+      return T_("blue")
+   endif
+end function
+
+function string species_name (int s)
+   if s == 1
+      return T_("cats")
+   elif s == 2
+      return T_("dogs")
+   else
+      return T_("elephants")
+   endif
+end function
+
+function void gui_trtest (int num[2:4:2] "number",
+                          int col[1:3:1] "color" {"red", "green", "blue"},
+                          int species[1:3:1] "species" {"cats", "dogs", "elephants"})
+   printf "%s %s %s %s\n", T_("You chose"), number_name(num), color_name(col),
+     species_name(species)
+end function

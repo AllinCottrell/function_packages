@@ -1,0 +1,15 @@
+author = Allin Cottrell
+email = cottrell@wfu.edu
+version = 0.1
+date = 2025-05-18
+description = Proof of translation concept
+data-requirement = no-data-ok
+tags = C88
+min-version = 2025b
+public = trtest gui_trtest
+gui-main = gui_trtest
+menu-attachment = MAINWIN/Tools
+label = Animals
+help = trtest_help.txt
+sample-script = trtest_sample.inp
+translations = trtest_it.xml

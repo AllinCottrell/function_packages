@@ -1,0 +1,12 @@
+Allin, 2025-01-18
+
+Something along the lines of translations.xml could be folded into
+a gfn file, either by including a stand-alone XML file referenced
+in the spec file, or with the help of a GUI translations editor
+module.
+
+When a package is loaded into memory, we could check for the
+presence of translations, and if we find any then process them
+using libxml and store an xmlDocPtr attached to the fnpkg struct.
+This would enable a considerably streamlined built-in version of
+the prototype hansl function T_().

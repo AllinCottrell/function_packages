@@ -1,0 +1,16 @@
+function scalar tr_demo (scalar x, int root[2:3:2])
+   print T_("This is the trdemo package")
+   if root == 2
+      y = sqrt(x)
+      printf(T_("The square root of %g is %g\n"), x, y)
+   else
+      y = x^(1/3)
+      printf(T_("The cube root of %g is %g\n"), x, y)
+   endif
+   return y
+end function
+
+function void tr_demo_gui (scalar x "argument",
+                           int root[2:3:2] "result" {"square root", "cube root"})
+   tr_demo(x, root)
+end function

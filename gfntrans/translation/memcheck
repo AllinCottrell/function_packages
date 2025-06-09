@@ -1,0 +1,9 @@
+# can include:
+# --show-reachable=yes
+# --gen-suppressions=all
+G_SLICE=always-malloc G_DEBUG=gc-friendly \
+ valgrind --tool=memcheck \
+ --leak-check=full \
+ --log-fd=9 \
+ /opt/esl/bin/gretlcli -b "$@" 9>valgrind.log
+

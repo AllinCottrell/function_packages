@@ -1,0 +1,13 @@
+# just a prototype for now
+
+function string T_(const string s)
+   string xs = readfile("/home/allin/translations.xml")
+   string lang = $lang
+   string arg = sprintf("/msgs/msg[@id='%s']/s[@tr='%s']", s, lang[1:2])
+   catch string tr = xmlget(xs, arg)
+   return $error ? s : strstrip(tr) # FIXME strstrip!
+end function
+
+printf "%s %s\n", T_("two"), T_("cats")
+printf "%s %s\n", T_("three"), T_("dogs")
+printf "%s %s\n", T_("four"), T_("fish")

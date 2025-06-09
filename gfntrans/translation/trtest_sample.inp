@@ -1,0 +1,6 @@
+include trtest.gfn
+
+eval $lang
+trtest(0)
+trtest(1)
+
