@@ -1,0 +1,93 @@
+function list addlist (const series y "dependent variable",
+                       list list0 "initial regressors",
+                       list list1 "candidates for addition",
+                       int criterion[1:4:1] {"AIC", "BIC", "HQC", "CVC"},
+                       int estimator[1:3:1] {"OLS", "FE", "RE"},
+                       int verbose[0:2:1])
+
+    if nelem(list0) == 0
+        funcerr "No initial specification was given"
+    elif nelem(list1) == 0
+        funcerr "No candidate regressors were provided"
+    elif nelem(list0 && list1) > 0
+        funcerr "The two list arguments must be disjoint"
+    elif estimator > 1 && criterion == 4
+        funcerr "CVC is not supported for panel estimators"
+    elif estimator > 1 && $datatype != 3
+        funcerr "The dataset is not a panel"
+    endif
+
+    # what criterion are we using?
+    strings critstrs = defarray("AIC", "BIC", "HQC", "CVC")
+    strings cvals = defarray("$aic", "$bic", "$hqc", "$test")
+    string critstr = critstrs[criterion]
+    string cval = cvals[criterion]
+
+    # estimation command and option flag, if applicable
+    string cmd = estimator == 1 ? "ols" : "panel"
+    string opt = estimator == 3 ? "--random-effects" : ""
+
+    # how much to print?
+    string qflag = "--quiet"
+    if estimator == 1 && verbose == 2
+        qflag = "--simple-print"
+    endif
+
+    scalar crit
+    scalar improved
+    list xadd
+    scalar n_add = 0
+
+    # baseline estimation
+    catch @cmd y list0 @opt --quiet
+    if $error
+        funcerr "Initial estimation failed"
+    endif
+    if criterion == 4
+        leverage --quiet
+    endif
+    scalar critmin = @cval
+    if verbose
+        printf "\nBaseline:            %s = %g\n", critstr, critmin
+    endif
+
+    loop while nelem(list1) > 0 -q
+        improved = 0
+        loop foreach i list1 -q
+            catch @cmd y list0 list1[i] @qflag @opt
+            if $error
+                printf "Estimation failed on adding $i\n"
+                list1 -= $i
+            else
+                if criterion == 4
+                    leverage --quiet
+                endif
+                crit = @cval
+                if crit < critmin
+                    critmin = crit
+                    xadd = list1[i]
+                    improved = 1
+                endif
+            endif
+        endloop
+        if improved
+            if verbose
+                printf "Add %-16s %s = %g\n", varname(xadd[1]), critstr, critmin
+            endif
+            list0 += xadd
+            list1 -= xadd
+            n_add++
+        else
+            break
+        endif
+    endloop
+    if verbose
+        if n_add > 0
+            printf "\nMinimized %s = %g, with this model:\n", critstr, critmin
+            @cmd y list0 @opt
+        else
+            printf "\nNo improvement was achieved, no regressors added\n"
+        endif
+    endif
+    return list0
+end function

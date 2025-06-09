@@ -28,8 +28,8 @@
 \title{random\_forest 0.4} \author{Allin Cottrell}
 \maketitle
 
-This is an unusual gretl package---unusual in that it relies on the
-\textsf{R} package \textsf{randomForest} for its underlying
+This is an unusual gretl package, in that it relies on the \textsf{R}
+package \textsf{randomForest} for its underlying
 functionality,\footnote{See
   \url{https://cran.r-project.org/web/packages/randomForest/index.html}.}
 and therefore also relies on \textsf{R} itself. A native
@@ -40,9 +40,9 @@ well as a gretl-style GUI interface, to functionality borrowed from
 the \textsf{R} ecosystem.
 
 This package was last verified as working with \textsf{R} version
-4.3.0 (2023-04-21) and \textsf{randomForest} 4.7-1.1 (2022-05-23),
-which requires \textsf{R} 4.1.0 or higher. Some details about ensuring
-the \textsf{R} setup that's required can be found in
+4.4.2 (2024-10-31) and \textsf{randomForest} 4.7-1.2 (2024-09-22,
+requires \textsf{R} 4.1.0 or higher). Some details about ensuring the
+\textsf{R} setup that's required can be found in
 Section~\ref{sec:Rdetails}.
 
 I'm not going to try to explain here what the Random Forest algorithm
@@ -113,7 +113,7 @@ classification if and only if the dependent variable is a 0/1 dummy
 variable or is marked as an ``encoding'' (see the help for the
 \texttt{setinfo} command).  But you can force the issue by setting
 \texttt{classify} to 0 or 1. You may wish to take control when the
-dependent is ordinal, but not on an interval or ratio scale.
+dependent variable is ordinal but not on an interval or ratio scale.
 
 \subsection{Tuning}
 
@@ -322,13 +322,12 @@ least one feature has a name that starts with \texttt{e} or \texttt{E}.\\
 \section{Some \textsf{R} details}
 \label{sec:Rdetails}
 
-As noted above, this gretl package requires version 4.7-1.1 of the
-\textsf{randomForest} package, which in turn requires \textsf{R} 4.1.0
-or higher. As of this writing it is verified as working with
-\textsf{R} 4.2.1, 4.2.2 and 4.3.0. It is straightforward to install
-\textsf{R} for most platforms: see
-\url{https://cran.r-project.org/}. Having done so one can then install
-\textsf{randomForest} using the \textsf{R} command:
+As noted above, this gretl package requires the \textsf{randomForest}
+package, which in turn requires \textsf{R} 4.1.0 or higher. As of this
+writing it is verified as working with \textsf{R} 4.2.1, 4.2.2, 4.3.0
+and 4.4.2. It is straightforward to install \textsf{R} for most
+platforms: see \url{https://cran.r-project.org/}. Having done so one
+can then install \textsf{randomForest} using the \textsf{R} command:
 \begin{code}
 install.packages("randomForest")
 \end{code}
