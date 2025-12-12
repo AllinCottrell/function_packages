@@ -1,0 +1,10 @@
+set verbose off
+include hausman_taylor.gfn
+open PSID7682.gdt --quiet --frompkg=hausman_taylor
+
+series exper2 = exper^2
+list Lexo = wks south smsa ms fem blk
+list Lendo = exper exper2 occ ind union ed
+
+# The original Cornwell-Rupert wage model
+bundle b = hausman_taylor(lwage, Lexo, Lendo, 2)

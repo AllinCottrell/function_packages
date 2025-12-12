@@ -1,0 +1,11 @@
+set verbose off
+include hausman_taylor.gfn
+open PSID7682.gdt --quiet --frompkg=hausman_taylor
+
+series exper2 = exper^2
+list Lexo = occ south smsa ind fem blk
+list Lendo = exper exper2 wks ms union ed
+
+# Baltagi and Khanti-Akom specification
+# treats wks and ms as endogenous, occ and ind as exogenous
+bundle b = hausman_taylor(lwage, Lexo, Lendo, 2)

@@ -47,10 +47,10 @@ function bundle split_lists (const list L1,
          Z2 += L2[i]
       endif
    endloop
-   
+
    oid = nelem(X1) - nelem(Z2)
 
-   if verbosity > 1
+   if verbosity > 0
       printf "\nThe four Hausman-Taylor lists\n\n"
       printf "X1: "
       list X1 print
@@ -62,7 +62,7 @@ function bundle split_lists (const list L1,
       list Z2 print
       printf "\nOver-identification rank: %d\n", oid
    endif
- 
+
    if oid < 0
       funcerr "X1 must have at least as many members as Z2"
    endif
@@ -71,7 +71,7 @@ function bundle split_lists (const list L1,
    endif
    if nelem(Z1 && Z2) > 0
       funcerr "Z1 and Z2 cannot have members in common"
-   endif   
+   endif
 
    return _(X1, X2, Z1, Z2, oid)
 end function
@@ -80,21 +80,21 @@ function bundle hausman_taylor (series y "dependent variable",
                                 list L1 "exogenous regressors",
                                 list L2 "endogenous regressors",
                                 int verbosity[0:2:1],
-                                bool emulate_stata[0])
+                                bool as_stata[0])
    bundle b
    b.yname = argname(y)
-   
+
    # determine and enforce the usable sample
    list tmp = y L1 L2
    series all_ok = ok(tmp)
    if min(all_ok) == 0
       y = all_ok ? y : NA
    endif
-   
+
    bundle hl = split_lists(L1, L2, verbosity)
    scalar oid = hl.oid
    list X = hl.X1 hl.X2
-   list Z = hl.Z1 hl.Z2  
+   list Z = hl.Z1 hl.Z2
 
    string qopt = verbosity > 1 ? "" : "-q"
 
@@ -160,30 +160,30 @@ function bundle hausman_taylor (series y "dependent variable",
    # gX = quasi-demeaned X
    string vname
    list gX = null
-   loop foreach i X -q
+   loop foreach i X
       vname = sprintf("gx%d", i)
       if vartheta
-         gX += genseries(vname, X.$i - s_theta * pmean(X.$i, all_ok))
+         gX += genseries(vname, X[i] - s_theta * pmean(X[i], all_ok))
       else
-         gX += genseries(vname, X.$i - theta * pmean(X.$i, all_ok))
+         gX += genseries(vname, X[i] - theta * pmean(X[i], all_ok))
       endif
    endloop
 
    # gZ = quasi-demeaned Z
    list gZ = null
-   loop foreach i Z -q
+   loop foreach i Z
       vname = sprintf("gz%d", i)
       if vartheta
-         gZ += genseries(vname, (1 - s_theta) * Z.$i)
+         gZ += genseries(vname, (1 - s_theta) * Z[i])
       else
-         gZ += genseries(vname, (1 - theta) * Z.$i)
+         gZ += genseries(vname, (1 - theta) * Z[i])
       endif
    endloop
 
    # the transformed instruments, W
-   list W = null
+   list W = empty
    # quasi-demeaned X1?
-   if s2u > 0 && Tmax > Tmin && !emulate_stata
+   if s2u > 0 && Tmax > Tmin && !as_stata
       loop i=1..nelem(X1) -q
          W += gx$i
       endloop
@@ -192,7 +192,7 @@ function bundle hausman_taylor (series y "dependent variable",
    # demeaned X1 and X2
    loop foreach i X -q
       vname = sprintf("dmx%d", i)
-      W += genseries(vname, X.$i - pmean(X.$i, all_ok))
+      W += genseries(vname, X[i] - pmean(X[i], all_ok))
    endloop
 
    # plus plain X1 and Z1
@@ -200,9 +200,9 @@ function bundle hausman_taylor (series y "dependent variable",
    list tmp = const X Z
    string xnames = varname(tmp)
 
-   # H-T final step: IV estimation on transformed data
-   # To emulate R's plm substitute "const" for "gcons"
-   # among the instruments
+   # H-T final step: IV estimation on transformed data.
+   # To replicate R's plm substitute "const" for "gcons"
+   # among the instruments.
    tsls gy gcons gX gZ ; gcons W @qopt
    matrix bht = $coeff[2:k]
    matrix Vht = $vcv[2:k,2:k]
@@ -266,12 +266,14 @@ function void ht_print (bundle *b)
    if inbundle(b, "Htest")
       ntests++
       matrix Htest = b.Htest
-      printf "Hausman test: chi-square(%d) = %g [%.4f]\n", Htest[2], Htest[1], Htest[3]
+      printf "Hausman test: chi-square(%d) = %g [%.4f]\n",
+        Htest[2], Htest[1], Htest[3]
    endif
    if inbundle(b, "Stest")
       ntests++
       matrix Stest = b.Stest
-      printf "Sargan over-identification test: chi-square(%d) = %g [%.4f]\n", Stest[2], Stest[1], Stest[3]
+      printf "Sargan over-identification test: chi-square(%d) = %g [%.4f]\n",
+        Stest[2], Stest[1], Stest[3]
    endif
    if ntests > 0
       printf "\n"
@@ -282,11 +284,11 @@ function bundle GUI_hausman_taylor (series y "dependent variable",
                                     list L1 "exogenous regressors",
                                     list L2 "endogenous regressors",
                                     bool verbose[0],
-                                    bool emulate_stata[0])
+                                    bool as_stata[0])
    string yname = argname(y, "y")
    if yname != "y"
       genseries(yname, y)
    endif
    scalar verbo = verbose ? 2 : 1
-   return hausman_taylor(@yname, L1, L2, verbo, emulate_stata)
+   return hausman_taylor(@yname, L1, L2, verbo, as_stata)
 end function

@@ -2,7 +2,7 @@
 \usepackage{doc,verbatim,fancyvrb}
 %\usepackage{pifont}
 \usepackage[authoryear]{natbib}
-% \usepackage[pdftex]{graphicx}
+\usepackage[pdftex]{graphicx}
 \usepackage{pict2e}
 \usepackage{gretl}
 \usepackage[letterpaper,body={6.3in,9.15in},top=.8in,left=1.1in]{geometry}
@@ -12,7 +12,7 @@
 
 \definecolor{steel}{rgb}{0.03,0.20,0.45}
 
-\hypersetup{pdftitle={hausman\_taylor version 0.3},
+\hypersetup{pdftitle={hausman\_taylor version 1.0},
             pdfauthor={Allin Cottrell},
             colorlinks=true,
             linkcolor=blue,
@@ -29,9 +29,9 @@
 
 \newcommand{\argname}[1]{\textsl{#1}}
 
-\title{hausman\_taylor version 0.3}
+\title{hausman\_taylor version 1.0}
 \author{Allin Cottrell}
-\date{December 11, 2025}
+\date{December 12, 2025}
 \maketitle
 
 \section{Introduction}
@@ -109,7 +109,7 @@ individuals---is commonly given as follows:
 
 In an unbalanced panel the time-series length, $T_i$, differs across
 individuals. In that case step 3 above has to be modified. First, the
-calculuation of $\hat{\sigma}^2_u$ uses the harmonic mean of the
+calculation of $\hat{\sigma}^2_u$ uses the harmonic mean of the
 $T_i$s in place of a common $T$. Second, the value of $\theta$ differs
 across individuals:
 %
@@ -122,23 +122,25 @@ across individuals:
 Section~\ref{sec:unbal} below takes up a further issue pertaining to
 the unbalanced case.
 
-\section{The hausman\_taylor function}
+\section{The \dtk{hausman_taylor} function}
 
 The signature of this function is
 %
 \begin{code}
 bundle hausman_taylor (series y "dependent variable", 
-                       list X1 "time-varying exogenous vars",
-                       list X2 "time-varying endogenous vars", 
-                       list Z1 "time-invariant exogenous vars",
-                       list Z2 "time-invariant endogenous vars",
+                       list L1 "exogenous regressors",
+                       list L2 "endogenous regressors", 
                        int verbosity[0:2:1],
-                       bool emulate_stata[0])
+                       bool as_stata[0])
 \end{code}
 
-The series \texttt{y} is the dependent variable, and the four list
-arguments correspond the subsets of regressors $x_1$, $x_2$, $z_1$ and
-$z_2$ as shown in equation~(\ref{eq:htmod}).
+The series \texttt{y} is the dependent variable, and the lists
+\texttt{L1} and \texttt{L2} correspond, respectively, to $x_1$ plus
+$z_1$ and $x_2$ plus $z_2$ as shown in equation~(\ref{eq:htmod}).
+This function does not undertake to judge which regressors are
+exogenous and which endogenous---you must decide the partition
+between \texttt{L1} and \texttt{L2}---but it can easily determine
+which regressors are time-varying and which invariant.
 
 The \texttt{verbosity} parameter accepts values 0, 1 or 2: a value of
 0 means that nothing is printed; 1 means that the Hausman--Taylor
@@ -146,11 +148,11 @@ estimates are printed; 2 means that in addition the results of the
 preliminary regressions (described in Section~\ref{sec:model}) are
 printed. The default value is 1.
 
-The \dtk{emulate_stata} boolean can be used to produce results
+The \dtk{as_stata} boolean can be used to produce results
 comparable with Stata's \textsf{xthtaylor} command; an explanation of
 this option is given on page~\pageref{stata2}.\label{stata1}
 
-By way of return value, this function offers a gretl bundle containing
+By way of return value, this function offers a bundle containing
 the items shown in Table~\ref{tab:bun}. Most of the contents should be
 fairly self-explanatory, but the following comments may be useful.
 \begin{itemize}
@@ -160,6 +162,9 @@ fairly self-explanatory, but the following comments may be useful.
 \item The \texttt{Htest} and \texttt{Stest} matrices, if present, are
   row vectors containing test statistic, degrees of freedom and
   $P$-value pertaining to the Hausman or Sargan test, respectively.
+  The Sargan (over-identification) test is shown only if there are
+  more time-varying exogenous regressors than time-invariant
+  endogenous ones.
 \end{itemize}
 
 \begin{table}[htbp]
@@ -189,36 +194,108 @@ fairly self-explanatory, but the following comments may be useful.
 
 \section{Sample script}
 
-The sample script for this package estimates two models of (log) wages
-for 595 individuals observed annually from 1976 to 1982.  The
-data---taken from the US Panel Study of Income Dynamics---were
-originally analysed by \cite{cornwell88} and employed for assessing
-various instrumental-variable estimators for panel models (including
-the Hausman--Taylor model). These data are also analysed by
-\cite{baltagi-akom90} and in chapter 7 of \cite{baltagi05}. The two
-models are the original specification from Cornwell and Rupert, and a
-modified specification from Baltagi.
+The sample script for this package uses data on (log) wages and
+several covariates for 595 individuals observed annually from 1976 to
+1982, taken from the US Panel Study of Income Dynamics. These data
+were originally employed by \cite{cornwell88} to assess various
+instrumental-variable estimators for panel data including
+Hausman--Taylor, and were revisited by \cite{baltagi-akom90} and in
+chapter 7 of \cite{baltagi05}. The script replicates both sets of
+estimates; partial output is shown in Listing~\ref{sample-output}.
+
+\begin{script}[htbp]
+  \label{sample-output}
+Cornwell and Rupert specification
+
+\begin{outbit}
+Hausman-Taylor estimates for lwage
+using 4165 observations (n = 595, T = 7)
+
+             coefficient    std. error       z      p-value 
+  ----------------------------------------------------------
+  const       2.88442       0.852777       3.382    0.0007   ***
+  wks         0.000909009   0.000598818    1.518    0.1290  
+  south       0.00713766    0.0325480      0.2193   0.8264  
+  smsa       -0.0417623     0.0194019     -2.152    0.0314   **
+  ms         -0.0363440     0.0188575     -1.927    0.0539   *
+  exper       0.112972      0.00246967    45.74     0.0000   ***
+  exper2     -0.000419119   5.45872e-05   -7.678    1.62e-14 ***
+  occ        -0.0213946     0.0137801     -1.553    0.1205  
+  ind         0.0188416     0.0154404      1.220    0.2224  
+  union       0.0303548     0.0148964      2.038    0.0416   **
+  fem        -0.136847      0.127280      -1.075    0.2823  
+  blk        -0.281829      0.176627      -1.596    0.1106  
+  ed          0.140525      0.0658715      2.133    0.0329   **
+
+  sigma_u = 0.94172543
+  sigma_e = 0.15180272
+  theta   = 0.93918626
+
+Hausman test: chi-square(9) = 14.5555 [0.1039]
+Sargan over-identification test: chi-square(3) = 14.8759 [0.0019]
+\end{outbit}
+
+Baltagi's specification
+
+\begin{outbit}
+Hausman-Taylor estimates for lwage
+using 4165 observations (n = 595, T = 7)
+
+             coefficient    std. error       z      p-value 
+  ----------------------------------------------------------
+  const       2.91273       0.283652      10.27     9.76e-25 ***
+  occ        -0.0207047     0.0137809     -1.502    0.1330  
+  south       0.00743984    0.0319550      0.2328   0.8159  
+  smsa       -0.0418334     0.0189581     -2.207    0.0273   **
+  ind         0.0136039     0.0152374      0.8928   0.3720  
+  exper       0.113133      0.00247095    45.79     0.0000   ***
+  exper2     -0.000418865   5.45981e-05   -7.672    1.70e-14 ***
+  wks         0.000837403   0.000599732    1.396    0.1626  
+  ms         -0.0298507     0.0189800     -1.573    0.1158  
+  union       0.0327714     0.0149084      2.198    0.0279   **
+  fem        -0.130924      0.126659      -1.034    0.3013  
+  blk        -0.285748      0.155702      -1.835    0.0665   *
+  ed          0.137944      0.0212485      6.492    8.47e-11 ***
+
+  sigma_u = 0.94180300
+  sigma_e = 0.15180272
+  theta   = 0.93919126
+
+Hausman test: chi-square(9) = 5.25773 [0.8113]
+Sargan over-identification test: chi-square(3) = 5.2291 [0.1558]
+\end{outbit}
+\end{script}
+
+In each case we may take it that the endogenous regressor of primary
+interest is \texttt{ed} (education level). The specifications differ
+in their treatment of two pairs of regressors: in Cornwell and Rupert
+\texttt{wks} (weeks worked) and \texttt{ms} (marital status) are taken
+to be exogenous while \texttt{occ} (blue-collar dummy) and
+\texttt{ind} (manufacturing dummy) are endogenous; Baltagi assumes
+that \texttt{wks} and \texttt{ms} are endogenous, \texttt{occ} and and
+\texttt{ind} exogenous. Baltagi finds a slightly smaller, but much
+more sharply estimated, return to education. The Hausman and Sargan
+specification tests would seem to favor Baltagi's specification.
 
 \section{Graphical interface}
 
 An entry-point for \textsf{hausman\_taylor} can be found under the
 \textsf{Panel} sub-menu of gretl's \textsf{Model} menu: the label is
-\textsf{Hausman-Taylor}.
+\textsf{Hausman-Taylor}. The dialog is shown in Figure~\ref{fig:gui}.
 
-% See Figure~\ref{fig:gui}.
-% \begin{figure}[htbp]
-%   \centering
-%   \includegraphics[scale=0.6]{ivpanel-gui}
-%   \caption{Specify arguments for ivpanel}
-%   \label{fig:gui}
-% \end{figure}
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[scale=0.6]{ht_gui}
+  \caption{Specify arguments for \dtk{hausman_taylor}}
+  \label{fig:gui}
+\end{figure}
 
-\section{Auxiliary printing function}
+\section{Ancillary printing function}
 
-The auxiliary public function \dtk{ht_print()} is provided to
+The ancillary public function \dtk{ht_print()} is provided to
 ``pretty-print'' the results contained in the bundle provided by
-\dtk{hausman_taylor()}; \dtk{ht_print()} takes a pointer to
-the bundle as its sole argument.
+\dtk{hausman_taylor()}; \dtk{ht_print()} takes a pointer to the bundle
+as its sole argument.
 
 \section{More on the unbalanced case}
 \label{sec:unbal}
@@ -263,7 +340,7 @@ The only way in which individual-specific information enters
 $\theta_i$ is via the number of observations, $T_i$, and there is no
 reason to believe that $T_i$ should be correlated with $u_i$.
 
-I conclude that failing to include $x_1^*$ as an instrument in the
+We conclude that failing to include $x_1^*$ as an instrument in the
 unbalanced case will degrade the efficiency of the estimator. Yet this
 is what is done in Stata's \textsf{xthtaylor} command and in R's
 \textsf{plm} package.
@@ -271,11 +348,11 @@ is what is done in Stata's \textsf{xthtaylor} command and in R's
 If the argument above is correct, it should be possible to show via
 simulation the degradation of the efficiency of Hausman--Taylor when
 quasi-demeaned $x_1$ is treated as endogenous in the final IV
-regression, given unbalanced data. Conversely, if my argument
+regression, given unbalanced data. Conversely, if the argument above
 is wrong then presumably simulation should produce evidence of
 inconsistency when quasi-demeaned $x_1$ is added as an instrument.
 
-To explore this I ran a simulation of the following form. 
+To explore this we ran a simulation of the following form. 
 \begin{enumerate}
 \item For $K = 5000$ iterations, generate a random dataset with a
   known set of parameter values and a correlation structure that
@@ -288,7 +365,7 @@ To explore this I ran a simulation of the following form.
   \theta$ for each parameter $\theta$.
 \end{enumerate}
 
-Specifically, I constructed datasets containing one variable in each
+Specifically, we constructed datasets containing one variable in each
 of the categories $x_1$, $x_2$, $z_1$ and $z_2$, using the parameter
 values $\beta_0 = \beta_1 = \beta_2 = \alpha_1 = \alpha_2 =
 1$. The panel comprised $T=10$ observations for each of $N$
@@ -315,16 +392,16 @@ to ``missing'' at observations for which $v_{it} < 0.04$, giving an
 expectation of 4 percent unusable observations, hence unbalancing the
 panel.
 
-One further point should be noted. Since $\sigma^2_u$ is estimated
-indirectly, it is quite possible in finite samples to get a zero or
-negative value for $\hat{\sigma}^2_u$, in which case the standard
-procedure is to set $\theta = 0$. This destroys the distinction I'm
-interested in, between the two variants of the Hausman--Taylor
-estimator. It's therefore necessary to calibrate the simulation so
-that a non-positive $\hat{\sigma}^2_u$ doesn't arise too
-often.\footnote{In addition I discarded iterations in which
-  $\hat{\sigma}^2_u$ was non-positive, continuing until the specified
-  number of replications was reached with non-zero $\theta$.}
+One further point: since $\sigma^2_u$ is estimated indirectly, it is
+possible in finite samples to get a zero or negative value for
+$\hat{\sigma}^2_u$, in which case the standard procedure is to set
+$\theta = 0$. This destroys the distinction we're interested in,
+between the two variants of the Hausman--Taylor estimator. It's
+therefore necessary to calibrate the simulation so that a non-positive
+$\hat{\sigma}^2_u$ doesn't arise too often.\footnote{In addition we
+  discarded iterations in which $\hat{\sigma}^2_u$ was non-positive,
+  continuing until the specified number of replications was reached
+  with non-zero $\theta$.}
 
 Figure~\ref{fig:means} shows results for the mean error of estimation,
 relevant to assessing consistency. Points are shown for four values of
@@ -335,16 +412,16 @@ instrument. There's no evidence of inconsistency in the latter case.
 
 Figure~\ref{fig:sds} shows the standard deviation of estimate minus
 parameter, relevant to assessing efficiency; results are again given
-for $N$ equal to 20, 50, 100 and 200.  Here we see that the relative
-performance of the variants strongly supports the contention made
-above. While performance with respect $\beta_1$ and $\beta_2$ is
-virtually identical, the $\beta_0$ and $\alpha$ estimates show
-\textit{much} greater variance when $x_1^*$ is not included as an
-instrument; indeed, the variance of the $\alpha$ estimates is
-such that they may be useless in practice.
+for four values of $N$.  Here we see that the relative performance of
+the variants strongly supports the contention made above. While
+performance with respect $\beta_1$ and $\beta_2$ is virtually
+identical, the $\beta_0$ and $\alpha$ estimates show \textit{much}
+greater variance when $x_1^*$ is not included as an instrument;
+indeed, the variance of the $\alpha$ estimates is such that they may
+be useless in practice.
 
-We're now in a position to explain the \texttt{emulate\_stata} option
-for the \texttt{hausman\_taylor} function mentioned on
+We're now in a position to explain the \dtk{as_stata} option
+for the \dtk{hausman_taylor} function mentioned on
 page~\pageref{stata1}.\label{stata2} This option has no effect for
 balanced panels, but in the unbalanced case it means ``Do what Stata
 does---that is omit $x_1^*$ as an instrument in the final
@@ -380,6 +457,8 @@ $N$, in sample ($x$-axis).
 $T = 10$ and 5000 replications.}
 \label{fig:sds}
 \end{figure}
+
+\clearpage
 
 \bibliographystyle{gretl}
 \bibliography{gretl}

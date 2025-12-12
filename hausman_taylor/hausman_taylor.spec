@@ -1,10 +1,10 @@
 author = Allin Cottrell
 email = cottrell@wfu.edu
 version = 1.0
-date = 2025-12-11
+date = 2025-12-12
 description = Hausman-Taylor panel model
 tags = C23 C26
-min-version = 2019b
+min-version = 2023b
 data-requirement = needs-panel-data
 gui-main = GUI_hausman_taylor
 label = Hausman-Taylor

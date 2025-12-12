@@ -1,7 +1,0 @@
-# "pre" script to enable easy testing of the GUI version
-open PSID7682.gdt
-series exp2 = exp^2
-list x1 = wks south smsa ms
-list x2 = exp exp2 occ ind union
-list z1 = fem blk
-list z2 = ed
