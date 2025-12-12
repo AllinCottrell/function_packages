@@ -17,33 +17,52 @@ function matrix hausman_test (matrix *bfe,
    return Htest
 end function
 
-function scalar time_varying (list L)
-   scalar retval = 1
-   loop foreach i L
-      if max(pmax(L.$i) - pmin(L.$i)) == 0
-         retval = 0
-         break
-      endif
-   endloop
-   return retval
+function scalar calculate_Tbar (series *Ti,
+                                scalar effn)
+   # find the harmonic mean of the Ti's
+   matrix mTi = pshrink(Ti)
+   return effn / sumc(1 ./ mTi)
 end function
 
-function scalar time_invariant (list L)
-   scalar retval = 1
-   loop foreach i L
-      if max(pmax(L.$i) - pmin(L.$i)) > 0
-         retval = 0
-         break
+function bundle split_lists (const list L1,
+                             const list L2,
+                             int verbosity)
+   list X1
+   list X2
+   list Z1
+   list Z2
+
+   loop i=1..nelem(L1) -q
+      if max(psd(L1[i])) > 0
+         X1 += L1[i]
+      else
+         Z1 += L1[i]
       endif
    endloop
-   return retval
-end function
 
-function scalar hausman_taylor_init (list X1,
-                                     list X2,
-                                     list Z1,
-                                     list Z2)
-   scalar oid = nelem(X1) - nelem(Z2)
+   loop i=1..nelem(L2) -q
+      if max(psd(L2[i])) > 0
+         X2 += L2[i]
+      else
+         Z2 += L2[i]
+      endif
+   endloop
+   
+   oid = nelem(X1) - nelem(Z2)
+
+   if verbosity > 1
+      printf "\nThe four Hausman-Taylor lists\n\n"
+      printf "X1: "
+      list X1 print
+      printf "X2: "
+      list X2 print
+      printf "Z1: "
+      list Z1 print
+      printf "Z2: "
+      list Z2 print
+      printf "\nOver-identification rank: %d\n", oid
+   endif
+ 
    if oid < 0
       funcerr "X1 must have at least as many members as Z2"
    endif
@@ -52,59 +71,42 @@ function scalar hausman_taylor_init (list X1,
    endif
    if nelem(Z1 && Z2) > 0
       funcerr "Z1 and Z2 cannot have members in common"
-   endif
-   list X = X1 X2
-   list Z = Z1 Z2
-   if nelem(X && Z) > 0
-      funcerr "the X and Z lists cannot have members in common"
-   endif
-   if !time_varying(X)
-      funcerr "X1 and X2 should be time-varying"
-   endif
-   if !time_invariant(Z)
-      funcerr "Z1 and Z2 should be time-invariant"
-   endif
-   return oid
-end function
+   endif   
 
-function scalar calculate_Tbar (series *Ti,
-                                scalar effn)
-   # find the harmonic mean of the Ti's
-   matrix mTi = pshrink(Ti)
-   return effn / sumc(1 ./ mTi)
+   return _(X1, X2, Z1, Z2, oid)
 end function
 
 function bundle hausman_taylor (series y "dependent variable",
-                                list X1 "time-varying exogenous vars",
-                                list X2 "time-varying endogenous vars",
-                                list Z1 "time-invariant exogenous vars",
-                                list Z2[null] "time-invariant endogenous vars",
+                                list L1 "exogenous regressors",
+                                list L2 "endogenous regressors",
                                 int verbosity[0:2:1],
                                 bool emulate_stata[0])
    bundle b
-   scalar oid = hausman_taylor_init(X1, X2, Z1, Z2)
-   list X = X1 X2
-   list Z = Z1 Z2
-
+   b.yname = argname(y)
+   
    # determine and enforce the usable sample
-   list tmp = y X Z
+   list tmp = y L1 L2
    series all_ok = ok(tmp)
    if min(all_ok) == 0
       y = all_ok ? y : NA
    endif
+   
+   bundle hl = split_lists(L1, L2, verbosity)
+   scalar oid = hl.oid
+   list X = hl.X1 hl.X2
+   list Z = hl.Z1 hl.Z2  
 
-   string qopt = (verbosity > 1)? "" : "-q"
+   string qopt = verbosity > 1 ? "" : "-q"
 
    # H-T step 1: fixed effects to get sigma^2_e
    panel y 0 X @qopt
    matrix bfe = $coeff
    scalar k = $ncoeff
-   X = const X
-   series eit = pmean(y - lincomb(X, bfe))
+   list cX = const X
+   series eit = pmean(y - lincomb(cX, bfe))
    eit = all_ok ? eit : NA
    bfe = bfe[2:k]
    matrix Vfe = $vcv[2:k,2:k]
-   X = X1 X2
    scalar Tmin = $["Tmin"]
    scalar Tmax = $["Tmax"]
    scalar effn = $["n_included_units"]
@@ -114,7 +116,7 @@ function bundle hausman_taylor (series y "dependent variable",
 
    # H-T step 2: auxiliary IV estimation
    set warnings off
-   tsls eit 0 Z ; 0 Z1 X1 @qopt --no-tests
+   tsls eit 0 Z ; 0 L1 @qopt --no-tests
    # again, in agreement with Stata
    scalar s2star = $ess / effn
 
@@ -155,7 +157,7 @@ function bundle hausman_taylor (series y "dependent variable",
       series gcons = 1 - theta
    endif
 
-   # quasi-demeaned X, gX
+   # gX = quasi-demeaned X
    string vname
    list gX = null
    loop foreach i X -q
@@ -167,7 +169,7 @@ function bundle hausman_taylor (series y "dependent variable",
       endif
    endloop
 
-   # quasi-demeaned Z, gZ
+   # gZ = quasi-demeaned Z
    list gZ = null
    loop foreach i Z -q
       vname = sprintf("gz%d", i)
@@ -194,7 +196,7 @@ function bundle hausman_taylor (series y "dependent variable",
    endloop
 
    # plus plain X1 and Z1
-   W += X1 Z1
+   W += hl.X1 hl.Z1
    list tmp = const X Z
    string xnames = varname(tmp)
 
@@ -210,7 +212,6 @@ function bundle hausman_taylor (series y "dependent variable",
    b.Tmin = Tmin
    b.Tmax = Tmax
    b.effn = effn
-   b.yname = argname(y)
    b.xnames = xnames
    b.s_e = sqrt(s2e)
    b.s_u = sqrt(s2u)
@@ -237,23 +238,18 @@ function bundle hausman_taylor (series y "dependent variable",
 end function
 
 function void ht_print (bundle *b)
-   string yname = b.yname
    string xnames = b.xnames
-   scalar nobs = b.nobs
-   scalar effn = b.effn
-   scalar Tmin = b.Tmin
-   scalar Tmax = b.Tmax
-   scalar unbal = Tmin != Tmax
-   if strlen(yname) > 0
-      printf "\nHausman-Taylor estimates for %s\n", yname
+   scalar unbal = b.Tmin != b.Tmax
+   if strlen(b.yname) > 0
+      printf "\nHausman-Taylor estimates for %s\n", b.yname
    else
       printf "\nHausman-Taylor estimates\n"
    endif
-   printf "using %d observations (n = %d, ", nobs, effn
+   printf "using %d observations (n = %d, ", b.nobs, b.effn
    if unbal
-      printf "Tmin = %d, Tmax = %d)\n", Tmin, Tmax
+      printf "Tmin = %d, Tmax = %d)\n", b.Tmin, b.Tmax
    else
-      printf "T = %d)\n", Tmin
+      printf "T = %d)\n", b.Tmin
    endif
    matrix B = b.coeff ~ b.stderr
    modprint B xnames
@@ -283,45 +279,14 @@ function void ht_print (bundle *b)
 end function
 
 function bundle GUI_hausman_taylor (series y "dependent variable",
-                                    list X1 "time-varying exogenous vars",
-                                    list X2 "time-varying endogenous vars",
-                                    list Z1 "time-invariant exogenous vars",
-                                    list Z2 "time-invariant endogenous vars")
+                                    list L1 "exogenous regressors",
+                                    list L2 "endogenous regressors",
+                                    bool verbose[0],
+                                    bool emulate_stata[0])
    string yname = argname(y, "y")
-   return hausman_taylor(@yname, X1, X2, Z1, Z2, 1)
-end function
-
-function bundle auto_ht (series y "dependent",
-                         list X "exog",
-                         list Z[null] "endog")
-   nx = nelem(X)
-   list x1 = null
-   list x2 = null
-
-   loop i=1..nx -q
-      tv = max(pmax(X[i]) - pmin(X[i]))
-      if tv > 0
-         x1 += X[i]
-      else
-         x2 += X[i]
-      endif
-   endloop
-
-   nz = nelem(Z)
-   list z1 = null
-   list z2 = null
-
-   loop i=1..nz -q
-      tv = max(pmax(Z[i]) - pmin(Z[i]))
-      if tv > 0
-         z1 += Z[i]
-      else
-         z2 += Z[i]
-      endif
-   endloop
-
-   bundle ret = hausman_taylor(y, x1, z1, x2, z2)
-   list zz = const x1 z1 x2 z2
-   ret["xlist"] = zz
-   return ret
+   if yname != "y"
+      genseries(yname, y)
+   endif
+   scalar verbo = verbose ? 2 : 1
+   return hausman_taylor(@yname, L1, L2, verbo, emulate_stata)
 end function

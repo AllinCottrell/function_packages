@@ -2,15 +2,15 @@ include hausman_taylor.gfn
 
 open PSID7682.gdt --frompkg=hausman_taylor
 series exper2 = exper^2
-list x1 = wks south smsa ms
-list x2 = exper exper2 occ ind union
-list z1 = fem blk
-list z2 = ed
+list Lexo = wks south smsa ms fem blk
+list Lendo = exper exper2 occ ind union ed
 
 # The original Cornwell-Rupert wage model
-bundle b = hausman_taylor(lwage, x1, x2, z1, z2)
+bundle b = hausman_taylor(lwage, Lexo, Lendo, 2)
+quit
 
 # Baltagi and Khanti-Akom alternative specification
-list x1 = occ south smsa ind
-list x2 = exper exper2 wks ms union
-bundle b = hausman_taylor(lwage, x1, x2, z1, z2)
+# treats wks and ms as endogenous, occ and ind as exogenous
+list Lexo = occ south smsa ind fem blk
+list Lendo = exper exper2 wks ms union ed
+bundle b = hausman_taylor(lwage, Lexo, Lendo)
