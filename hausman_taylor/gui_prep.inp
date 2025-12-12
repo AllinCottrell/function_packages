@@ -1,0 +1,26 @@
+# "pre" script to enable easy testing of the GUI version
+
+open PSID7682.gdt
+series exper2 = exper^2
+list x1 = wks south smsa ms
+list x2 = exper exper2 occ ind union
+list z1 = fem blk
+list z2 = ed
+
+list Lexo = x1 z1
+list Lendo = x2 z2
+
+quit
+
+first spec above:
+
+EXO  = (wks south smsa ms) + (fem blk)
+ENDO = (exper exper2 occ ind union) + (ed)
+
+alt spec:
+
+list x1 = occ south smsa ind
+list x2 = exper exper2 wks ms union
+
+EXO  = (occ south smsa ind) + (fem blk)
+ENDO = (exper exper2 wks ms union) + (ed)
