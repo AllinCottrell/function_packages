@@ -161,10 +161,15 @@ fairly self-explanatory, but the following comments may be useful.
   is then the mean of the $\theta_i$s.
 \item The \texttt{Htest} and \texttt{Stest} matrices, if present, are
   row vectors containing test statistic, degrees of freedom and
-  $P$-value pertaining to the Hausman or Sargan test, respectively.
-  The Sargan (over-identification) test is shown only if there are
-  more time-varying exogenous regressors than time-invariant
-  endogenous ones.
+  $P$-value pertaining to the Hausman and Sargan test, respectively.
+  The Hausman test (null hypothesis: the Hausman--Taylor estimates are
+  consistent) is based on a vector of contrasts, the difference between
+  the fixed-effects and Hausman--Taylor estimates of the coefficients on
+  the time-varying regressors. This test is shown provided the
+  covariance matrix of the difference vector is positive-definite.  The
+  Sargan (over-identification) test is shown only if there are more
+  time-varying exogenous regressors than time-invariant endogenous ones;
+  the null hypothesis is that all the instruments are valid.
 \end{itemize}
 
 \begin{table}[htbp]
@@ -187,8 +192,11 @@ fairly self-explanatory, but the following comments may be useful.
   \texttt{theta} & scalar & GLS coefficient, $\theta$ \\
   \texttt{Htest} & matrix & Hausman test results \\
   \texttt{Stest} & matrix & Sargan test results \\
+  \texttt{yhat} & series & fitted values \\
+  \texttt{uhat} & series & residuals \\
+  \texttt{rsq} & scalar & corr$(y,\hat{y})^2$ \\
 \end{tabular}
-\caption{Items in hausman\_taylor bundle}
+\caption{Items in \dtk{hausman_taylor} bundle}
 \label{tab:bun}
 \end{table}
 

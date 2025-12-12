@@ -10,4 +10,19 @@ list z2 = educ
 list L1 = x1 z1
 list L2 = x2 z2
 
-hausman_taylor(lwage, L1, L2, 1)
+bht = hausman_taylor(lwage, L1, L2, 2)
+
+quit
+
+series yh = bht.yhat
+rsq = corr(lwage, yh)
+printf "rsq %g, bht.rsq %g\n", rsq, bht.rsq
+print yh --range=1:10
+
+list L = id year lwage L1 L2
+foreign language=stata --send-data=L
+   xtset id year
+   xthtaylor lwage exper exper2 tenure tenure2 union south black educ, endog(south educ) constant(black educ)
+   predict yhat
+   list yhat in 1/10
+end foreign

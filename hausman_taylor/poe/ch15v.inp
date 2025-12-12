@@ -2,12 +2,16 @@ set verbose off
 include hausman_taylor.gfn
 open nls_panel.gdt -q
 
+# time-varying
 list x1 = exper exper2 tenure tenure2 union
 list x2 = south
+# time-invariant
 list z1 = black
 list z2 = educ
 
+# exogenous
 list L1 = x1 z1
+# endogenous
 list L2 = x2 z2
 
 hausman_taylor(lwage, L1, L2, 2)

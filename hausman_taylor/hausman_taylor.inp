@@ -61,6 +61,9 @@ function bundle split_lists (const list L1,
       printf "Z2: "
       list Z2 print
       printf "\nOver-identification rank: %d\n", oid
+      if verbosity == 1
+         printf "\n"
+      endif
    endif
 
    if oid < 0
@@ -84,6 +87,10 @@ function bundle hausman_taylor (series y "dependent variable",
    bundle b
    b.yname = argname(y)
 
+   # ensure that L1 and L2 do not contain const
+   L1 -= const
+   L2 -= const
+
    # determine and enforce the usable sample
    list tmp = y L1 L2
    series all_ok = ok(tmp)
@@ -96,11 +103,16 @@ function bundle hausman_taylor (series y "dependent variable",
    list X = hl.X1 hl.X2
    list Z = hl.Z1 hl.Z2
 
-   string qopt = verbosity > 1 ? "" : "-q"
-
    # H-T step 1: fixed effects to get sigma^2_e
-   panel y 0 X @qopt
+   panel y 0 X -q
    matrix bfe = $coeff
+   if verbosity > 1
+      printf "\nHausman-Taylor step 1: fixed effects\n"
+      printf "dependent variable y, %d observations\n", $T
+      matrix cmat = bfe ~ $stderr
+      strings pnames = varnames($xlist)
+      modprint cmat pnames
+   endif
    scalar k = $ncoeff
    list cX = const X
    series eit = pmean(y - lincomb(cX, bfe))
@@ -116,7 +128,14 @@ function bundle hausman_taylor (series y "dependent variable",
 
    # H-T step 2: auxiliary IV estimation
    set warnings off
-   tsls eit 0 Z ; 0 L1 @qopt --no-tests
+   tsls eit 0 Z ; 0 L1 -q --no-tests
+   if verbosity > 1
+      printf "Hausman-Taylor step 2: auxiliary IV\n"
+      printf "dependent variable eit, %d observations\n", $T
+      matrix cmat = $coeff ~ $stderr
+      strings pnames = varnames($xlist)
+      modprint cmat pnames
+   endif
    # again, in agreement with Stata
    scalar s2star = $ess / effn
 
@@ -161,7 +180,7 @@ function bundle hausman_taylor (series y "dependent variable",
    string vname
    list gX = null
    loop foreach i X
-      vname = sprintf("gx%d", i)
+      vname = sprintf("gx_%s", varname(X[i]))
       if vartheta
          gX += genseries(vname, X[i] - s_theta * pmean(X[i], all_ok))
       else
@@ -172,7 +191,7 @@ function bundle hausman_taylor (series y "dependent variable",
    # gZ = quasi-demeaned Z
    list gZ = null
    loop foreach i Z
-      vname = sprintf("gz%d", i)
+      vname = sprintf("gz_%s", varname(Z[i]))
       if vartheta
          gZ += genseries(vname, (1 - s_theta) * Z[i])
       else
@@ -191,7 +210,7 @@ function bundle hausman_taylor (series y "dependent variable",
 
    # demeaned X1 and X2
    loop foreach i X -q
-      vname = sprintf("dmx%d", i)
+      vname = sprintf("dm_%s", varname(X[i]))
       W += genseries(vname, X[i] - pmean(X[i], all_ok))
    endloop
 
@@ -203,11 +222,13 @@ function bundle hausman_taylor (series y "dependent variable",
    # H-T final step: IV estimation on transformed data.
    # To replicate R's plm substitute "const" for "gcons"
    # among the instruments.
-   tsls gy gcons gX gZ ; gcons W @qopt
+   tsls gy gcons gX gZ ; gcons W -q
    matrix bht = $coeff[2:k]
    matrix Vht = $vcv[2:k,2:k]
 
-   # record results from tsls
+   b.coeff = $coeff
+   b.stderr = $stderr
+   b.vcv = $vcv
    b.nobs = $T
    b.Tmin = Tmin
    b.Tmax = Tmax
@@ -215,10 +236,11 @@ function bundle hausman_taylor (series y "dependent variable",
    b.xnames = xnames
    b.s_e = sqrt(s2e)
    b.s_u = sqrt(s2u)
-   b.coeff = $coeff
-   b.stderr = $stderr
-   b.vcv = $vcv
-   b.ninst = $["ninst"]
+   list b.xlist = const X Z
+   series b.yhat = lincomb(b.xlist, b.coeff)
+   series b.uhat = y - b.yhat
+   scalar b.rsq = corr(y, b.yhat)^2
+   b.ninst = $["ninst"] # FIXME
 
    matrix Htest = hausman_test(&bfe, &bht, &Vfe, &Vht)
    if cols(Htest) > 0
@@ -241,7 +263,7 @@ function void ht_print (bundle *b)
    string xnames = b.xnames
    scalar unbal = b.Tmin != b.Tmax
    if strlen(b.yname) > 0
-      printf "\nHausman-Taylor estimates for %s\n", b.yname
+      printf "Hausman-Taylor estimates for %s\n", b.yname
    else
       printf "\nHausman-Taylor estimates\n"
    endif
@@ -266,13 +288,18 @@ function void ht_print (bundle *b)
    if inbundle(b, "Htest")
       ntests++
       matrix Htest = b.Htest
-      printf "Hausman test: chi-square(%d) = %g [%.4f]\n",
+      printf "Hausman test, H0: Hausman-Taylor estimates are consistent\n"
+      printf "Test statistic: Chi-square(%d) = %g [%.4f]\n",
         Htest[2], Htest[1], Htest[3]
    endif
    if inbundle(b, "Stest")
+      if ntests == 1
+         printf "\n"
+      endif
       ntests++
       matrix Stest = b.Stest
-      printf "Sargan over-identification test: chi-square(%d) = %g [%.4f]\n",
+      printf "Sargan test, H0: all instruments are valid\n"
+      printf "Test statistic: Chi-square(%d) = %g [%.4f]\n",
         Stest[2], Stest[1], Stest[3]
    endif
    if ntests > 0
