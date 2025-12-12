@@ -280,6 +280,13 @@ function void ht_print (bundle *b)
    endif
 end function
 
+function bundle ht_uimaker (void)
+   bundle ret
+   ret.L1 = _(list_exclude="y")
+   ret.L2 = _(list_exclude="y")
+   return ret
+end function
+
 function bundle GUI_hausman_taylor (series y "dependent variable",
                                     list L1 "exogenous regressors",
                                     list L2 "endogenous regressors",
