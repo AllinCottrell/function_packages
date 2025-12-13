@@ -30,7 +30,7 @@
 
 \title{hausman\_taylor version 1.0}
 \author{Allin Cottrell}
-\date{December 12, 2025}
+%\date{December 12, 2025}
 \maketitle
 
 \section{Introduction}
@@ -190,6 +190,7 @@ self-explanatory, but the following comments may be useful.
   \dtk{s_e} & scalar & square root of ``within'' variance, 
     $\hat{\sigma}^2_{\epsilon}$ \\
   \dtk{s_u} & scalar & square root of $\hat{\sigma}^2_{u}$ \\
+  \texttt{ncoeff} & scalar & total number of coefficients \\
   \texttt{nobs} & scalar & total number of observations used \\
   \texttt{effn} & scalar & number of units included \\
   \texttt{Tmin} & scalar & minimum $T_i$ value \\
@@ -274,8 +275,8 @@ using 4165 observations (n = 595, T = 7)
   sigma_e = 0.15180272
   theta   = 0.93919126
 
-Hausman test: chi-square(3) = 5.2577 [0.1539]
-Sargan test:  chi-square(3) = 5.2291 [0.1558]
+Hausman test: chi-square(3) = 5.25773 [0.1539]
+Sargan test:  chi-square(3) = 5.22910 [0.1558]
 \end{outbit}
 \end{script}
 

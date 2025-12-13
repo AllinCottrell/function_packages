@@ -11,13 +11,11 @@ list L1 = x1 z1
 list L2 = x2 z2
 
 bht = hausman_taylor(lwage, L1, L2, 1)
-eval bht.xnames
 
 # quit
 
+# for comparison with stata (below)
 series yh = bht.yhat
-rsq = corr(lwage, yh)^2
-printf "rsq %g, bht.rsq %g\n", rsq, bht.rsq
 print yh --range=1:10
 
 list L = id year lwage L1 L2
@@ -27,7 +25,7 @@ foreign language=stata --send-data=L
    predict yhat
    list yhat in 1/10
    estimates store eq_ht
-   xtreg lwage exper exper2 tenure tenure2 union south black educ, fe
+   xtreg lwage exper exper2 tenure tenure2 union south, fe
    estimates store eq_fe
    hausman eq_fe eq_ht, df(4)
 end foreign
