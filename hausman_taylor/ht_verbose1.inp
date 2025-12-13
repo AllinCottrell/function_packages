@@ -7,4 +7,4 @@ list Lexo = wks south smsa ms fem blk
 list Lendo = exper exper2 occ ind union ed
 
 # The original Cornwell-Rupert wage model
-bundle b = hausman_taylor(lwage, Lexo, Lendo, 2)
+bundle b = hausman_taylor(lwage, Lexo, Lendo, 1)

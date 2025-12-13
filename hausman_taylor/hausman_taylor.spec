@@ -7,6 +7,7 @@ tags = C23 C26
 min-version = 2023b
 data-requirement = needs-panel-data
 gui-main = GUI_hausman_taylor
+ui-maker = ht_uimaker
 label = Hausman-Taylor
 menu-attachment = MAINWIN/Model/PanelModels
 bundle-print = ht_print

@@ -3,16 +3,17 @@ set verbose off
 function matrix hausman_test (matrix *bfe,
                               matrix *bht,
                               matrix *Vfe,
-                              matrix *Vht)
+                              matrix *Vht,
+                              int oid)
    matrix Htest = {}
    matrix bdiff = (bfe - bht)'
    catch scalar H = qform(bdiff, inv(Vfe - Vht))
    if $error == 0 && H > 0
-      scalar df = rows(bfe)
+      # scalar df = rows(bfe)
       Htest = zeros(1,3)
       Htest[1] = H
-      Htest[2] = df
-      Htest[3] = pvalue(X, df, H)
+      Htest[2] = oid
+      Htest[3] = pvalue(X, oid, H)
    endif
    return Htest
 end function
@@ -90,6 +91,9 @@ function bundle hausman_taylor (series y "dependent variable",
    # ensure that L1 and L2 do not contain const
    L1 -= const
    L2 -= const
+   # and record in bundle
+   list b.L1 = L1
+   list b.L2 = L2
 
    # determine and enforce the usable sample
    list tmp = y L1 L2
@@ -201,7 +205,7 @@ function bundle hausman_taylor (series y "dependent variable",
 
    # the transformed instruments, W
    list W = empty
-   # quasi-demeaned X1?
+   # include quasi-demeaned X1?
    if s2u > 0 && Tmax > Tmin && !as_stata
       loop i=1..nelem(X1) -q
          W += gx$i
@@ -214,15 +218,19 @@ function bundle hausman_taylor (series y "dependent variable",
       W += genseries(vname, X[i] - pmean(X[i], all_ok))
    endloop
 
-   # plus plain X1 and Z1
+   # plus plain X1 and Z1 (exog)
    W += hl.X1 hl.Z1
    list tmp = const X Z
-   string xnames = varname(tmp)
+   strings xnames = varnames(tmp)
 
-   # H-T final step: IV estimation on transformed data.
+   # H-T final step: IV estimation on GLS-transformed data.
    # To replicate R's plm substitute "const" for "gcons"
    # among the instruments.
-   tsls gy gcons gX gZ ; gcons W -q
+   if $version >= 20260
+      tsls gy gcons gX gZ ; gcons W -q --no-tests="hausman"
+   else
+      tsls gy gcons gX gZ ; gcons W -q
+   endif
    matrix bht = $coeff[2:k]
    matrix Vht = $vcv[2:k,2:k]
 
@@ -240,9 +248,8 @@ function bundle hausman_taylor (series y "dependent variable",
    series b.yhat = lincomb(b.xlist, b.coeff)
    series b.uhat = y - b.yhat
    scalar b.rsq = corr(y, b.yhat)^2
-   b.ninst = $["ninst"] # FIXME
 
-   matrix Htest = hausman_test(&bfe, &bht, &Vfe, &Vht)
+   matrix Htest = hausman_test(&bfe, &bht, &Vfe, &Vht, oid)
    if cols(Htest) > 0
       b.Htest = Htest
    endif
@@ -260,7 +267,7 @@ function bundle hausman_taylor (series y "dependent variable",
 end function
 
 function void ht_print (bundle *b)
-   string xnames = b.xnames
+   strings xnames = b.xnames
    scalar unbal = b.Tmin != b.Tmax
    if strlen(b.yname) > 0
       printf "Hausman-Taylor estimates for %s\n", b.yname
@@ -273,13 +280,15 @@ function void ht_print (bundle *b)
    else
       printf "T = %d)\n", b.Tmin
    endif
+   printf "endogenous: "
+   list endo = b.L2
+   list endo print
    matrix B = b.coeff ~ b.stderr
    modprint B xnames
-   scalar theta = b.theta
    printf "  sigma_u = %#.8g\n", b.s_u
    printf "  sigma_e = %#.8g\n", b.s_e
-   printf "  theta   = %#.8g", theta
-   if unbal && theta > 0
+   printf "  theta   = %#.8g", b.theta
+   if unbal && b.theta > 0
       printf " (average)\n\n"
    else
       printf "\n\n"

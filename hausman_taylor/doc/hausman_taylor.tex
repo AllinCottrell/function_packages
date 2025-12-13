@@ -87,12 +87,12 @@ individuals---is commonly given as follows:
 \item Regress $\tilde{y} = (y_{it} - \bar{y}_i)$ on
   $\tilde{x}_1 = (x_{1it} - \bar{x}_{1i})$ and
   $\tilde{x}_2 = (x_{2it} - \bar{x}_{2i})$ to obtain initial estimates
-  of $\beta_1$ and $\beta_2$. Use the residuals from this regression,
-  $e_{it}$, to estimate the ``within'' error variance
-  $\sigma^2_{\epsilon}$.
+  of $\beta_1$ and $\beta_2$. Use the residuals from this
+  fixed-effects regression, $e_{it}$, to estimate the ``within'' error
+  variance $\sigma^2_{\epsilon}$.
 \item Perform an IV regression of the stacked individual means of
   $e_{it}$ on $z_1$ and $z_2$, using as instruments $z_1$ and $x_1$.
-\item Use the residual variance from step 2, namely $s_2^2$, to
+  Use the residual variance from this regression, $s_2^2$, to
   estimate $\sigma^2_u$ as $s_2^2 - \hat{\sigma}^2_{\epsilon}/T$, and
   calculate the GLS coefficient
 \begin{equation}
@@ -100,12 +100,18 @@ individuals---is commonly given as follows:
 \theta = 1 - \left(\frac{\hat{\sigma}^2_{\epsilon}}
   {\hat{\sigma}^2_{\epsilon} + T\hat{\sigma}^2_u}\right)^{0.5}
 \end{equation}
-\item Finally, perform an IV regression of $y_{it}^* = (y_{it} -
+\item Perform an IV regression of $y_{it}^* = (y_{it} -
   \theta\bar{y}_i)$ on $w_{it}^* = (w_{it} - \theta\bar{w}_{i})$,
   where $w_{it} = (x_{1it}, x_{2it}, z_{1i}, z_{2i})$, using as
   instruments $\tilde{x}_1$, $\tilde{x}_2$, $\bar{x}_{1}$ and
   $z_{1}$.
 \end{enumerate}
+
+The final step can also be described thus: the quasi-demeaned
+dependent variable is regressed on the quasi-demeaned regressors,
+taking as instruments the fully-demeaned time-varying regressors, the
+means of the exogenous time-varying terms, and the levels of the
+exogenous time-invariant terms.
 
 In an unbalanced panel the time-series length, $T_i$, differs across
 individuals. In that case step 3 above has to be modified. First, the
@@ -136,11 +142,11 @@ bundle hausman_taylor (series y "dependent variable",
 
 The series \texttt{y} is the dependent variable, and the lists
 \texttt{L1} and \texttt{L2} correspond, respectively, to $x_1$ plus
-$z_1$ and $x_2$ plus $z_2$ as shown in equation~(\ref{eq:htmod}).
-This function does not undertake to judge which regressors are
-exogenous and which endogenous---you must decide the partition
-between \texttt{L1} and \texttt{L2}---but it can easily determine
-which regressors are time-varying and which invariant.
+$z_1$ and $x_2$ plus $z_2$ in equation~(\ref{eq:htmod}).  This
+function does not undertake to judge which regressors are exogenous
+and which endogenous---you must decide the partition between
+\texttt{L1} and \texttt{L2}---but it can easily determine which
+regressors are time-varying and which invariant.
 
 The \texttt{verbosity} parameter accepts values 0, 1 or 2: a value of
 0 means that nothing is printed; 1 means that the Hausman--Taylor
@@ -152,9 +158,9 @@ The \dtk{as_stata} boolean can be used to produce results
 comparable with Stata's \textsf{xthtaylor} command; an explanation of
 this option is given on page~\pageref{stata2}.\label{stata1}
 
-By way of return value, this function offers a bundle containing
-the items shown in Table~\ref{tab:bun}. Most of the contents should be
-fairly self-explanatory, but the following comments may be useful.
+This function returns a bundle containing the items shown in
+Table~\ref{tab:bun}. Most of the contents should be fairly
+self-explanatory, but the following comments may be useful.
 \begin{itemize}
 \item In the case of an unbalanced panel, the GLS coefficients
   $\theta_i$ will differ across individuals; the \texttt{theta} value
@@ -177,14 +183,15 @@ fairly self-explanatory, but the following comments may be useful.
 \begin{tabular}{llp{.6\textwidth}}
   \textit{name}   & \textit{type} & \textit{description} \\[4pt]
   \texttt{yname} & string & name of the dependent variable \\
-  \texttt{xnames} & string & names of regressors (space separated) \\
+  \texttt{xnames} & strings & names of regressors \\
+  \texttt{L1} & list & exogenous regressors \\
+  \texttt{L2} & list & endogenous regressors \\
   \texttt{coeff} & matrix & regression coefficients \\
   \texttt{stderr} & matrix & standard errors \\
   \texttt{vcv} & matrix & variance--covariance matrix \\
   \dtk{s_e} & scalar & square root of ``within'' variance, 
     $\hat{\sigma}^2_{\epsilon}$ \\
   \dtk{s_u} & scalar & square root of $\hat{\sigma}^2_{u}$ \\
-  \texttt{ninst} & scalar & number of instruments \\
   \texttt{nobs} & scalar & total number of observations used \\
   \texttt{effn} & scalar & number of units included \\
   \texttt{Tmin} & scalar & minimum $T_i$ value \\
@@ -322,12 +329,12 @@ so that $x_1^*$ is ``perfectly instrumented'' by $\tilde{x}_{1}$ and
 $\bar{x}_1$. This is as it should be. By assumption $x_{1it}$ is
 independent of $u_i$, and therefore so is $\bar{x}_{1i}$. The
 transformation $x^*_{1it} = x_{1it} - \theta \bar{x}_{1i}$ clearly
-does not introduce any dependence on $u_i$. So $x_1^*$ ought to be
+does not introduce any dependence on $u_i$, so $x_1^*$ ought to be
 treated as exogenous. It is not included as an instrument simply
 because it would be redundant, given the point made above.
 
 Now consider the unbalanced case. It is standard to calculate
-$\sigma^2_u$ as $\sigma^{*2} - \sigma^2_{\epsilon}/\bar{T}$, where
+$\sigma^2_u$ as $s_2^2 - \sigma^2_{\epsilon}/\bar{T}$, where
 $\bar{T}$ is the harmonic mean of the $T_i$s. And $\theta$ varies by
 individual according to (\ref{eq:theta-unbal}) above.  This means
 there is no longer an exact linear relationship between $x_1^*$ and
@@ -428,12 +435,12 @@ greater variance when $x_1^*$ is not included as an instrument;
 indeed, the variance of the $\alpha$ estimates is such that they may
 be useless in practice.
 
-We're now in a position to explain the \dtk{as_stata} option
-for the \dtk{hausman_taylor} function mentioned on
+We're now in a position to explain the \dtk{as_stata} option for the
+\dtk{hausman_taylor} function mentioned on
 page~\pageref{stata1}.\label{stata2} This option has no effect for
 balanced panels, but in the unbalanced case it means ``Do what Stata
 does---that is omit $x_1^*$ as an instrument in the final
-regression---even though we reckon it's wrong.''
+regression---even though we reckon it's not the right thing to do.''
 
 As a practical point, it should be noted that the inclusion (in the
 unbalanced case) of $x_1^*$ as an instrument alongside $\tilde{x}_1$
