@@ -13,5 +13,6 @@ menu-attachment = MAINWIN/Model/PanelModels
 bundle-print = ht_print
 public = hausman_taylor ht_print GUI_hausman_taylor
 help = hausman_taylor.pdf
+gui-help = ht_gui.md
 sample-script = ht_sample.inp
 data-files = PSID7682.gdt

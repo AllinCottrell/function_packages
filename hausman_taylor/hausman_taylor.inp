@@ -226,7 +226,7 @@ function bundle hausman_taylor (series y "dependent variable",
    # H-T final step: IV estimation on GLS-transformed data.
    # To replicate R's plm substitute "const" for "gcons"
    # among the instruments.
-   if $version >= 20260
+   if $version >= 20261 # FIXME
       tsls gy gcons gX gZ ; gcons W -q --no-tests="hausman"
    else
       tsls gy gcons gX gZ ; gcons W -q

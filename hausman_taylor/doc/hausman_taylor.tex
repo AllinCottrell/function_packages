@@ -1,6 +1,5 @@
 \documentclass{article}
-\usepackage{doc,verbatim,fancyvrb}
-%\usepackage{pifont}
+\usepackage{verbatim,fancyvrb}
 \usepackage[authoryear]{natbib}
 \usepackage[pdftex]{graphicx}
 \usepackage{pict2e}
@@ -100,24 +99,23 @@ individuals---is commonly given as follows:
 \theta = 1 - \left(\frac{\hat{\sigma}^2_{\epsilon}}
   {\hat{\sigma}^2_{\epsilon} + T\hat{\sigma}^2_u}\right)^{0.5}
 \end{equation}
-\item Perform an IV regression of $y_{it}^* = (y_{it} -
-  \theta\bar{y}_i)$ on $w_{it}^* = (w_{it} - \theta\bar{w}_{i})$,
-  where $w_{it} = (x_{1it}, x_{2it}, z_{1i}, z_{2i})$, using as
-  instruments $\tilde{x}_1$, $\tilde{x}_2$, $\bar{x}_{1}$ and
-  $z_{1}$.
+\item Let $w_{it} \equiv (x_{1it}, x_{2it}, z_{1i}, z_{2i})$.  Run
+  an IV regression of $y_{it}^* = (y_{it} - \theta\bar{y}_i)$ on
+  $w_{it}^* = (w_{it} - \theta\bar{w}_{i})$, using as instruments
+  $\tilde{x}_1$, $\tilde{x}_2$, $\bar{x}_{1}$ and $z_{1}$.
 \end{enumerate}
 
-The final step can also be described thus: the quasi-demeaned
-dependent variable is regressed on the quasi-demeaned regressors,
-taking as instruments the fully-demeaned time-varying regressors, the
+The final step can also be described thus: regress the quasi-demeaned
+dependent variable on the quasi-demeaned regressors, taking as
+instruments the fully-demeaned time-varying regressors, the individual
 means of the exogenous time-varying terms, and the levels of the
 exogenous time-invariant terms.
 
 In an unbalanced panel the time-series length, $T_i$, differs across
-individuals. In that case step 3 above has to be modified. First, the
-calculation of $\hat{\sigma}^2_u$ uses the harmonic mean of the
-$T_i$s in place of a common $T$. Second, the value of $\theta$ differs
-across individuals:
+individuals. In that case steps 2 and 3 above have to be modified
+slightly. First, the calculation of $\hat{\sigma}^2_u$ uses the harmonic
+mean of the $T_i$s in place of a common $T$. Second, the value of
+$\theta$ differs across individuals:
 %
 \begin{equation}
 \label{eq:theta-unbal}
@@ -167,13 +165,13 @@ self-explanatory, but the following comments may be useful.
   is then the mean of the $\theta_i$s.
 \item The \texttt{Htest} and \texttt{Stest} matrices, if present, are
   row vectors containing test statistic, degrees of freedom and
-  $P$-value pertaining to the Hausman and Sargan test, respectively.
+  $P$-value pertaining to the Hausman and Sargan tests, respectively.
   The Hausman test (null hypothesis: the Hausman--Taylor estimates are
   consistent) is based on a vector of contrasts, the difference between
   the fixed-effects and Hausman--Taylor estimates of the coefficients on
   the time-varying regressors. This test is shown provided the
-  covariance matrix of the difference vector is positive-definite.  The
-  Sargan (over-identification) test is shown only if there are more
+  covariance matrix of this vector is positive-definite.  The Sargan
+  (over-identification) test is shown only if there are more
   time-varying exogenous regressors than time-invariant endogenous ones;
   the null hypothesis is that all the instruments are valid.
 \end{itemize}
@@ -282,15 +280,15 @@ Sargan test:  chi-square(3) = 5.2291 [0.1558]
 \end{script}
 
 In each case we may take it that the endogenous regressor of primary
-interest is \texttt{ed} (education level). The specifications differ
-in their treatment of two pairs of regressors: in Cornwell and Rupert
+interest is \texttt{ed} (education level). The specifications differ in
+their treatment of two pairs of regressors: in Cornwell and Rupert
 \texttt{wks} (weeks worked) and \texttt{ms} (marital status) are taken
-to be exogenous while \texttt{occ} (blue-collar dummy) and
-\texttt{ind} (manufacturing dummy) are endogenous; Baltagi assumes
+to be exogenous while \texttt{occ} (blue-collar dummy) and \texttt{ind}
+(manufacturing dummy) are endogenous; Baltagi reverses this, assuming
 that \texttt{wks} and \texttt{ms} are endogenous, \texttt{occ} and and
-\texttt{ind} exogenous. Baltagi finds a slightly smaller, but much
-more sharply estimated, return to education. The Hausman and Sargan
-specification tests would seem to favor Baltagi's specification.
+\texttt{ind} exogenous. Baltagi finds a slightly smaller, but more
+sharply estimated, return to education. The Hausman and Sargan
+specification tests favor Baltagi's specification.
 
 \section{Graphical interface}
 
@@ -345,7 +343,7 @@ final IV step of Hausman--Taylor?
 The alternative---including $\tilde{x}_1$ and $\bar{x}_1$ as
 instruments, but not $x_1^*$---amounts to treating $x_1^*$ as
 endogenous, but there is no reason for this. When the panel is
-unbalanced, $x^*_{1it}$ is defined by
+unbalanced $x^*_{1it}$ is defined by
 \[
 x^*_{1it} = x_{1it} - \theta_i \bar{x}_{1i}
 \]
@@ -407,35 +405,33 @@ to ``missing'' at observations for which $v_{it} < 0.04$, giving an
 expectation of 4 percent unusable observations, hence unbalancing the
 panel.
 
-One further point: since $\sigma^2_u$ is estimated indirectly, it is
-possible in finite samples to get a zero or negative value for
-$\hat{\sigma}^2_u$, in which case the standard procedure is to set
-$\theta = 0$. This destroys the distinction we're interested in,
-between the two variants of the Hausman--Taylor estimator. It's
-therefore necessary to calibrate the simulation so that a non-positive
-$\hat{\sigma}^2_u$ doesn't arise too often.\footnote{In addition we
-  discarded iterations in which $\hat{\sigma}^2_u$ was non-positive,
-  continuing until the specified number of replications was reached
-  with non-zero $\theta$.}
+One further point: since $\sigma^2_u$ is estimated indirectly, in finite
+samples it may happen that $\hat{\sigma}^2_u \le 0$, in which case the
+standard procedure is to set $\theta = 0$. This erases the distinction
+we're interested in, between the two variants of the Hausman--Taylor
+estimator. It's therefore necessary to calibrate the simulation so that
+a non-positive $\hat{\sigma}^2_u$ doesn't arise too often.\footnote{In
+  addition we discarded iterations in which $\hat{\sigma}^2_u$ was
+  non-positive, continuing until the specified number of replications
+  was reached with non-zero $\theta$.}
 
 Figure~\ref{fig:means} shows results for the mean error of estimation,
 relevant to assessing consistency. Points are shown for four values of
-$N$, namely 20, 50, 100 and 200. Note that the results differ only
-marginally for $\beta_1$ and $\beta_2$, while for $\beta_0$, $\alpha_1$
-and $\alpha_2$ the results are better when $x_1^*$ included as an
-instrument. There's no evidence of inconsistency in the latter case.
+$N$: 20, 50, 100 and 200. The results differ only marginally for
+$\beta_1$ and $\beta_2$, while for $\beta_0$, $\alpha_1$ and $\alpha_2$
+the results are better when $x_1^*$ included as an instrument. There's
+no evidence of inconsistency in the latter case.
 
 Figure~\ref{fig:sds} shows the standard deviation of estimate minus
-parameter, relevant to assessing efficiency; results are again given
-for four values of $N$.  Here we see that the relative performance of
-the variants strongly supports the contention made above. While
-performance with respect $\beta_1$ and $\beta_2$ is virtually
-identical, the $\beta_0$ and $\alpha$ estimates show \textit{much}
-greater variance when $x_1^*$ is not included as an instrument;
-indeed, the variance of the $\alpha$ estimates is such that they may
-be useless in practice.
+parameter, relevant to assessing efficiency; results are again given for
+four values of $N$.  The relative performance of the variants strongly
+supports the contention made above. While performance with respect
+$\beta_1$ and $\beta_2$ is virtually identical, the $\beta_0$ and
+$\alpha$ estimates show \textit{much} greater variance when $x_1^*$ is
+not included as an instrument; indeed, the variance of the $\alpha$
+estimates is such that they may be useless in practice.
 
-We're now in a position to explain the \dtk{as_stata} option for the
+We are now in a position to explain the \dtk{as_stata} option for the
 \dtk{hausman_taylor} function mentioned on
 page~\pageref{stata1}.\label{stata2} This option has no effect for
 balanced panels, but in the unbalanced case it means ``Do what Stata

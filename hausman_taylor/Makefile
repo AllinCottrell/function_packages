@@ -4,7 +4,7 @@ PKG = hausman_taylor
 DOC = doc/hausman_taylor.pdf
 DATA = PSID7682.gdt
 
-$(PKG).gfn: $(PKG).inp $(PKG).spec ht_sample.inp
+$(PKG).gfn: $(PKG).inp $(PKG).spec ht_sample.inp ht_gui.md
 	gretlcli --makepkg $(PKG).inp
 
 $(PKG).zip: $(PKG).gfn $(DOC) $(DATA)
