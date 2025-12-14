@@ -163,17 +163,20 @@ self-explanatory, but the following comments may be useful.
 \item In the case of an unbalanced panel, the GLS coefficients
   $\theta_i$ will differ across individuals; the \texttt{theta} value
   is then the mean of the $\theta_i$s.
-\item The \texttt{Htest} and \texttt{Stest} matrices, if present, are
-  row vectors containing test statistic, degrees of freedom and
-  $P$-value pertaining to the Hausman and Sargan tests, respectively.
-  The Hausman test (null hypothesis: the Hausman--Taylor estimates are
-  consistent) is based on a vector of contrasts, the difference between
-  the fixed-effects and Hausman--Taylor estimates of the coefficients on
-  the time-varying regressors. This test is shown provided the
-  covariance matrix of this vector is positive-definite.  The Sargan
-  (over-identification) test is shown only if there are more
-  time-varying exogenous regressors than time-invariant endogenous ones;
-  the null hypothesis is that all the instruments are valid.
+\item The \texttt{Wald}, \texttt{Htest} and \texttt{Stest} matrices,
+  if present, are row vectors containing test statistic, degrees of
+  freedom and $P$-value pertaining to the Wald, Hausman and Sargan
+  tests, respectively.  The Wald test uses the coefficient vector and
+  covariance matrix to test the null hypothesis that only the constant
+  truly has a non-zero coefficient. The Hausman test (null hypothesis:
+  the Hausman--Taylor estimates are consistent) is based on a vector
+  of contrasts, the difference between the fixed-effects and
+  Hausman--Taylor estimates of the coefficients on the time-varying
+  regressors. This test is shown provided the covariance matrix of
+  this vector is positive-definite.  The Sargan (over-identification)
+  test is shown only if there are more time-varying exogenous
+  regressors than time-invariant endogenous ones; the null hypothesis
+  is that all the instruments are valid.
 \end{itemize}
 
 \begin{table}[htbp]
@@ -196,6 +199,7 @@ self-explanatory, but the following comments may be useful.
   \texttt{Tmin} & scalar & minimum $T_i$ value \\
   \texttt{Tmax} & scalar & maximum $T_i$ value \\
   \texttt{theta} & scalar & GLS coefficient, $\theta$ \\
+  \texttt{Wald} & matrix & Wald test results \\
   \texttt{Htest} & matrix & Hausman test results \\
   \texttt{Stest} & matrix & Sargan test results \\
   \texttt{yhat} & series & fitted values \\
@@ -213,7 +217,7 @@ several covariates for 595 individuals observed annually from 1976 to
 1982, taken from the US Panel Study of Income Dynamics. These data
 were originally employed by \cite{cornwell88} to assess various
 instrumental-variable estimators for panel data including
-Hausman--Taylor, and were revisited by \cite{baltagi-akom90} and in
+Hausman--Taylor. They  were revisited by \cite{baltagi-akom90} and in
 chapter 7 of \cite{baltagi05}. The script replicates both sets of
 estimates; partial output is shown in Listing~\ref{sample-output}.
 
@@ -470,7 +474,7 @@ $T = 10$ and 5000 replications.}
 \label{fig:sds}
 \end{figure}
 
-\clearpage
+% \clearpage
 
 \bibliographystyle{gretl}
 \bibliography{gretl}
