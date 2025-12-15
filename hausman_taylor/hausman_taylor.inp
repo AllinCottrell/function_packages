@@ -219,8 +219,9 @@ function bundle hausman_taylor (series y "dependent variable",
    list W = empty
    # include quasi-demeaned X1?
    if s2u > 0 && Tmax > Tmin && !as_stata
-      loop i=1..nelem(X1) -q
-         W += gx$i
+      list X1 = hl.X1
+      loop foreach i X1
+         W += gx_$i
       endloop
    endif
 
