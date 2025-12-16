@@ -66,7 +66,7 @@ model is
 \begin{equation}
 \label{eq:htmod}
 y_{it} = \beta_0 + x_{1it}'\beta_1 + x_{2it}'\beta_2 +
- z_{1i}'\alpha_1 + z_{2i}'\alpha_2 + u_i + \epsilon_{it}
+ z_{1i}'\gamma_1 + z_{2i}'\gamma_2 + u_i + \epsilon_{it}
 \end{equation}
 where $x_1$ and $x_2$ are time-varying and $z_1$ and $z_2$ are
 time-invariant. The variables $x_1$ and $z_1$ are exogenous
@@ -132,18 +132,18 @@ The signature of this function is
 %
 \begin{code}
 bundle hausman_taylor (series y "dependent variable", 
-                       list L1 "exogenous regressors",
-                       list L2 "endogenous regressors", 
+                       list Lexo "exogenous regressors",
+                       list Lndo "endogenous regressors", 
                        int verbosity[0:2:1],
                        bool as_stata[0])
 \end{code}
 
 The series \texttt{y} is the dependent variable, and the lists
-\texttt{L1} and \texttt{L2} correspond, respectively, to $x_1$ plus
+\texttt{Lexo} and \texttt{Lndo} correspond, respectively, to $x_1$ plus
 $z_1$ and $x_2$ plus $z_2$ in equation~(\ref{eq:htmod}).  This
 function does not undertake to judge which regressors are exogenous
 and which endogenous---you must decide the partition between
-\texttt{L1} and \texttt{L2}---but it can easily determine which
+\texttt{Lexo} and \texttt{Lndo}---but it can easily determine which
 regressors are time-varying and which invariant.
 
 The \texttt{verbosity} parameter accepts values 0, 1 or 2: a value of
@@ -183,10 +183,10 @@ self-explanatory, but the following comments may be useful.
 \centering
 \begin{tabular}{llp{.6\textwidth}}
   \textit{name}   & \textit{type} & \textit{description} \\[4pt]
-  \texttt{yname} & string & name of the dependent variable \\
-  \texttt{xnames} & strings & names of regressors \\
-  \texttt{L1} & list & exogenous regressors \\
-  \texttt{L2} & list & endogenous regressors \\
+  \texttt{depvar} & string & name of the dependent variable \\
+  \texttt{parnames} & strings & names of regressors \\
+  \texttt{Lexo} & list & exogenous regressors \\
+  \texttt{Lndo} & list & endogenous regressors \\
   \texttt{coeff} & matrix & regression coefficients \\
   \texttt{stderr} & matrix & standard errors \\
   \texttt{vcv} & matrix & variance--covariance matrix \\
@@ -385,7 +385,7 @@ To explore this we ran a simulation of the following form.
 
 Specifically, we constructed datasets containing one variable in each
 of the categories $x_1$, $x_2$, $z_1$ and $z_2$, using the parameter
-values $\beta_0 = \beta_1 = \beta_2 = \alpha_1 = \alpha_2 =
+values $\beta_0 = \beta_1 = \beta_2 = \gamma_1 = \gamma_2 =
 1$. The panel comprised $T=10$ observations for each of $N$
 individuals. The series were constructed as follows:
 \begin{align*}
@@ -423,7 +423,7 @@ a non-positive $\hat{\sigma}^2_u$ doesn't arise too often.\footnote{In
 Figure~\ref{fig:means} shows results for the mean error of estimation,
 relevant to assessing consistency. Points are shown for four values of
 $N$: 20, 50, 100 and 200. The results differ only marginally for
-$\beta_1$ and $\beta_2$, while for $\beta_0$, $\alpha_1$ and $\alpha_2$
+$\beta_1$ and $\beta_2$, while for $\beta_0$, $\gamma_1$ and $\gamma_2$
 the results are better when $x_1^*$ included as an instrument. There's
 no evidence of inconsistency in the latter case.
 
@@ -432,9 +432,9 @@ parameter, relevant to assessing efficiency; results are again given
 for four values of $N$.  The relative performance of the variants
 strongly supports the contention made above. While performance with
 respect to $\beta_1$ and $\beta_2$ is virtually identical, the
-$\beta_0$ and $\alpha$ estimates show \textit{much} greater variance
+$\beta_0$ and $\gamma$ estimates show \textit{much} greater variance
 when $x_1^*$ is not included as an instrument; indeed, the variance of
-the $\alpha$ estimates is such that they may be useless in practice.
+the $\gamma$ estimates is such that they may be useless in practice.
 
 We are now in a position to explain the \dtk{as_stata} option for the
 \dtk{hausman_taylor} function mentioned on

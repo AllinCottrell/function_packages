@@ -20,7 +20,7 @@ function matrix hausman_test (matrix *bfe,
                               int oid)
    matrix Htest = {}
    matrix bdiff = (bfe - bht)'
-   catch scalar H = qform(bdiff, inv(Vfe - Vht))
+   catch scalar H = qform(bdiff, ginv(Vfe - Vht))
    if $error == 0 && H > 0
       Htest = zeros(1,3)
       Htest[1] = H
@@ -37,41 +37,42 @@ function scalar calculate_Tbar (series *Ti,
    return effn / sumc(1 ./ mTi)
 end function
 
-function bundle split_lists (const list L1,
-                             const list L2,
+function bundle split_lists (const list Lexo,
+                             const list Lndo,
                              int verbosity)
    list X1
    list X2
    list Z1
    list Z2
 
-   loop i=1..nelem(L1) -q
-      if max(psd(L1[i])) > 0
-         X1 += L1[i]
+   loop i=1..nelem(Lexo) -q
+      if max(psd(Lexo[i])) > 0
+         X1 += Lexo[i]
       else
-         Z1 += L1[i]
+         Z1 += Lexo[i]
       endif
    endloop
 
-   loop i=1..nelem(L2) -q
-      if max(psd(L2[i])) > 0
-         X2 += L2[i]
+   loop i=1..nelem(Lndo) -q
+      if max(psd(Lndo[i])) > 0
+         X2 += Lndo[i]
       else
-         Z2 += L2[i]
+         Z2 += Lndo[i]
       endif
    endloop
 
    oid = nelem(X1) - nelem(Z2)
 
    if verbosity > 0
-      printf "\nThe four Hausman-Taylor lists\n\n"
-      printf "X1: "
+      printf "\nTime-varying\n"
+      printf " exogenous: "
       list X1 print
-      printf "X2: "
+      printf " endogenous: "
       list X2 print
-      printf "Z1: "
+      printf "Time-invariant\n"
+      printf " exogenous: "
       list Z1 print
-      printf "Z2: "
+      printf " endogenous: "
       list Z2 print
       printf "\nOver-identification rank: %d\n", oid
       if verbosity == 1
@@ -93,28 +94,28 @@ function bundle split_lists (const list L1,
 end function
 
 function bundle hausman_taylor (series y "dependent variable",
-                                list L1 "exogenous regressors",
-                                list L2 "endogenous regressors",
+                                list Lexo "exogenous regressors",
+                                list Lndo "endogenous regressors",
                                 int verbosity[0:2:1],
                                 bool as_stata[0])
    bundle b
-   b.yname = argname(y)
+   b.depvar = argname(y)
 
-   # ensure that L1 and L2 do not contain const
-   L1 -= const
-   L2 -= const
+   # ensure that Lexo and Lndo do not contain const
+   Lexo -= const
+   Lndo -= const
    # and record in bundle
-   list b.L1 = L1
-   list b.L2 = L2
+   list b.Lexo = Lexo
+   list b.Lndo = Lndo
 
    # determine and enforce the usable sample
-   list tmp = y L1 L2
+   list tmp = y Lexo Lndo
    series all_ok = ok(tmp)
    if min(all_ok) == 0
       y = all_ok ? y : NA
    endif
 
-   bundle hl = split_lists(L1, L2, verbosity)
+   bundle hl = split_lists(Lexo, Lndo, verbosity)
    scalar oid = hl.oid
    list X = hl.X1 hl.X2
    list Z = hl.Z1 hl.Z2
@@ -144,7 +145,7 @@ function bundle hausman_taylor (series y "dependent variable",
 
    # H-T step 2: auxiliary IV estimation
    set warnings off
-   tsls eit 0 Z ; 0 L1 -q --no-tests
+   tsls eit 0 Z ; 0 Lexo -q --no-tests
    if verbosity > 1
       printf "Hausman-Taylor step 2: auxiliary IV\n"
       printf "dependent variable eit, %d observations\n", $T
@@ -234,7 +235,7 @@ function bundle hausman_taylor (series y "dependent variable",
    # plus plain X1 and Z1 (exog)
    W += hl.X1 hl.Z1
    list tmp = const X Z
-   strings xnames = varnames(tmp)
+   strings parnames = varnames(tmp)
 
    # H-T final step: IV estimation on GLS-transformed data.
    # To replicate R's plm substitute "const" for "gcons"
@@ -255,7 +256,7 @@ function bundle hausman_taylor (series y "dependent variable",
    b.Tmin = Tmin
    b.Tmax = Tmax
    b.effn = effn
-   b.xnames = xnames
+   b.parnames = parnames
    b.s_e = sqrt(s2e)
    b.s_u = sqrt(s2u)
    list b.xlist = const X Z
@@ -285,10 +286,10 @@ function bundle hausman_taylor (series y "dependent variable",
 end function
 
 function void ht_print (bundle *b)
-   strings xnames = b.xnames
+   strings parnames = b.parnames
    scalar unbal = b.Tmin != b.Tmax
-   if strlen(b.yname) > 0
-      printf "Hausman-Taylor estimates for %s\n", b.yname
+   if strlen(b.depvar) > 0
+      printf "Hausman-Taylor estimates for %s\n", b.depvar
    else
       printf "\nHausman-Taylor estimates\n"
    endif
@@ -299,10 +300,10 @@ function void ht_print (bundle *b)
       printf "T = %d)\n", b.Tmin
    endif
    printf "endogenous: "
-   list endo = b.L2
+   list endo = b.Lndo
    list endo print
    matrix B = b.coeff ~ b.stderr
-   modprint B xnames
+   modprint B parnames
    printf "  sigma_u = %#.8g\n", b.s_u
    printf "  sigma_e = %#.8g\n", b.s_e
    printf "  theta   = %#.8g", b.theta
@@ -337,20 +338,20 @@ end function
 
 function bundle ht_uimaker (void)
    bundle ret
-   ret.L1 = _(list_exclude="y")
-   ret.L2 = _(list_exclude="y")
+   ret.Lexo = _(list_exclude="y")
+   ret.Lndo = _(list_exclude="y")
    return ret
 end function
 
 function bundle GUI_hausman_taylor (series y "dependent variable",
-                                    list L1 "exogenous regressors",
-                                    list L2 "endogenous regressors",
+                                    list Lexo "exogenous regressors",
+                                    list Lndo "endogenous regressors",
                                     bool verbose[0],
                                     bool as_stata[0])
-   string yname = argname(y, "y")
-   if yname != "y"
-      genseries(yname, y)
+   string depvar = argname(y, "y")
+   if depvar != "y"
+      genseries(depvar, y)
    endif
    scalar verbo = verbose ? 2 : 1
-   return hausman_taylor(@yname, L1, L2, verbo, as_stata)
+   return hausman_taylor(@depvar, Lexo, Lndo, verbo, as_stata)
 end function
