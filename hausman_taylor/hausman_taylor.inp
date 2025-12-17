@@ -48,18 +48,18 @@ function bundle split_lists (const list Lexo,
    list Z2
 
    loop i=1..nelem(Lexo) -q
-      if max(psd(Lexo[i])) > 0
-         X1 += Lexo[i]
-      else
+      if isconst(Lexo[i], 0)
          Z1 += Lexo[i]
+      else
+         X1 += Lexo[i]
       endif
    endloop
 
    loop i=1..nelem(Lndo) -q
-      if max(psd(Lndo[i])) > 0
-         X2 += Lndo[i]
-      else
+      if isconst(Lndo[i], 0)
          Z2 += Lndo[i]
+      else
+         X2 += Lndo[i]
       endif
    endloop
 
