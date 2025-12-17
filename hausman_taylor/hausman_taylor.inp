@@ -17,15 +17,17 @@ function matrix hausman_test (matrix *bfe,
                               matrix *bht,
                               matrix *Vfe,
                               matrix *Vht,
-                              int oid)
+                              int df)
    matrix Htest = {}
-   matrix bdiff = (bfe - bht)'
-   catch scalar H = qform(bdiff, ginv(Vfe - Vht))
-   if $error == 0 && H > 0
-      Htest = zeros(1,3)
-      Htest[1] = H
-      Htest[2] = oid
-      Htest[3] = pvalue(X, oid, H)
+   if df > 0
+      matrix bdiff = (bfe - bht)'
+      catch scalar H = qform(bdiff, ginv(Vfe - Vht))
+      if $error == 0 && H > 0
+         Htest = zeros(1,3)
+         Htest[1] = H
+         Htest[2] = df
+         Htest[3] = pvalue(X, df, H)
+      endif
    endif
    return Htest
 end function
@@ -268,11 +270,12 @@ function bundle hausman_taylor (series y "dependent variable",
    if cols(Wald) > 0
       b.Wald = Wald
    endif
-   matrix Htest = hausman_test(&bfe, &bht, &Vfe, &Vht, oid)
-   if cols(Htest) > 0
-      b.Htest = Htest
-   endif
    if oid > 0
+      hdf = min(oid, b.nobs - k)
+      matrix Htest = hausman_test(&bfe, &bht, &Vfe, &Vht, hdf)
+      if cols(Htest) > 0
+         b.Htest = Htest
+      endif
       # grab Sargan test from tsls estimation
       catch matrix Stest = $sargan
       if $error == 0

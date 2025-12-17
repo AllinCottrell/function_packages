@@ -109,7 +109,11 @@ The final step can also be described thus: regress the quasi-demeaned
 dependent variable on the quasi-demeaned regressors, taking as
 instruments the fully-demeaned time-varying regressors, the individual
 means of the exogenous time-varying terms, and the levels of the
-exogenous time-invariant terms.
+exogenous time-invariant terms. As \citet[p.\ 1393]{hausman-taylor81}
+remark, ``Making use of time-varying variables in two ways---to
+estimate their own coefficients and to serve as instruments for
+endogenous time-invariant variables---allows identification and
+efficient estimation of both $\beta$ and $\gamma$.''
 
 In an unbalanced panel the time-series length, $T_i$, differs across
 individuals. In that case steps 2 and 3 above have to be modified
@@ -164,19 +168,20 @@ self-explanatory, but the following comments may be useful.
   $\theta_i$ will differ across individuals; the \texttt{theta} value
   is then the mean of the $\theta_i$s.
 \item The \texttt{Wald}, \texttt{Htest} and \texttt{Stest} matrices,
-  if present, are row vectors containing test statistic, degrees of
-  freedom and $P$-value pertaining to the Wald, Hausman and Sargan
+  if present, are each row vectors containing test statistic, degrees
+  of freedom and $P$-value pertaining to the Wald, Hausman and Sargan
   tests, respectively.  The Wald test uses the coefficient vector and
   covariance matrix to test the null hypothesis that only the constant
-  truly has a non-zero coefficient. The Hausman test (null hypothesis:
-  the Hausman--Taylor estimates are consistent) is based on a vector
-  of contrasts, the difference between the fixed-effects and
-  Hausman--Taylor estimates of the coefficients on the time-varying
-  regressors. This test is shown provided the covariance matrix of
-  this vector is positive-definite.  The Sargan (over-identification)
-  test is shown only if there are more time-varying exogenous
-  regressors than time-invariant endogenous ones; the null hypothesis
-  is that all the instruments are valid.
+  truly has a non-zero coefficient. The Hausman and Sargan tests are
+  available only if the specification is overidentified ($k_1 >
+  g_2$). They both test the null hypothesis of correct specification.
+  The Hausman test is based on a vector of contrasts, the difference
+  between the fixed-effects and Hausman--Taylor estimates of the
+  coefficients on the time-varying regressors. The Sargan test is
+  based on the explained sum of squares from a regression of the
+  Hausman--Taylor residuals on all of the instruments. Small
+  $P$-values on these tests cast doubt on the consistency of the
+  estimator.
 \end{itemize}
 
 \begin{table}[htbp]
