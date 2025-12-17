@@ -127,10 +127,10 @@ function bundle hausman_taylor (series y "dependent variable",
    matrix bfe = $coeff
    if verbosity > 1
       printf "\nHausman-Taylor step 1: fixed effects\n"
-      printf "dependent variable y, %d observations\n", $T
+      printf "dependent variable %s, %d observations\n", b.depvar, $T
       matrix cmat = bfe ~ $stderr
-      strings pnames = varnames($xlist)
-      modprint cmat pnames
+      strings xnames = varnames($xlist)
+      modprint cmat xnames
    endif
    scalar k = $ncoeff
    list cX = const X

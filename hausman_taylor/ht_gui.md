@@ -1,8 +1,8 @@
 Notes on the arguments for `hausman_taylor()`:
 
-- The lists L1 (exogenous) and L2 (endogenous) must not have
+- The lists Lexo (exogenous) and Lndo (endogenous) must not have
   any members in common.
-- L1 must contain at least as many time-varying variables as L2
+- Lexo must contain at least as many time-varying variables as Lndo
   contains time-invariant variables.
 - Checking the "verbose" option means that output from the
   preliminary regressions is shown.
