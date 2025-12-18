@@ -13,15 +13,23 @@ function matrix wald_test (const bundle b)
    return Wald
 end function
 
-function matrix hausman_test (matrix *bfe,
-                              matrix *bht,
-                              matrix *Vfe,
-                              matrix *Vht,
-                              int df)
+function matrix hausman_test (const matrix bfe,
+                              const matrix bht,
+                              const matrix Vfe,
+                              const matrix Vht,
+                              int df,
+                              scalar *hpd)
    matrix Htest = {}
    if df > 0
       matrix bdiff = (bfe - bht)'
-      catch scalar H = qform(bdiff, ginv(Vfe - Vht))
+      matrix Vdiff = Vfe - Vht
+      matrix iVdiff
+      catch iVdiff = invpd(Vdiff)
+      if $error
+         hpd = 0
+         iVdiff = ginv(Vdiff)
+      endif
+      catch scalar H = qform(bdiff, iVdiff)
       if $error == 0 && H > 0
          Htest = zeros(1,3)
          Htest[1] = H
@@ -47,7 +55,7 @@ function bundle split_lists (const list Lexo,
    list Z1
    list Z2
 
-   loop i=1..nelem(Lexo) -q
+   loop i=1..nelem(Lexo)
       if isconst(Lexo[i], 0)
          Z1 += Lexo[i]
       else
@@ -55,7 +63,7 @@ function bundle split_lists (const list Lexo,
       endif
    endloop
 
-   loop i=1..nelem(Lndo) -q
+   loop i=1..nelem(Lndo)
       if isconst(Lndo[i], 0)
          Z2 += Lndo[i]
       else
@@ -76,7 +84,11 @@ function bundle split_lists (const list Lexo,
       list Z1 print
       printf " endogenous: "
       list Z2 print
-      printf "\nOver-identification rank: %d\n", oid
+      if oid > 0
+         printf "\nOver-identification rank: %d\n", oid
+      else
+         printf "\nSpecification is just-identified\n"
+      endif
       if verbosity == 1
          printf "\n"
       endif
@@ -197,7 +209,7 @@ function bundle hausman_taylor (series y "dependent variable",
 
    # gX = quasi-demeaned X
    string vname
-   list gX = null
+   list gX
    loop foreach i X
       vname = sprintf("gx_%s", varname(X[i]))
       if vartheta
@@ -208,7 +220,7 @@ function bundle hausman_taylor (series y "dependent variable",
    endloop
 
    # gZ = quasi-demeaned Z
-   list gZ = null
+   list gZ
    loop foreach i Z
       vname = sprintf("gz_%s", varname(Z[i]))
       if vartheta
@@ -229,7 +241,7 @@ function bundle hausman_taylor (series y "dependent variable",
    endif
 
    # demeaned X1 and X2
-   loop foreach i X -q
+   loop foreach i X
       vname = sprintf("dm_%s", varname(X[i]))
       W += genseries(vname, X[i] - pmean(X[i], all_ok))
    endloop
@@ -272,9 +284,11 @@ function bundle hausman_taylor (series y "dependent variable",
    endif
    if oid > 0
       hdf = min(oid, b.nobs - k)
-      matrix Htest = hausman_test(&bfe, &bht, &Vfe, &Vht, hdf)
+      scalar hpd = 1
+      matrix Htest = hausman_test(bfe, bht, Vfe, Vht, hdf, &hpd)
       if cols(Htest) > 0
          b.Htest = Htest
+         b.hpd = hpd
       endif
       # grab Sargan test from tsls estimation
       catch matrix Stest = $sargan
@@ -326,7 +340,10 @@ function void ht_print (bundle *b)
       ntests++
       matrix Htest = b.Htest
       printf "Hausman test: chi-square(%d) = %#g [%.4f]\n",
-      Htest[2], Htest[1], Htest[3]
+        Htest[2], Htest[1], Htest[3]
+      if b.hpd == 0
+         printf " note: difference variance matrix is not p.d.\n"
+      endif
    endif
    if inbundle(b, "Stest")
       ntests++
