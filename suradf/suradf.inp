@@ -1,0 +1,222 @@
+function matrix do_cov_corr (const matrix *V,
+                             string s)
+   matrix m = V
+   scalar n = rows(m)
+   matrix avgcorr = zeros(1, n)
+   loop i=1..n -q
+      scalar jmin = i+1
+      loop j=jmin..n -q
+         m[i,j] = V[i,j] / sqrt(V[i,i] * V[j,j])
+         avgcorr[i] += m[i,j]
+         avgcorr[j] += m[i,j]
+      endloop
+   endloop
+   printf "\n%s, showing correlations above the diagonal\n\n%#12.5g\n", s, m
+   avgcorr /=  n - 1
+   return avgcorr
+end function
+
+function matrix suradf_critvals (const matrix gam,
+                                 matrix *sig,
+                                 const matrix plags,
+                                 const matrix mu,
+                                 const matrix sampt,
+                                 int t1,
+                                 int nr)
+   scalar nc = rows(sig)
+   scalar Tinit = 50
+   scalar Ttot = Tinit + $nobs
+   scalar plagmax = maxr(plags)
+   scalar dstart = plagmax + 1
+   # printf "critval: t1=%d, nobs=%d, Ttot=%d\n", t1, $nobs, Ttot
+   if (cols(gam) != plagmax)
+      funcerr "size of gam does not match plags"
+   endif
+   # coeffs on lagged level (0.0 for unit root case)
+   matrix delta = zeros(1, nc)
+   matrix et
+   matrix y = zeros(Ttot, nc)
+   matrix yd = zeros(Ttot, nc)
+   matrix surt = zeros(nr, nc)
+   matrix pvals = zeros(1, nc)
+   scalar listmax = plagmax + 3
+   matrix surmat = zeros(nc, listmax)
+   matrix surrow
+   sig = cholesky(sig)
+   # begin replication loop
+   loop ir=1..nr --quiet
+      smpl --full
+      # initialize
+      y = zeros(Ttot, nc)
+      yd = zeros(Ttot, nc)
+      # generate data
+      loop it=dstart..Ttot -q
+         et = sig * mnormal(nc, 1)
+         yd[it,] = mu + delta .* y[it-1,] + et'
+         loop i=1..nc -q
+            p = plags[i]
+            loop j=1..p -q
+               yd[it,i] += gam[i,j] * yd[it-j,i]
+            endloop
+         endloop
+         y[it,] = y[it-1,] + yd[it,]
+      endloop
+      # print yd y
+      # create series xdi for differences, xi for levels,
+      # skipping the first Tinit values
+      loop i=1..nc -q
+         series xd$i = yd[Tinit+1:,i]
+         series x$i = y[Tinit+1:,i]
+      endloop
+      # model lists for SUR
+      loop i=1..nc -q
+         p = -plags[i]
+         list eqlist = xd$i const x$i(-1) xd$i(-1 to p)
+         surrow = eqlist
+         k = nelem(eqlist)
+         surmat[i,1:k] = surrow
+      endloop
+      # SUR estimation (in loop)
+      smpl t1 ;
+      system method=SUR --quiet
+         equations surmat
+      end system
+      k = 2
+      loop i=1..nc -q
+         surt[ir,i] = $coeff[k] / $stderr[k]
+         # printf "SUR tau = %g\n", $coeff[k] / $stderr[k]
+         if surt[ir,i] < sampt[i]
+            pvals[i] += 1
+         endif
+         k += plags[i] + 2
+      endloop
+   endloop # end of main replication loop
+   pvals /= nr
+   # summary --matrix=surt
+   pct = quantile(surt, {0.01, 0.05, 0.1}) | pvals
+   return pct
+end function
+
+function matrix suradf (list xlist "set of series to test",
+                        matrix plags "per-series lag orders",
+                        obs t1[2::] "starting observation",
+                        bool drift[0] "include an intercept?",
+                        int nr[0::500] "number of replications")
+   scalar nc = nelem(xlist)
+   scalar np = cols(plags)
+   if nc == 1
+      funcerr "xlist must have at least 2 members"
+   endif
+   if np == 1
+      plags = plags[1] * ones(1, nc)
+   else
+      if np != nc
+         funcerr "plags must have the same number of columns as xlist"
+      endif
+   endif
+   # max lag length for differences
+   scalar plagmax = maxr(plags)
+   # allow for dep var, const (if applicable) and lagged level
+   scalar listmax = plagmax + 3
+   matrix surt = zeros(1, nc)
+   matrix surmat = zeros(nc, listmax)
+   matrix surrow
+   # create series xdi for differences, xi for levels
+   loop foreach i xlist -q
+      genseries(sprintf("xd%d", i), diff(xlist.$i))
+      genseries(sprintf("x%d", i), xlist.$i)
+   endloop
+   /* first construct equation lists and run the
+      "SURADF" regressions to get the test
+      statistics for the individual series
+   */
+   # SURADF equation lists
+   loop i=1..nc -q
+      scalar p = -plags[i]
+      list eqlist = xd$i const x$i(-1) xd$i(-1 to p)
+      surrow = eqlist
+      k = nelem(eqlist)
+      surmat[i,1:k] = surrow
+   endloop
+   smpl t1 ;
+   # SURADF estimation (get test stats)
+   printf "\n== Initial SUR estimation to get test statistics ==\n"
+   system method=SUR # --quiet
+      equations surmat
+   end system
+   printf "SUR-ADF: used %d observations\n", $T
+   k = 3
+   loop i=1..nc -q
+      scalar lim = plags[i]
+      scalar levpos = k - 1
+      # record the test statistics
+      surt[i] = $coeff[levpos] / $stderr[levpos]
+      k += plags[i] + 2
+   endloop
+   if nr > 0
+   /* Now build lists and run SUR again, to get the
+      "gamma" matrix of AR coefficients for the
+      Monte Carlo process. The estimation here omits
+      the lagged levels, since according to the null
+      hypothesis these have zero coefficients.
+      */
+      listmax = plagmax + 1 + drift
+      surmat = zeros(nc, listmax)
+      # "gamma" equation lists
+      loop i=1..nc -q
+         scalar p = -plags[i]
+         if drift
+            list eqlist = xd$i const xd$i(-1 to p)
+         else
+            list eqlist = xd$i xd$i(-1 to p)
+         endif
+         surrow = eqlist
+         k = nelem(eqlist)
+         surmat[i,1:k] = surrow
+      endloop
+      # SUR-H0 estimation
+      printf "\n== Estimating the system as specified by H0 ==\n"
+      system method=SUR # --quiet
+         equations surmat
+      end system
+      printf "SUR-H0: used %d observations\n", $T
+      matrix S = $sigma
+      matrix G = zeros(nc, plagmax)
+      matrix mu = zeros(1, nc)
+      k = 1 + drift
+      loop i=1..nc -q
+         scalar lim = plags[i]
+         G[i,1:lim] = $coeff[k:k+lim-1]'
+         if drift
+            mu[i] = $coeff[k-1]
+         endif
+         k += plags[i] + drift
+      endloop
+      printf "\n== Matrices for Monte Carlo replications ==\n"
+      printf "\nGamma (H0)\n\n%#12.5g", G
+      if drift
+         printf "\nMu (H0)\n\n%#12.5g", mu
+      endif
+      matrix avgcorr = do_cov_corr(&S, "Sigma (H0)")
+      if nr > 1
+         smpl --full
+         matrix cv = suradf_critvals(G, &S, plags, mu, surt, t1, nr)
+      endif
+   endif # nr > 0
+   if nr > 100
+      printf "== Results based on %d replications ==\n\n", nr
+      printf "%10s%10s%10s%10s%10s%10s\n\n", " ", "AVGCORR", "SURADF", ".01", ".05", ".10"
+   else
+      printf "== Results, without critical values ==\n\n"
+      printf "%10s%10s%10s\n\n", " ", "AVGCORR", "SURADF"
+   endif
+   loop foreach i xlist -q
+      printf "%10s%10.3f%10.3f", "$i", avgcorr[i], surt[i]
+      if nr > 100
+         printf "%10.3f%10.3f%10.3f  [%.3f]", cv[1,i], cv[2,i], cv[3,i], cv[4,i]
+      endif
+      printf "\n"
+   endloop
+   printf "\n"
+   return surt
+end function

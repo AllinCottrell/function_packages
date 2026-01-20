@@ -1,0 +1,11 @@
+author = Allin Cottrell
+email = cottrell@wfu.edu
+version = 0.3
+date = 2022-06-09
+description = SUR-based ADF-type test for multiple time series
+tags = C32
+min-version = 1.9.92
+data-requirement = needs-time-series-data
+public = suradf 
+help = suradf_help.txt
+sample-script = suradf_sample.inp

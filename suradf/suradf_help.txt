@@ -1,0 +1,34 @@
+This package implements the unit root test defined by Jan Boucher
+Breuer, Robert McNown and Myles Wallace ("Series-specific Unit Root
+Tests with Panel Data", Oxford Bulletin of Economics and Statistics,
+64:5, 2002, pp. 527-546).
+
+The test gives a specific result for the unit-root null hypothesis for
+each series in a given list, exploiting the cross-correlations of the
+series to gain greater power than a regular univariate ADF test,
+provided that the correlations which are exploited via SUR
+estimation are fairly substantial.
+
+The test statistic, labeled SURADF, follows a non-standard
+distribution; this package will calculate critical values and p-values
+via the Monte Carlo method with a chosen number of replications.
+
+Parameters of the suradf() function:
+
+xlist: The list of (at least two) series to be tested.
+
+plags: Row vector containing lag orders for the series.  You may give
+  a specific lag length for each series, or may supply a 1-vector in
+  which case the same order is used for all.
+
+t1: The 1-based index of the observation at which estimation should
+  start. This should make allowance for observations lost by forming
+  lags.
+
+drift: Use 1 to allow for drift in the series or 0 to enforce an
+  intercept of zero in the null hypothesis.
+
+nr: The number of Monte Carlo replications. If this is set to zero
+  SURADF test statistics are calculated but no critical values are
+  reported. A value of 1000 should be sufficient to get meaningful
+  critical values, but use a higher value if you like.
