@@ -1,5 +1,5 @@
 set verbose off
-clear
+clear --all
 include DynMultCalc.gfn
 
 example = 1

@@ -1,15 +1,15 @@
 author = Riccardo "Jack" Lucchetti and Allin Cottrell
 email = r.lucchetti@univpm.it
-version = 2.0
+version = 2.1
 
-date = 2022-12-03
+date = 2026-01-21
 description = Compute dynamic multipliers for ADL models 
 tags = C20
 
-min-version = 2020e
+min-version = 2023c
 data-requirement = needs-time-series-data
 
-public = multipliers multi_plot irf_plot multi_print long_run_print \
+public = multipliers multi_plot multi_print long_run_print \
   GUI_DynMultCalc DynMultCalc_plot long_run_effects
 
 menu-attachment = MODELWIN/Analysis

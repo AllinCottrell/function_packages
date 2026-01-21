@@ -127,30 +127,6 @@ function string periods_string (int pd)
     endif
 end function
 
-function void irf_plot (const bundle b,
-                        scalar conflev[0.1:0.99:0.95],
-                        string ofile[null])
-    if !b.cumulate
-        funcerr "response must be cumulated"
-    endif
-    m = b.mult
-    plt = (b.sdx * m[,1]) ~ seq(0, rows(m) - 1)'
-    bandwidth = invcdf(z, 1 - (1-conflev)/2)
-    band = b.sdx * (m[,1] ~ bandwidth * m[,2])
-    if exists(ofile)
-        targ = sprintf("\"%s\"", ofile)
-    else
-        targ = "display"
-    endif
-    plot plt
-        option with-lines
-        options band=band band-style=fill,grey
-        printf "set title 'Response to one-std dev permanent shock in %s'", b.xname
-        printf "set ylabel '%s'", b.yname
-        literal set xlabel "Horizon"
-    end plot --output=@targ
-end function
-
 function scalar DynMultCalc_precheck (void)
     if $command != "ols"
         return 1
@@ -195,11 +171,11 @@ function void multi_plot (const bundle b,
                           bool cumulate[0],
                           scalar conflev[0.1:0.99:0.95],
                           string ofile[null])
-    
+
     matrix m = cumulate ? b.cum_mult : b.dyn_mult
     plt = m[,1] ~ seq(0, rows(m) - 1)'
     bandwidth = invcdf(z, 1 - (1-conflev)/2)
-    band = m[,1] ~ bandwidth * m[,2]
+    bandmat = m[,1] ~ bandwidth * m[,2]
 
     if exists(ofile)
         targ = sprintf("\"%s\"", ofile)
@@ -214,9 +190,10 @@ function void multi_plot (const bundle b,
         hstr = "Horizon"
     endif
 
+    bundle bspec = _(bandmat="bandmat", style="fill", color="grey")
     plot plt
         option with-lines
-        options band=band band-style=fill,grey
+        option band=bspec
         printf "set title '%s %s <- %s'", mstr, b.yname, b.xname
         literal set ylabel "Multiplier"
         printf "set xlabel '%s'", hstr
