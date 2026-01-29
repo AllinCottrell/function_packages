@@ -143,7 +143,7 @@ function list DynMultCalc_listmaker (void)
     */
     bundle m = $model
     list X = m.xlist
-    list L = null
+    list L = empty
     loop foreach i X
         bundle xi = getinfo(X.$i)
         string lpn = lag_parent_name(xi)
@@ -251,13 +251,15 @@ function bundle multipliers (const bundle model,
     bundle varinfo = base_vars(model, xvarname)
     strings names = varinfo.xnames
     string yname = varinfo.yname
-    bundle ret = _(yname=yname, xname=xvarname)
-    ret.sdx = MArep ? model.sigma : varinfo.sdx
+    bundle ret = empty
 
     pos = instrings(names, xvarname)
     if rows(pos) == 0
-        return null
+        return ret
     endif
+
+    ret = _(yname=yname, xname=xvarname)
+    ret.sdx = MArep ? model.sigma : varinfo.sdx
 
     matrix coeff = model.coeff
 
