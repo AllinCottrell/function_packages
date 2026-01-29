@@ -1,4 +1,4 @@
-set verbose off
+set messages off
 clear --all
 include DynMultCalc.gfn
 
@@ -7,23 +7,25 @@ example = 1
 if example == 1
     # simple printout
     open denmark --quiet
-    ols LRM const LRM(-1) LRY(0 to -2) IBO(0 to -1) IDE(-1) -w
+    ols LRM const LRM(-1) LRY(0 to -2) IBO(0 to -1) IDE(-1)
     b = multipliers($model, "IBO")
     multi_print(b)
-    
+    quit
+
 elif example == 2
     # plotting function with custom horizon
     open fedstl.bin
     data gdpc1
     data unrate
     ogap = 100 * hpfilt(log(gdpc1))
-    ols unrate const time ogap(0 to -2) unrate(-1 to -2) -w
+    ols unrate const time ogap(0 to -2) unrate(-1 to -2)
 
     horizon = 40
     cumulate = 1
     b = multipliers($model, "ogap", horizon)
     multi_plot(b, cumulate)
-    
+    quit
+
 elif example == 3
     # just the long run effects
     open denmark
@@ -34,7 +36,8 @@ elif example == 3
 
     # print the long-run multipliers
     long_run_print(lr_fx)
-    
+    quit
+
 elif example == 4
     # pure autoregressive on artificial data
     set seed 7112022
@@ -45,18 +48,19 @@ elif example == 4
     ols y const y(-1 to -2)
     b = multipliers($model, "y")
     multi_print(b)
-    
+    quit
+
 elif example == 5
     # constructing a model "by hand"
-    
+
     open denmark --quiet
     list X = const LRM(-1) LRY(0 to -2)
     matrix coeff = {0; 0.8; 1.2; -0.7; 0.1}
     string yname = "LRM"
 
     bundle model = _(depvar=yname, xlist=X, xnames=varnames(X),
-		     coeff=coeff, vcv=I(5)*0.01)
-    
+      coeff=coeff, vcv=I(5)*0.01)
+
     b = multipliers(model, "LRY")
     # exemplify the optional parameters for multi_plot
     multi_plot(b, 0, 0.9, "example5.pdf")
