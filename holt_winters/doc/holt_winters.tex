@@ -31,33 +31,53 @@
 
 \section{Introduction}
 
-This is a draft of a package to implement the Holt--Winters
-forecasting method, namely triple exponential smoothing with level,
-trend and seasonal components.
-
-The package requires time-series data with a seasonal dimension. Let
-$m$ denote the periodicity of the data: 4 for quarterly data; 12 for
-monthly; 5, 6 or 7 for daily; 24 for hourly.
+This is a draft of a package to implement the Holt--Winters forecasting
+method, namely triple exponential smoothing with level, trend and
+seasonal components.  The package requires time-series data with a
+seasonal dimension.
 
 The notation used here is based on \cite{hyndman2021}. There are two
-variants of Holt--Winters, differing with respect to their treatment
-of the seasonal component, which can be either multiplicative or
+variants of Holt--Winters, differing with respect to their treatment of
+the seasonal component, which can be either multiplicative or
 additive. The multiplicative variant is the default; it is represented
 by the following recursion, in which $\ell$ denotes the level, $b$ the
-trend or slope, and $s$ the seasonal
+trend or slope, and $s$ the seasonal. In addition, $m$ denotes the
+periodicity of the data (gretl's \verb|$pd|) and
+$k$ is the integer part of $(h-1)/m$ ($=0$ when when $h=1$).
 \begin{align*}
   \ell_t &= \alpha (y_t / s_{t-m}) + (1-\alpha) (\ell_{t-1} + b_{t-1})\\
   b_t &= \beta (\ell_t - \ell_{t-1}) + (1-\beta) b_{t-1}\\
   s_t &= \gamma y_t / \ell_t + (1-\gamma) s_{t-m}\\
   \hat{y}_{t+h|t} &= (\ell_t + hb_t)\, s_{t+h-m(k+1)}
 \end{align*}
-where $h$ denotes the number of steps ahead for the forecast and $k$
-is the integer part of $(h-1)/m$ ($=0$ when when $h=1$).
+
+It may be helpful to start with an overview. Like most functions in
+gretl, \dtk{holt_winters} confines its operations to the sample range
+in force when the function is called. We'll refer to the (1-based)
+start and end of this range as $t_1$ and
+$t_2$, respectively.\footnote{This range can be set via the
+  \texttt{smpl} command. If \texttt{smpl} has not been invoked since a
+  dataset was opened $t_1$ will equal 1 and
+  $t2$ will equal the total number of observations.} The package will
+operate on one or two contiguous subsets of this range:
+\begin{enumerate}
+\item a training or estimation range, where the Holt--Winters recursion
+  is applied and one-step-ahead forecasts ($h=1$) are computed; and
+\item an `out-of-sample' range (if applicable), where forecasts with
+  $h=1,2,...,n$ are computed, conditional on the state of information at
+  the end of the first range. The value of
+  $n$ here is set by the argument \dtk{os_tail} (see below).
+\end{enumerate}
+
+Note that the number of training observations is a residual quantity: it
+equals $t_2 - t_1 + 1 - n$. There must be no missing values for
+the target series in that range. It's OK if there are missing values in
+the second range, and in fact if there any are non-missing values they
+will be ignored.
 
 \section{The public function}
 
-The \dtk{holt_winters()} function has this signature:
-
+The \dtk{holt_winters} function has the following signature:
 \begin{code}
 function bundle holt_winters (series y,
                               matrix theta[auto],
@@ -86,10 +106,11 @@ function bundle holt_winters (series y,
   the seasonal should be treated as additive rather than
   multiplicative.
 \item \dtk{os_tail} (required): this specifies the number of
-  observations to reserve for out-of-sample forecasting. The
-  observations used for estimation/training will run from the
-  beginning of the incoming sample range to the end of that range
-  minus the value given for \dtk{os_tail}.
+  observations at the end of the incoming sample range to reserve for
+  out-of-sample forecasting. The observations used for
+  estimation/training will run from the beginning of the incoming sample
+  range to the end of that range minus the value given for
+  \dtk{os_tail}.
 \item \texttt{verbose}: controls the verbosity of output, with four
   levels. \texttt{verbose = 0} makes the function operate silently.
 \end{itemize}
@@ -109,10 +130,10 @@ This is a bundle containing the following elements:
   seasonal indices; and column 5 holds forecasts. More details on this
   matrix are provided below.
 \item \texttt{RMSE}: the root mean squared error for the 1-step ahead
-  forecasts made over the training data.
+  forecasts made using the training data.
 \end{itemize}
 
-\section{Automatic usage}
+\section{Usage}
 \label{sec:auto}
 
 We'll start with a simple example---an approximate but passable
@@ -129,16 +150,13 @@ The \dtk{aus_holidays} dataset contains 80 quarterly observations from
 added observations, 2018:1 to 2020:4, will then be used for an
 out-of-sample forecast.
 
-Let \texttt{t1} denote the start, and \texttt{t2} the end, of the
-sample range in gretl (which can be adjusted via the \texttt{smpl}
-command). Since there's no call to \texttt{smpl} in the script above,
-\texttt{t1} and \texttt{t2} will be at their default values: in
-context, 1 and 92.  So the value of 12 for \dtk{os_tail} selects just
-the added `empty' observations, giving a genuine out-of-sample
-forecast. In some cases one might prefer a `pretend' out-of-sample
-forecast---a `forecast' of values that are present in the dataset but
-not used in estimation. With the Australian tourism one could do
-something like the following:
+Since there's no call to \texttt{smpl} in the script above, $t_1$ and
+$t_2$ will be at their default values: in context, 1 and 92.  So the
+value of 12 for \dtk{os_tail} selects just the added `empty'
+observations, giving a genuine out-of-sample forecast. In some cases one
+might want a `pretend' out-of-sample forecast---a `forecast' of values
+that are present in the dataset but not used in estimation. With the
+Australian tourism data one could do something like the following
 \begin{code}
 open aus_holidays.gdt --frompkg=holt_winters
 bundle hwb = holt_winters(Trips, null, null, 0, 8)
@@ -148,13 +166,12 @@ to get pretend out-of-sample forecasts for 2016:1 to 2017:4.
 \subsection{How does automatic selection work?}
 
 In the example above, with neither \texttt{theta} nor \texttt{init}
-given, the parameter values and initializer are jointly optimized,
-with the aim of minimizing the sum of squared forecast errors. The
-starting point for the parameters is $\alpha = \beta = \gamma = 0.2$;
-the starting point for the initializer is described in
-section~\ref{sec:init}. Optimization is performed using the
-constrained L-BFGS algorithm (see chapter on Numerical methods in the
-\GUG).
+given, the parameter values and initializer are jointly optimized, with
+the aim of minimizing the sum of squared forecast errors. The starting
+point for the parameters is $\alpha = \beta = \gamma = 0.2$; the
+starting point for the initializer is described in
+section~\ref{sec:init}. Optimization is performed using the constrained
+L-BFGS algorithm (see the chapter on Numerical methods in the \GUG).
 
 If an initializer is given via the \texttt{init} argument to
 \dtk{holt_winters} but \texttt{theta} is not given, then
@@ -177,16 +194,19 @@ initializer is calculated as per the suggestion in \cite{hyndman98}
  \[
     y_{\tau+i+m} - y_{\tau+i},\; i=0,1,\dots,m-1
  \]
-\item The initial seasonals are then set to\dots
+\item The initial seasonals are then set to the ratio of period-specific
+  $y_t$ to $\ell_{\tau-1}$ for the first $m$ observations (in the
+  multiplicative case) or the difference between $y_t$ and
+  $\ell_{\tau-1}$ (additive case).
 \end{itemize}
-
-See \cite{hyndman2010}, also \cite{hyndman98}.
+If \texttt{theta} is given by the caller this initializer is used as-is,
+otherwise it is taken as the starting point for joint optimization with
+$\theta$.
 
 \section{The additive method}
 \label{sec:additive}
 
 In this case the recursion is as follows:
-
 \begin{align*}
   \ell_t &= \alpha (y_t - s_{t-m}) + (1-\alpha) (\ell_{t-1} + b_{t-1})\\
   b_t &= \beta (\ell_t - \ell_{t-1}) + (1-\beta) b_{t-1}\\
@@ -194,6 +214,7 @@ In this case the recursion is as follows:
   \hat{y}_{t+h|t} &= \ell_t + hb_t + s_{t+h-m(k+1)}
 \end{align*}
 
-\bibliographystyle{gretl} \bibliography{gretl}
+\bibliographystyle{gretl}
+\bibliography{gretl}
 
 \end{document}
