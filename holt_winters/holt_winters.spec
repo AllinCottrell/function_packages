@@ -1,0 +1,12 @@
+author = Allin Cottrell
+email = cottrell@wfu.edu
+version = 0.1
+date = 2026-03-09
+tags = C53
+description = Holt-Winters
+min-version = 2024a
+data-requirement = needs-time-series-data
+public = holt_winters
+help = holt_winters.pdf
+data-files = aus_holidays.gdt
+sample-script = holt_winters_sample.inp
