@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gretldata SYSTEM "gretldata.dtd">
+
+<gretldata version="1.5" name="aus_holidays" frequency="4" n="80" startobs="1998:1" endobs="2017:4" type="time-series">
+<description>Data imported from CSV file 'aus_holidays.csv', 2026-03-05 10:42
+</description>
+<variables count="1">
+<variable name="Trips"
+/>
+</variables>
+<observations count="80" labels="false">
+<obs>11.8060376221 </obs>
+<obs>9.2756620744 </obs>
+<obs>8.6424885898 </obs>
+<obs>9.2995237806 </obs>
+<obs>11.1720270564 </obs>
+<obs>9.6076131866 </obs>
+<obs>8.9138865198 </obs>
+<obs>9.0256883618 </obs>
+<obs>11.070865789 </obs>
+<obs>9.1962623222 </obs>
+<obs>9.3475058064 </obs>
+<obs>8.9840142166 </obs>
+<obs>10.6723143049 </obs>
+<obs>9.5334921444 </obs>
+<obs>8.8071590872 </obs>
+<obs>8.9769448476 </obs>
+<obs>10.8426194436 </obs>
+<obs>9.2327454264 </obs>
+<obs>8.8362141348 </obs>
+<obs>9.2475412624 </obs>
+<obs>10.5015589713 </obs>
+<obs>9.093529881 </obs>
+<obs>8.8405427455 </obs>
+<obs>8.841260634 </obs>
+<obs>10.7014595528 </obs>
+<obs>9.2112662672 </obs>
+<obs>8.924440703 </obs>
+<obs>8.3785842486 </obs>
+<obs>10.9289846578 </obs>
+<obs>8.0662598025 </obs>
+<obs>8.1004925165 </obs>
+<obs>7.7370418716 </obs>
+<obs>11.219247032 </obs>
+<obs>9.274046516 </obs>
+<obs>7.796211345 </obs>
+<obs>8.928402894 </obs>
+<obs>10.9103053791 </obs>
+<obs>9.3564126837 </obs>
+<obs>8.6174603827 </obs>
+<obs>8.7163509357 </obs>
+<obs>11.9514914676 </obs>
+<obs>8.4994602312 </obs>
+<obs>8.4822356138 </obs>
+<obs>8.3911066982 </obs>
+<obs>10.1319747752 </obs>
+<obs>8.4004153108 </obs>
+<obs>8.6903039877 </obs>
+<obs>8.2623477397 </obs>
+<obs>10.1570168073 </obs>
+<obs>8.7339279789 </obs>
+<obs>8.6065129202 </obs>
+<obs>8.5046833331 </obs>
+<obs>9.8464424493 </obs>
+<obs>9.0092215279 </obs>
+<obs>8.4494986274 </obs>
+<obs>8.4886335158 </obs>
+<obs>10.2679203721 </obs>
+<obs>8.6029121388 </obs>
+<obs>8.3503765222 </obs>
+<obs>9.2374914174 </obs>
+<obs>10.7866854306 </obs>
+<obs>9.0333038231 </obs>
+<obs>8.7810029437 </obs>
+<obs>8.8768492855 </obs>
+<obs>11.3552935855 </obs>
+<obs>10.1989320946 </obs>
+<obs>8.9680363277 </obs>
+<obs>9.4143273515 </obs>
+<obs>11.6309335134 </obs>
+<obs>9.7070475323 </obs>
+<obs>9.5459545705 </obs>
+<obs>10.0461594153 </obs>
+<obs>12.5931781345 </obs>
+<obs>9.980198792 </obs>
+<obs>9.9396175664 </obs>
+<obs>10.0849646705 </obs>
+<obs>12.4064188631 </obs>
+<obs>10.4711972619 </obs>
+<obs>10.4991653699 </obs>
+<obs>11.2108177602 </obs>
+</observations>
+</gretldata>

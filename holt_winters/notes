@@ -1,0 +1,15 @@
+Hyndman refs:
+
+https://otexts.com/fpp3/holt-winters.html
+
+https://robjhyndman.com/hyndsight/hw-initialization/
+
+multiplicative parms and init reported by Hyndman:
+
+parms = {0.2237, 0.1360, 0.0001}
+init = {10, 0, 1.2, 1.0, 0.9, 0.9}
+
+what I get, from automatic routines:
+
+parms = {0.176863, 0.149254, 0.209222}
+init = {9.7559, -0.019031, 1.2101, 0.95077, 0.88587, 0.95322}'

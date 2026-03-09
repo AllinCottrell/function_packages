@@ -1,0 +1,93 @@
+\documentclass{article}
+\usepackage[nohead]{geometry}
+\usepackage{amsmath}
+\usepackage{verbatim,fancyvrb}
+\usepackage{color,gretl}
+\usepackage{graphicx}
+\usepackage[authoryear]{natbib}
+\usepackage{smallhds,url}
+\usepackage{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1ex}
+
+\begin{document}
+
+\begin{center}
+  {\Large \textbf{holt\_winters 0.1}} \\[6pt]
+  Allin, 2026-03-09
+\end{center}
+
+\section{Introduction}
+
+This is a draft of a package to implement the Holt--Winters
+forecasting method, namely triple exponential smoothing with level,
+trend and seasonal components.
+
+The package requires time-series data with a seasonal dimension. Let
+$m$ denote the periodicity of the data: 4 for quarterly data; 12 for
+monthly; 5, 6 or 7 for daily; 24 for hourly.
+
+The notation used here is based on Rob Hyndman's exposition at
+\url{https://otexts.com/fpp3/holt-winters.html}. There are two
+variants of Holt--Winters, differing with respect to their treatment
+of the seasonal component, which can be either multiplicative or
+additive. The multiplicative variant is the default; it is represented
+by the following recursion, in which $\ell$ denotes the level, $b$ the
+trend or slope, and $s$ the seasonal
+\begin{align*}
+  \ell_t &= \alpha (y_t / s_{t-m}) + (1-\alpha) (\ell_{t-1} + b_{t-1})\\
+  b_t &= \beta (\ell_t - \ell_{t-1}) + (1-\beta) b_{t-1}\\
+  s_t &= \gamma y_t / \ell_t + (1-\gamma) s_{t-m}\\
+  \hat{y}_{t+h|t} &= (\ell_t + hb_t)\, s_{t+h-m(k+1)}
+\end{align*}
+where $h$ denotes the number of steps ahead for the forecast and $k$
+is the integer part of $(h-1)/m$ ($=0$ when when $h=1$).
+
+\section{The public function}
+
+The \dtk{holt_winters()} function has this signature:
+
+\begin{code}
+  function bundle holt_winters (series y,
+                                matrix theta[auto],
+                                matrix init[auto],
+                                bool additive[0],
+                                int os_tail,
+                                int verbose[0:3:1)
+\end{code}
+
+Description of the arguments:
+
+\begin{itemize}
+  \item \texttt{y} (required): the series for forecasting.
+  \item \texttt{theta} (optional): if supplied, this must be a
+    3-vector holding the smoothing parameters $\theta$ = ($\alpha$,
+    $\beta$, $\gamma$), with $0 \le \theta_i \le 1,\, \forall i$.  If
+    \texttt{parms} is not given these parameters are determined
+    automatically.
+  \item \texttt{init} (optional): if supplied, this must be a vector
+    of length $2+m$ holding initial values. Let $\tau$ indicate the
+    first observation for which a forecast is wanted; then the
+    \texttt{init} values should be $\ell_{\tau-1}$, $b_{\tau-1}$, and
+    $s_{\tau-i}, i = m, m-1, \dots,1$. If \texttt{init} is not given
+    the initializer is set automatically.
+  \item \texttt{additive} (optional): is a boolean flag to specify
+    that the seasonal should be treated as additive rather than
+    multiplicative.
+  \item \dtk{os_tail} (required): this specifies the number of
+    observations to reserve for out-of-sample forecasting. 
+  \item \texttt{verbose}: controls the verbosity of output, with four
+    levels. \texttt{verbose = 0} makes the function operate silently.
+\end{itemize}
+
+\section{Automatic usage}
+\label{sec:auto}
+
+\section{Rule-of-thumb initialization}
+\label{sec:init}
+
+\section{The additive method}
+\label{sec:additive}
+
+\end{document}

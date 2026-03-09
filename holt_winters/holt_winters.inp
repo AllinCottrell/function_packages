@@ -1,0 +1,254 @@
+set verbose off
+
+/* from Hyndman:
+   - m is the periodicity of the data
+   - h is the number of steps ahead for a forecast
+   - k is the integer part of (h-1)/m (= 0 when h = 1)
+
+   multiplicative case:
+   fcast[t+h|t] = (a[t] + h*b[t]) * s[t+h-m*(k+1)]
+   a[t] = α * (y[t] / s[t-m]) + (1-α) * (a[t-1] + b[t-1])
+   b[t] = β * (a[t] - a[t-1]) + (1-β) * b[t-1]
+   s[t] = γ * y[t] / (a[t-1] + b[t-1]) + (1-γ) * s[t-m]
+   or:
+   s[t] = γ * y[t] / a[t] + (1-γ) * s[t-m]
+
+   additive case:
+   fcast[yt+h|t] = a[t] + h*b[t] + s[t+h−m*(k+1)]
+   a[t] = α * (y[t] − s[t−m]) + (1−α) * (a[t-1] + b[t−1])
+   b[t] = β ∗ (a[t] − a[t−1]) + (1−β) ∗ b[t−1]
+   s[t] = γ * (y[t] − a[t-1] - b[t-1]) + (1−γ) * s[t−m]
+   or:
+   s[t] = γ * (y[t] − a[t]) + (1−γ) * s[t−m]
+*/
+
+function matrix hw_init (series y "Target series",
+                         bool additive)
+   scalar m = $pd
+   scalar t2 = $t1+m-1
+   scalar am1 = 0
+   scalar am2 = 0
+   scalar bm = 0
+   matrix ret = zeros(m + 2, 1)
+
+   # sums of y over the first two major periods
+   loop t=$t1..t2
+      am1 += y[t]
+      am2 += y[t + m]
+   endloop
+
+   # initial estimate of level: 1st major period average
+   ret[1] = am1 / m
+
+   # initial estimate of trend
+   ret[2] = (am2 - am1) / (m * m)
+   
+   # seasonal indices
+   i = 3
+   loop t=$t1..t2
+      if additive
+         # deviation from average
+         ret[i] = y[t] - ret[1]
+      else
+         # ratio relative to average
+         ret[i] = y[t] / ret[1]
+      endif
+      i++
+   endloop
+
+   # label the return vector
+   strings S = array(2 + m)
+   S[1] = "level"
+   S[2] = "trend"
+   loop i=1..m
+      S[i+2] = sprintf("seas%d", i)
+   endloop
+   rnameset(ret, S)
+
+   return ret
+end function
+
+function scalar hw_crit (matrix parms, matrix *X, int additive)
+   # BFGS callback: determine SSE given @parms
+   scalar α = parms[1]
+   scalar β = parms[2]
+   scalar γ = parms[3]
+   scalar m = $pd
+   scalar SSE = 0
+   scalar tmax = rows(X)
+   scalar u
+
+   # note: X = {y, a, b, s, f}
+
+   loop t = m+1..tmax
+      if additive
+         X[t,2] = α * (X[t,1] - X[t-m,4]) + (1-α) * (X[t-1,2] + X[t-1,3])
+         X[t,3] = β * (X[t,2] - X[t-1,2]) + (1-β) * X[t-1,3]
+         X[t,4] = γ * (X[t,1] - X[t,2]) + (1-γ) * X[t-m,4]
+         if t < tmax
+            X[t+1,5] = X[t,2] + X[t,3] + X[t+1-m,4]
+         endif        
+      else
+         X[t,2] = α * (X[t,1] / X[t-m,4]) + (1-α) * (X[t-1,2] + X[t-1,3])
+         X[t,3] = β * (X[t,2] - X[t-1,2]) + (1-β) * X[t-1,3]
+         X[t,4] = γ * X[t,1] / X[t,2] + (1-γ) * X[t-m,4]
+         if t < tmax
+            X[t+1,5] = (X[t,2] + X[t,3]) * X[t+1-m,4]
+         endif
+      endif
+      u = X[t,1] - X[t,5]
+      SSE += u*u
+   endloop
+
+   return SSE
+end function
+
+function matrix hw_auto_parms (list L, int t2, matrix init,
+                               bool plus, int verbose)
+   # driver for automatic estimation of parameters
+   matrix b = {0.2, 0.2, 0.2}
+   matrix bounds = {1, 0, 1; 2, 0, 1; 3, 0, 1}
+   
+   scalar m = $pd
+   matrix X0 = NA * ones(m,5)
+   X0[m,2] = init[1]
+   X0[m,3] = init[2]
+   X0[,4] = init[3:]
+   
+   smpl ; t2
+   set skip_missing off
+   matrix X = X0 | {L}
+   
+   if verbose == 3
+      set max_verbose full
+   elif verbose == 2
+      set max_verbose on
+   endif
+   catch C = BFGScmin(&b, bounds, hw_crit(b, &X, plus))
+   err = $error
+   if err
+      printf "Got error %d from BFGScmin\n", err
+      eval hw_crit(b, &X, plus)
+      b[1] = NA
+   else
+      printf "automatic parameter values:\n"
+      printf "α = %g, β = %g, γ = %g\n", b[1], b[2], b[3]
+   endif
+   return b
+end function
+
+function bundle hw (const series y,
+                    matrix parms[null],
+                    matrix init[null],
+                    bool additive[0],
+                    int os_tail,
+                    int verbose[1])
+   scalar m = $pd
+   scalar t1 = $t1
+   scalar t2 = $nobs - os_tail
+   scalar h = 1
+   scalar k = 0
+   series a b s f
+   scalar SSE = 0
+   scalar n = 0
+   list L = y a b s f
+
+   # basic checks
+   if m == 1
+      funcerr "Periodicity = 1, no seasonality!"
+   endif
+   save_t2 = $t2
+   smpl ; t2
+   if sum(ok(y)) < $nobs
+      funcerr "Missing values in y"
+   endif
+   smpl ; save_t2
+
+   if !exists(init)
+      matrix init = hw_init(y, additive)
+   endif
+   if verbose > 1
+      print init
+   endif
+
+   # forecast for the first data-point
+   if additive
+      f[t1] = init[1] + h*init[2] + init[3]
+   else
+      f[t1] = (init[1] + h*init[2]) * init[3]
+   endif
+
+   if !exists(parms)
+      parms = hw_auto_parms(L, t2, init, additive, verbose)
+      if !ok(parms[1])
+         funcerr "Failed to estimate parameters"
+      endif
+   endif
+
+   scalar α = parms[1]
+   scalar β = parms[2]
+   scalar γ = parms[3]
+
+   loop t = t1..t2
+      # within sample
+      i = 1 + t - t1
+      s_1 = i <= m ? init[2+i] : s[t−m]
+      s_2 =  i < m ? init[3+i] : s[t+1−m]
+      a_ = t == t1 ? init[1] : a[t-1]
+      b_ = t == t1 ? init[2] : b[t-1]
+      if additive
+         a[t] = α * (y[t] − s_1) + (1−α) * (a_ + b_)
+         b[t] = β * (a[t] - a_) + (1-β) * b_
+         s[t] = γ * (y[t] − a[t]) + (1−γ) * s_1
+         f[t+1] = a[t] + b[t] + s_2
+      else
+         a[t] = α * (y[t] / s_1) + (1-α) * (a_ + b_)
+         b[t] = β * (a[t] - a_) + (1-β) * b_
+         s[t] = γ * y[t] / a[t] + (1-γ) * s_1
+         f[t+1] = (a[t] + b[t]) * s_2
+      endif
+      if ok(f[t])
+         scalar u = y[t] - f[t]
+         SSE += u*u
+         n++
+      endif
+   endloop
+   loop t=t2+1..$nobs-1
+      # out of sample
+      h++
+      k = floor((h-1)/m)
+      if additive
+         f[t+1] = a[t2] + h*b[t2] + s[t2+h-m*(k+1)]
+      else
+         f[t+1] = (a[t2] + h*b[t2]) * s[t2+h-m*(k+1)]
+      endif
+   endloop
+
+   scalar RMSE = sqrt(SSE/n)
+   printf "SSE = %g, RMSE = %g\n", SSE, RMSE
+   if verbose > 0
+      print L -o
+   endif
+
+   set skip_missing off
+   matrix X = {L}
+   cnameset(X, "y level trend seasonal forecast")
+   bundle ret = _(parms, init, additive, X, RMSE)
+
+   return ret
+end function
+
+# main
+
+open aus_holidays.gdt
+dataset addobs 12
+
+plus = 0 # use additive method if non-zero
+os_obs = 12
+verbosity = 2
+
+bundle hwb = hw(Trips, null, null, plus, os_obs, verbosity)
+quit
+list L = mat2list(hwb.X)
+gnuplot y forecast --time --with-lines --output=display
+tsplots level trend seasonal --output=display
