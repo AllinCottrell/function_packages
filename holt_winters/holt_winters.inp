@@ -156,6 +156,16 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
    return b
 end function
 
+function void hw_checks (const series y, int t2)
+   if $pd == 1
+      funcerr "Periodicity = 1, no seasonality!"
+   endif
+   smpl ; t2
+   if sum(ok(y)) < $nobs
+      funcerr "Missing values in y"
+   endif
+end function
+
 function bundle holt_winters (const series y,
                               matrix theta[null],
                               matrix init[null],
@@ -174,15 +184,7 @@ function bundle holt_winters (const series y,
    list L = y a b s f
 
    # basic checks
-   if m == 1
-      funcerr "Periodicity = 1, no seasonality!"
-   endif
-   save_t2 = $t2
-   smpl ; t2
-   if sum(ok(y)) < $nobs
-      funcerr "Missing values in y"
-   endif
-   smpl ; save_t2
+   hw_checks(y, t2)
 
    if exists(init)
       doinit = 0 # preserve the caller's init
@@ -194,7 +196,7 @@ function bundle holt_winters (const series y,
    endif
 
    if !exists(theta)
-      theta = hw_auto_theta(L, t2, &init, doinit, additive, verbose)
+      theta = hw_auto_parms(L, t2, &init, doinit, additive, verbose)
       if !ok(theta[1])
          funcerr "Failed to estimate parameters"
       endif
@@ -259,18 +261,3 @@ function bundle holt_winters (const series y,
 
    return ret
 end function
-
-# main
-
-open aus_holidays.gdt
-dataset addobs 12
-
-plus = 0 # use additive method if non-zero
-os_obs = 12
-verbosity = 2
-
-bundle hwb = hw(Trips, null, null, plus, os_obs, verbosity)
-quit
-list L = mat2list(hwb.X)
-gnuplot y forecast --time --with-lines --output=display
-tsplots level trend seasonal --output=display
