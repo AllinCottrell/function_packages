@@ -11,6 +11,17 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
 
+\hypersetup{pdftitle={holt_winters 0.1},
+            pdfauthor={Allin Cottrell},
+            colorlinks=true,
+            linkcolor=blue,
+            urlcolor=red,
+            citecolor=steel,
+            bookmarks=true,
+            bookmarksnumbered=true,
+            plainpages=false
+}
+
 \begin{document}
 
 \begin{center}
@@ -28,8 +39,7 @@ The package requires time-series data with a seasonal dimension. Let
 $m$ denote the periodicity of the data: 4 for quarterly data; 12 for
 monthly; 5, 6 or 7 for daily; 24 for hourly.
 
-The notation used here is based on Rob Hyndman's exposition at
-\url{https://otexts.com/fpp3/holt-winters.html}. There are two
+The notation used here is based on \cite{hyndman2021}. There are two
 variants of Holt--Winters, differing with respect to their treatment
 of the seasonal component, which can be either multiplicative or
 additive. The multiplicative variant is the default; it is represented
@@ -49,45 +59,141 @@ is the integer part of $(h-1)/m$ ($=0$ when when $h=1$).
 The \dtk{holt_winters()} function has this signature:
 
 \begin{code}
-  function bundle holt_winters (series y,
-                                matrix theta[auto],
-                                matrix init[auto],
-                                bool additive[0],
-                                int os_tail,
-                                int verbose[0:3:1)
+function bundle holt_winters (series y,
+                              matrix theta[auto],
+                              matrix init[auto],
+                              bool additive[0],
+                              int os_tail,
+                              int verbose[0:3:1)
 \end{code}
 
-Description of the arguments:
+\subsection{Arguments}
 
 \begin{itemize}
-  \item \texttt{y} (required): the series for forecasting.
-  \item \texttt{theta} (optional): if supplied, this must be a
-    3-vector holding the smoothing parameters $\theta$ = ($\alpha$,
-    $\beta$, $\gamma$), with $0 \le \theta_i \le 1,\, \forall i$.  If
-    \texttt{parms} is not given these parameters are determined
-    automatically.
-  \item \texttt{init} (optional): if supplied, this must be a vector
-    of length $2+m$ holding initial values. Let $\tau$ indicate the
-    first observation for which a forecast is wanted; then the
-    \texttt{init} values should be $\ell_{\tau-1}$, $b_{\tau-1}$, and
-    $s_{\tau-i}, i = m, m-1, \dots,1$. If \texttt{init} is not given
-    the initializer is set automatically.
-  \item \texttt{additive} (optional): is a boolean flag to specify
-    that the seasonal should be treated as additive rather than
-    multiplicative.
-  \item \dtk{os_tail} (required): this specifies the number of
-    observations to reserve for out-of-sample forecasting. 
-  \item \texttt{verbose}: controls the verbosity of output, with four
-    levels. \texttt{verbose = 0} makes the function operate silently.
+\item \texttt{y} (required): the series for forecasting.
+\item \texttt{theta} (optional): if supplied, this must be a 3-vector
+  holding the smoothing parameters $\theta$ = ($\alpha$, $\beta$,
+  $\gamma$), with $0 \le \theta_i \le 1,\, \forall i$.  If
+  \texttt{parms} is not given these parameters are determined
+  automatically.
+\item \texttt{init} (optional): if supplied, this must be a vector of
+  length $2+m$ holding initial values. Let $\tau$ indicate the first
+  observation for which a forecast is wanted; then the \texttt{init}
+  values should be $\ell_{\tau-1}$, $b_{\tau-1}$, and
+  $s_{\tau-i}, i = m, m-1, \dots,1$. If \texttt{init} is not given the
+  initializer is set automatically.
+\item \texttt{additive} (optional): is a boolean flag to specify that
+  the seasonal should be treated as additive rather than
+  multiplicative.
+\item \dtk{os_tail} (required): this specifies the number of
+  observations to reserve for out-of-sample forecasting. The
+  observations used for estimation/training will run from the
+  beginning of the incoming sample range to the end of that range
+  minus the value given for \dtk{os_tail}.
+\item \texttt{verbose}: controls the verbosity of output, with four
+  levels. \texttt{verbose = 0} makes the function operate silently.
+\end{itemize}
+
+\subsection{Return value}
+
+This is a bundle containing the following elements:
+\begin{itemize}
+\item \texttt{theta}: a 3-vector holding the parameter values used in
+  forecasting.
+\item \texttt{init}: a ($2+m$)-vector holding the initializer used in
+  forecasting.
+\item \texttt{additive}: 1 if the additive seasonal method was used,
+  otherwise 0.
+\item \texttt{X}: a $T \times 5$ matrix.  Column 1 holds the data
+  passed as \texttt{y}; columns 2 to 4 the estimated level, trend and
+  seasonal indices; and column 5 holds forecasts. More details on this
+  matrix are provided below.
+\item \texttt{RMSE}: the root mean squared error for the 1-step ahead
+  forecasts made over the training data.
 \end{itemize}
 
 \section{Automatic usage}
 \label{sec:auto}
 
+We'll start with a simple example---an approximate but passable
+replication of the multiplicative Australian tourism example given by
+\cite{hyndman2021}. Here's the hansl code:
+\begin{code}
+open aus_holidays.gdt --frompkg=holt_winters
+dataset addobs 12
+bundle hwb = holt_winters(Trips, null, null, 0, 12)
+\end{code}
+
+The \dtk{aus_holidays} dataset contains 80 quarterly observations from
+1998:1 to 2017:4, which will be used for training the model. The twelve
+added observations, 2018:1 to 2020:4, will then be used for an
+out-of-sample forecast.
+
+Let \texttt{t1} denote the start, and \texttt{t2} the end, of the
+sample range in gretl (which can be adjusted via the \texttt{smpl}
+command). Since there's no call to \texttt{smpl} in the script above,
+\texttt{t1} and \texttt{t2} will be at their default values: in
+context, 1 and 92.  So the value of 12 for \dtk{os_tail} selects just
+the added `empty' observations, giving a genuine out-of-sample
+forecast. In some cases one might prefer a `pretend' out-of-sample
+forecast---a `forecast' of values that are present in the dataset but
+not used in estimation. With the Australian tourism one could do
+something like the following:
+\begin{code}
+open aus_holidays.gdt --frompkg=holt_winters
+bundle hwb = holt_winters(Trips, null, null, 0, 8)
+\end{code}
+to get pretend out-of-sample forecasts for 2016:1 to 2017:4.
+
+\subsection{How does automatic selection work?}
+
+In the example above, with neither \texttt{theta} nor \texttt{init}
+given, the parameter values and initializer are jointly optimized,
+with the aim of minimizing the sum of squared forecast errors. The
+starting point for the parameters is $\alpha = \beta = \gamma = 0.2$;
+the starting point for the initializer is described in
+section~\ref{sec:init}. Optimization is performed using the
+constrained L-BFGS algorithm (see chapter on Numerical methods in the
+\GUG).
+
+If an initializer is given via the \texttt{init} argument to
+\dtk{holt_winters} but \texttt{theta} is not given, then
+\texttt{theta} is optimized conditional on the supplied
+\texttt{init}. However, if \texttt{theta} is given but not
+\texttt{init} the initializer is simply as described in
+section~\ref{sec:init}.
+
 \section{Rule-of-thumb initialization}
 \label{sec:init}
 
+If the \texttt{init} argument to \dtk{holt_winters} is not given, the
+initializer is calculated as per the suggestion in \cite{hyndman98}
+(also see \cite{hyndman2010}:
+\begin{itemize}
+\item The initial level, $\ell_{\tau-1}$, is set to the mean of the
+  $m$ values $y_{\tau}, y_{\tau+1},\dots, y_{\tau+m-1}$.
+\item The initial trend, $b_{\tau-1}$, is set to the mean of the
+  $m$ seasonal differences
+ \[
+    y_{\tau+i+m} - y_{\tau+i},\; i=0,1,\dots,m-1
+ \]
+\item The initial seasonals are then set to\dots
+\end{itemize}
+
+See \cite{hyndman2010}, also \cite{hyndman98}.
+
 \section{The additive method}
 \label{sec:additive}
+
+In this case the recursion is as follows:
+
+\begin{align*}
+  \ell_t &= \alpha (y_t - s_{t-m}) + (1-\alpha) (\ell_{t-1} + b_{t-1})\\
+  b_t &= \beta (\ell_t - \ell_{t-1}) + (1-\beta) b_{t-1}\\
+  s_t &= \gamma (y_t - \ell_t) + (1-\gamma) s_{t-m}\\
+  \hat{y}_{t+h|t} &= \ell_t + hb_t + s_{t+h-m(k+1)}
+\end{align*}
+
+\bibliographystyle{gretl} \bibliography{gretl}
 
 \end{document}

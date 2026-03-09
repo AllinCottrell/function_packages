@@ -22,8 +22,8 @@ set verbose off
    s[t] = γ * (y[t] − a[t]) + (1−γ) * s[t−m]
 */
 
-function matrix hw_auto_init (series y "Target series",
-                              bool additive)
+function matrix hw_init (series y "Target series",
+                         bool additive)
    scalar m = $pd
    scalar t2 = $t1+m-1
    scalar am1 = 0
@@ -42,7 +42,7 @@ function matrix hw_auto_init (series y "Target series",
 
    # initial estimate of trend
    ret[2] = (am2 - am1) / (m * m)
-
+   
    # seasonal indices
    i = 3
    loop t=$t1..t2
@@ -68,8 +68,7 @@ function matrix hw_auto_init (series y "Target series",
    return ret
 end function
 
-function scalar hw_crit (matrix parms, matrix *X,
-                         bool additive, bool doinit)
+function scalar hw_crit (matrix parms, matrix *X, int additive)
    # BFGS callback: determine SSE given @parms
    scalar α = parms[1]
    scalar β = parms[2]
@@ -79,21 +78,8 @@ function scalar hw_crit (matrix parms, matrix *X,
    scalar tmax = rows(X)
    scalar u
 
-   # note: X = X0 | {y, a, b, s, f}
+   # note: X = {y, a, b, s, f}
 
-   if doinit
-      # optimizing the initializer: reset using @parms
-      X[m,2] = parms[4]
-      X[m,3] = parms[5]
-      X[1:m,4] = parms[6:]'
-      if additive
-         X[m+1,5] = parms[4] + parms[5] + parms[6]
-      else
-         X[m+1,5] = (parms[4] + parms[5]) * parms[6]
-      endif
-   endif
-
-   # training data
    loop t = m+1..tmax
       if additive
          X[t,2] = α * (X[t,1] - X[t-m,4]) + (1-α) * (X[t-1,2] + X[t-1,3])
@@ -101,7 +87,7 @@ function scalar hw_crit (matrix parms, matrix *X,
          X[t,4] = γ * (X[t,1] - X[t,2]) + (1-γ) * X[t-m,4]
          if t < tmax
             X[t+1,5] = X[t,2] + X[t,3] + X[t+1-m,4]
-         endif
+         endif        
       else
          X[t,2] = α * (X[t,1] / X[t-m,4]) + (1-α) * (X[t-1,2] + X[t-1,3])
          X[t,3] = β * (X[t,2] - X[t-1,2]) + (1-β) * X[t-1,3]
@@ -117,63 +103,36 @@ function scalar hw_crit (matrix parms, matrix *X,
    return SSE
 end function
 
-function matrix hw_auto_parms (list L, int t2, matrix *init,
-                               bool doinit, bool additive,
-                               int verbose)
+function matrix hw_auto_parms (list L, int t2, matrix init,
+                               bool plus, int verbose)
    # driver for automatic estimation of parameters
-   matrix X0 = NA * ones($pd,5)
-
-   if doinit
-      scalar len = 3 + 2 + $pd
-      matrix b = {0.2; 0.2; 0.2} | init
-      matrix bounds = zeros(len, 3)
-      loop i=1..len
-         if i < 4
-            bounds[i,] = {i, 0, 1}
-         else
-            bounds[i,] = {i, -$huge, $huge}
-         endif
-      endloop
-   else
-      matrix b = {0.2; 0.2; 0.2}
-      matrix bounds = {1,0,1; 2,0,1; 3,0,1}
-      # set this just once
-      X0[m,2] = init[1]
-      X0[m,3] = init[2]
-      X0[1:m,4] = init[3:]
-      if additive
-         X0[m+1,5] = init[1] + init[2] + init[3]
-      else
-         X0[m+1,5] = (init[1] + init[2]) * init[3]
-      endif
-   endif
-
+   matrix b = {0.2, 0.2, 0.2}
+   matrix bounds = {1, 0, 1; 2, 0, 1; 3, 0, 1}
+   
+   scalar m = $pd
+   matrix X0 = NA * ones(m,5)
+   X0[m,2] = init[1]
+   X0[m,3] = init[2]
+   X0[,4] = init[3:]
+   
    smpl ; t2
    set skip_missing off
    matrix X = X0 | {L}
-
+   
    if verbose == 3
       set max_verbose full
    elif verbose == 2
       set max_verbose on
-      set bfgs_verbskip 5
    endif
-   catch C = BFGScmin(&b, bounds, hw_crit(b, &X, additive, doinit))
+   catch C = BFGScmin(&b, bounds, hw_crit(b, &X, plus))
    err = $error
    if err
       printf "Got error %d from BFGScmin\n", err
-      eval hw_crit(b, &X, additive, doinit)
+      eval hw_crit(b, &X, plus)
       b[1] = NA
    else
       printf "automatic parameter values:\n"
-      printf "  α = %g, β = %g, γ = %g\n", b[1], b[2], b[3]
-      if doinit
-         loop i = 1..nelem(init)
-            init[i] = b[3+i]
-         endloop
-         printf "estimated initializer:\n"
-         eval init
-      endif
+      printf "α = %g, β = %g, γ = %g\n", b[1], b[2], b[3]
    endif
    return b
 end function
@@ -192,7 +151,6 @@ function bundle hw (const series y,
    series a b s f
    scalar SSE = 0
    scalar n = 0
-   scalar doinit = 1
    list L = y a b s f
 
    # basic checks
@@ -206,17 +164,22 @@ function bundle hw (const series y,
    endif
    smpl ; save_t2
 
-   if exists(init)
-      doinit = 0 # preserve the caller's init
-   else
-      matrix init = hw_auto_init(y, additive)
+   if !exists(init)
+      matrix init = hw_init(y, additive)
    endif
    if verbose > 1
       print init
    endif
 
+   # forecast for the first data-point
+   if additive
+      f[t1] = init[1] + h*init[2] + init[3]
+   else
+      f[t1] = (init[1] + h*init[2]) * init[3]
+   endif
+
    if !exists(parms)
-      parms = hw_auto_parms(L, t2, &init, doinit, additive, verbose)
+      parms = hw_auto_parms(L, t2, init, additive, verbose)
       if !ok(parms[1])
          funcerr "Failed to estimate parameters"
       endif
@@ -225,13 +188,6 @@ function bundle hw (const series y,
    scalar α = parms[1]
    scalar β = parms[2]
    scalar γ = parms[3]
-
-   # forecast for the first data-point
-   if additive
-      f[t1] = init[1] + init[2] + init[3]
-   else
-      f[t1] = (init[1] + init[2]) * init[3]
-   endif
 
    loop t = t1..t2
       # within sample
