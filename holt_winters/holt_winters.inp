@@ -171,11 +171,11 @@ function void hw_checks (const series y, int t2)
 end function
 
 function bundle holt_winters (const series y,
-                              matrix theta[null],
-                              matrix init[null],
-                              bool method[1:2:2],
-                              int n_fcast,
-                              int verbose[1])
+                              matrix theta[auto] "α, β, γ",
+                              matrix init[auto] "initializer",
+                              int method[1:2:2] {"additive", "multiplicative"},
+                              int n_fcast[0::0],
+                              int verbose[0:3:1])
    scalar m = $pd
    scalar t1 = $t1
    scalar t2 = $nobs - n_fcast
