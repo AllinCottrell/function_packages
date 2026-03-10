@@ -61,19 +61,25 @@ $t_2$, respectively.\footnote{This range can be set via the
   $t2$ will equal the total number of observations.} The package will
 operate on one or two contiguous subsets of this range:
 \begin{enumerate}
-\item a training or estimation range, where the Holt--Winters recursion
-  is applied and one-step-ahead forecasts ($h=1$) are computed; and
-\item an `out-of-sample' range (if applicable), where forecasts with
-  $h=1,2,...,n$ are computed, conditional on the state of information at
-  the end of the first range. The value of
-  $n$ here is set by the argument \dtk{os_tail} (see below).
+\item a training or estimation range, starting at
+  $t_1$, where the Holt--Winters recursion is applied and
+  one-step-ahead forecasts ($h=1$) are computed; and
+\item an `out-of-sample' range (if applicable), ending at
+  $t_2$, where forecasts with
+  $h=1,2,...,n$ are computed, conditional on the state of information
+  at the end of the first range. The value of
+  $n$ here is determined by the argument \dtk{os_tail} (see below).
 \end{enumerate}
 
-Note that the number of training observations is a residual quantity: it
-equals $t_2 - t_1 + 1 - n$. There must be no missing values for
-the target series in that range. It's OK if there are missing values in
+Note that the number of training observations is a residual quantity:
+it equals $t_2 - t_1 + 1 - n$. There must be no missing values for the
+target series in that range. It's OK if there are missing values in
 the second range, and in fact if there any are non-missing values they
-will be ignored.
+will be ignored. If you just want to use Holt--Winters as a
+filter---decomposing a series into its components---and don't care
+about out-of-sample forecasts, it's OK to set \dtk{os_tail} to 0, but
+then you should ensure that $t_2$ is set to exclude any trailing
+missing values for the series of interest.
 
 \section{The public function}
 
@@ -179,6 +185,11 @@ If an initializer is given via the \texttt{init} argument to
 \texttt{init}. However, if \texttt{theta} is given but not
 \texttt{init} the initializer is simply as described in
 section~\ref{sec:init}.
+
+\section{Output details}
+\label{sec:out}
+
+
 
 \section{Rule-of-thumb initialization}
 \label{sec:init}

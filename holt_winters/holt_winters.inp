@@ -143,14 +143,18 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
       eval hw_crit(b, &X, additive, doinit)
       b[1] = NA
    else
-      printf "automatic parameter values:\n"
-      printf "  α = %g, β = %g, γ = %g\n", b[1], b[2], b[3]
+      if verbose > 0
+         printf "automatic parameter values:\n"
+         printf "  α = %g, β = %g, γ = %g\n", b[1], b[2], b[3]
+      endif
       if doinit
          loop i = 1..nelem(init)
             init[i] = b[3+i]
          endloop
-         printf "estimated initializer:\n"
-         eval init
+         if verbose > 0
+            printf "\nestimated initializer:\n\n"
+            eval init
+         endif
       endif
    endif
    return b
@@ -224,12 +228,16 @@ function bundle holt_winters (const series y,
          a[t] = α * (y[t] − s_1) + (1−α) * (a_ + b_)
          b[t] = β * (a[t] - a_) + (1-β) * b_
          s[t] = γ * (y[t] − a[t]) + (1−γ) * s_1
-         f[t+1] = a[t] + b[t] + s_2
+         if t < $t2
+            f[t+1] = a[t] + b[t] + s_2
+         endif
       else
          a[t] = α * (y[t] / s_1) + (1-α) * (a_ + b_)
          b[t] = β * (a[t] - a_) + (1-β) * b_
          s[t] = γ * y[t] / a[t] + (1-γ) * s_1
-         f[t+1] = (a[t] + b[t]) * s_2
+         if t < $t2
+            f[t+1] = (a[t] + b[t]) * s_2
+         endif
       endif
       if ok(f[t])
          scalar u = y[t] - f[t]
@@ -249,8 +257,8 @@ function bundle holt_winters (const series y,
    endloop
 
    scalar RMSE = sqrt(SSE/n)
-   printf "SSE = %g, RMSE = %g\n", SSE, RMSE
    if verbose > 0
+      printf "SSE = %g, RMSE = %g\n", SSE, RMSE
       print L -o
    endif
 
