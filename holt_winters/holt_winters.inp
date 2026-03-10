@@ -1,7 +1,7 @@
 set verbose off
 
 function matrix hw_auto_init (series y "Target series",
-                              bool additive)
+                              int method)
    scalar m = $pd
    scalar t2 = $t1+m-1
    scalar am1 = 0
@@ -24,7 +24,7 @@ function matrix hw_auto_init (series y "Target series",
    # seasonal indices
    i = 3
    loop t=$t1..t2
-      if additive
+      if method == 1
          # deviation from average
          ret[i] = y[t] - ret[1]
       else
@@ -47,7 +47,7 @@ function matrix hw_auto_init (series y "Target series",
 end function
 
 function scalar hw_crit (matrix parms, matrix *X,
-                         bool additive, bool doinit)
+                         int method, bool doinit)
    # BFGS callback: determine SSE given @parms
    scalar α = parms[1]
    scalar β = parms[2]
@@ -64,7 +64,7 @@ function scalar hw_crit (matrix parms, matrix *X,
       X[m,2] = parms[4]
       X[m,3] = parms[5]
       X[1:m,4] = parms[6:]'
-      if additive
+      if method == 1
          X[m+1,5] = parms[4] + parms[5] + parms[6]
       else
          X[m+1,5] = (parms[4] + parms[5]) * parms[6]
@@ -73,7 +73,7 @@ function scalar hw_crit (matrix parms, matrix *X,
 
    # training data
    loop t = m+1..tmax
-      if additive
+      if method == 1
          X[t,2] = α * (X[t,1] - X[t-m,4]) + (1-α) * (X[t-1,2] + X[t-1,3])
          X[t,3] = β * (X[t,2] - X[t-1,2]) + (1-β) * X[t-1,3]
          X[t,4] = γ * (X[t,1] - X[t,2]) + (1-γ) * X[t-m,4]
@@ -96,7 +96,7 @@ function scalar hw_crit (matrix parms, matrix *X,
 end function
 
 function matrix hw_auto_parms (list L, int t2, matrix *init,
-                               bool doinit, bool additive,
+                               bool doinit, int method,
                                int verbose)
    # driver for automatic estimation of parameters
    matrix X0 = NA * ones($pd,5)
@@ -119,7 +119,7 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
       X0[m,2] = init[1]
       X0[m,3] = init[2]
       X0[1:m,4] = init[3:]
-      if additive
+      if method == 1
          X0[m+1,5] = init[1] + init[2] + init[3]
       else
          X0[m+1,5] = (init[1] + init[2]) * init[3]
@@ -136,11 +136,11 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
       set max_verbose on
       set bfgs_verbskip 5
    endif
-   catch C = BFGScmin(&b, bounds, hw_crit(b, &X, additive, doinit))
+   catch C = BFGScmin(&b, bounds, hw_crit(b, &X, method, doinit))
    err = $error
    if err
       printf "Got error %d from BFGScmin\n", err
-      eval hw_crit(b, &X, additive, doinit)
+      eval hw_crit(b, &X, method, doinit)
       b[1] = NA
    else
       if verbose > 0
@@ -173,12 +173,12 @@ end function
 function bundle holt_winters (const series y,
                               matrix theta[null],
                               matrix init[null],
-                              bool additive[0],
-                              int os_tail,
+                              bool method[1:2:2],
+                              int n_fcast,
                               int verbose[1])
    scalar m = $pd
    scalar t1 = $t1
-   scalar t2 = $nobs - os_tail
+   scalar t2 = $nobs - n_fcast
    scalar h = 1
    scalar k = 0
    series a b s f
@@ -193,14 +193,14 @@ function bundle holt_winters (const series y,
    if exists(init)
       doinit = 0 # preserve the caller's init
    else
-      matrix init = hw_auto_init(y, additive)
+      matrix init = hw_auto_init(y, method)
    endif
    if verbose > 1
       print init
    endif
 
    if !exists(theta)
-      theta = hw_auto_parms(L, t2, &init, doinit, additive, verbose)
+      theta = hw_auto_parms(L, t2, &init, doinit, method, verbose)
       if !ok(theta[1])
          funcerr "Failed to estimate parameters"
       endif
@@ -211,7 +211,7 @@ function bundle holt_winters (const series y,
    scalar γ = theta[3]
 
    # forecast for the first data-point
-   if additive
+   if method == 1
       f[t1] = init[1] + init[2] + init[3]
    else
       f[t1] = (init[1] + init[2]) * init[3]
@@ -224,7 +224,7 @@ function bundle holt_winters (const series y,
       s_2 =  i < m ? init[3+i] : s[t+1−m]
       a_ = t == t1 ? init[1] : a[t-1]
       b_ = t == t1 ? init[2] : b[t-1]
-      if additive
+      if method == 1
          a[t] = α * (y[t] − s_1) + (1−α) * (a_ + b_)
          b[t] = β * (a[t] - a_) + (1-β) * b_
          s[t] = γ * (y[t] − a[t]) + (1−γ) * s_1
@@ -249,7 +249,7 @@ function bundle holt_winters (const series y,
       # out of sample
       h++
       k = floor((h-1)/m)
-      if additive
+      if method == 1
          f[t+1] = a[t2] + h*b[t2] + s[t2+h-m*(k+1)]
       else
          f[t+1] = (a[t2] + h*b[t2]) * s[t2+h-m*(k+1)]
@@ -265,7 +265,7 @@ function bundle holt_winters (const series y,
    set skip_missing off
    matrix X = {L}
    cnameset(X, "y level trend seasonal forecast")
-   bundle ret = _(theta, init, additive, X, RMSE)
+   bundle ret = _(theta, init, method, X, RMSE)
 
    return ret
 end function
