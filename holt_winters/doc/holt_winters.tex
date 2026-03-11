@@ -36,18 +36,27 @@ method, namely triple exponential smoothing with level, trend and
 seasonal components.  The package requires time-series data with a
 seasonal dimension.
 
-The notation used here is based on \cite{hyndman2021}. There are two
-variants of Holt--Winters, differing with respect to their treatment
-of the seasonal component, which can be either additive or
-multiplicative. The multiplicative variant is the default; it is
-represented by the following recursion, in which $\ell$ denotes the
-level, $b$ the trend or slope, and $s$ the seasonal. In addition, $m$
-denotes the periodicity of the data (gretl's \verb|$pd|) and
-$k$ is the integer part of $(h-1)/m$ ($=0$ when when $h=1$).
+There are two variants of Holt--Winters, differing with respect to their
+treatment of the seasonal component, which can be either additive or
+multiplicative. The respective filtering recursions and forecasting
+equations are shown below. The notation is based on \cite{hyndman2021}:
+$\ell$ denotes the level, $b$ the trend or slope, and $s$ the seasonal.
+In addition $m$ denotes the periodicity of the data (gretl's \verb|$pd|)
+and $k$ is the integer part of $(h-1)/m$ ($=0$ when when $h=1$).
+
+Additive:
+\begin{align*}
+  \ell_t &= \alpha (y_t - s_{t-m}) + (1-\alpha) (\ell_{t-1} + b_{t-1})\\
+  b_t &= \beta (\ell_t - \ell_{t-1}) + (1-\beta) b_{t-1}\\
+  s_t &= \gamma (y_t - \ell_t) + (1-\gamma) s_{t-m}\\
+  \hat{y}_{t+h|t} &= \ell_t + hb_t + s_{t+h-m(k+1)}
+\end{align*}
+
+Multiplicative:
 \begin{align*}
   \ell_t &= \alpha (y_t / s_{t-m}) + (1-\alpha) (\ell_{t-1} + b_{t-1})\\
   b_t &= \beta (\ell_t - \ell_{t-1}) + (1-\beta) b_{t-1}\\
-  s_t &= \gamma y_t / \ell_t + (1-\gamma) s_{t-m}\\
+  s_t &= \gamma\, y_t / \ell_t + (1-\gamma) s_{t-m}\\
   \hat{y}_{t+h|t} &= (\ell_t + hb_t)\, s_{t+h-m(k+1)}
 \end{align*}
 
@@ -59,7 +68,7 @@ $t_2$, respectively.\footnote{This range can be set via the
   \texttt{smpl} command. If \texttt{smpl} has not been invoked since a
   dataset was opened $t_1$ will equal 1 and
   $t2$ will equal the total number of observations.} The package will
-operate on one or two contiguous subsets of this range:
+operate on one or two contiguous sub-ranges:
 \begin{enumerate}
 \item a training or estimation range, starting at
   $t_1$, where the Holt--Winters recursion is applied and
@@ -71,54 +80,49 @@ operate on one or two contiguous subsets of this range:
   $n$ here is determined by the argument \dtk{n_fcast} (see below).
 \end{enumerate}
 
-Note that the number of training observations is a residual quantity:
-it equals $t_2 - t_1 + 1 - n$. There must be no missing values for the
-target series in that range. It's OK if there are missing values in
-the second range, and in fact if there any are non-missing values they
-will be ignored. If you just want to use Holt--Winters as a
-filter---decomposing a series into its components---and don't care
-about out-of-sample forecasts, it's OK to set \dtk{n_fcast} to 0, but
-then you should ensure that $t_2$ is set to exclude any trailing
-missing values for the series of interest.
+Note that the number of training observations is a residual quantity: it
+equals $t_2 - t_1 + 1 - n$. There must be no missing values for the
+target series in that range. It's OK if there are missing values in the
+second range, and in fact if there any are non-missing values they will
+be ignored. If you just want to use Holt--Winters as a
+filter---decomposing a series into its components---and don't care about
+out-of-sample forecasts, it's OK to have $n=0$, but then you should
+ensure that $t_2$ is set to exclude any trailing missing values for the
+input series.
 
 \section{The public function}
 
 The \dtk{holt_winters} function has the following signature:
 \begin{code}
-function bundle holt_winters (series y,
-                              matrix theta[auto],
-                              matrix init[auto],
-                              int method[1:2:2],
-                              int n_fcast,
-                              int verbose[0:3:1)
+function bundle holt_winters (const series y, const bundle specs)
 \end{code}
 
-\subsection{Arguments}
+The required argument \texttt{y} specifies the series for filtering and
+forecasting. The second (optional) bundle argument may contain one or
+more of the following options:
 
 \begin{itemize}
-\item \texttt{y} (required): the series for forecasting.
-\item \texttt{theta} (optional): if supplied, this must be a 3-vector
-  holding the smoothing parameters $\theta$ = ($\alpha$, $\beta$,
-  $\gamma$), with $0 \le \theta_i \le 1,\, \forall i$.  If
-  \texttt{parms} is not given these parameters are determined
+\item \texttt{theta}: if supplied, this must be a 3-vector holding the
+  smoothing parameters $\theta$ = ($\alpha$, $\beta$, $\gamma$), with
+  $0 \le \theta_i \le 1,\, \forall i$.  If \texttt{parms} is not given
+  these parameters are determined automatically.
+\item \texttt{init}: if supplied, this must be a vector of length $2+m$
+  holding initial values. Let $\tau$ indicate the first observation for
+  which a forecast is wanted; then the \texttt{init} values should be
+  $\ell_{\tau-1}$, $b_{\tau-1}$, and $s_{\tau-i}, i = m, m-1,
+  \dots,1$. If \texttt{init} is not given the initializer is set
   automatically.
-\item \texttt{init} (optional): if supplied, this must be a vector of
-  length $2+m$ holding initial values. Let $\tau$ indicate the first
-  observation for which a forecast is wanted; then the \texttt{init}
-  values should be $\ell_{\tau-1}$, $b_{\tau-1}$, and
-  $s_{\tau-i}, i = m, m-1, \dots,1$. If \texttt{init} is not given the
-  initializer is set automatically.
-\item \texttt{method} (optional): is an integer specifying the
-  treatment of the seasonal term as either additive (1) or
-  multiplicative (2, the default).
-\item \dtk{n_fcast} (required): this specifies the number of
-  observations at the end of the incoming sample range to reserve for
-  out-of-sample forecasting. The observations used for
-  estimation/training will run from the beginning of the incoming sample
-  range to the end of that range minus the value given for
-  \dtk{n_fcast}.
-\item \texttt{verbose}: controls the verbosity of output, with four
-  levels. \texttt{verbose = 0} makes the function operate silently.
+\item \texttt{method}: an integer specifying the treatment of the
+  seasonal term as either additive (1) or multiplicative (2, the
+  default).
+\item \dtk{n_fcast}: an integer specifying the number of observations
+  at the end of the incoming sample range to reserve for out-of-sample
+  forecasting. The observations used for estimation/training will run
+  from the beginning of the incoming sample range to the end of that
+  range minus the value given for \dtk{n_fcast}. The default value is 0
+  (filtering, with no out-of-sample forecast).
+\item \texttt{verbose}: an integer which controls the verbosity of
+  output, with levels 0, 1 (the default), 2 or 3.
 \end{itemize}
 
 \subsection{Return value}
@@ -139,7 +143,7 @@ This is a bundle containing the following elements:
   forecasts made using the training data.
 \end{itemize}
 
-\section{Usage}
+\section{Command-line usage}
 \label{sec:auto}
 
 We'll start with a simple example---an approximate but passable
@@ -148,15 +152,18 @@ replication of the multiplicative Australian tourism example given by
 \begin{code}
 open aus_holidays.gdt --frompkg=holt_winters
 dataset addobs 12
-bundle hwb = holt_winters(Trips, null, null, 0, 12)
+bundle hwb = holt_winters(Trips, _(n_fcast=12))
 \end{code}
 
 The \dtk{aus_holidays} dataset contains 80 quarterly observations from
 1998:1 to 2017:4, which will be used for training the model. The twelve
 added observations, 2018:1 to 2020:4, will then be used for an
-out-of-sample forecast.
+out-of-sample forecast. Since values were not specified for
+\texttt{theta} or \texttt{init}, both the parameters and the initializer
+for the Holt--Winters recursion are optimized automatically---see
+section~\ref{sec:details} for details.
 
-Since there's no call to \texttt{smpl} in the script above, $t_1$ and
+There being no call to \texttt{smpl} in the script above, $t_1$ and
 $t_2$ will be at their default values: in context, 1 and 92.  So the
 value of 12 for \dtk{n_fcast} selects just the added `empty'
 observations, giving a genuine out-of-sample forecast. In some cases one
@@ -165,38 +172,24 @@ that are present in the dataset but not used in estimation. With the
 Australian tourism data one could do something like the following
 \begin{code}
 open aus_holidays.gdt --frompkg=holt_winters
-bundle hwb = holt_winters(Trips, null, null, 0, 8)
+bundle hwb = holt_winters(Trips, _(n_fcast=8))
 \end{code}
 to get pretend out-of-sample forecasts for 2016:1 to 2017:4.
-
-\subsection{How does automatic selection work?}
-
-In the example above, with neither \texttt{theta} nor \texttt{init}
-given, the parameter values and initializer are jointly optimized, with
-the aim of minimizing the sum of squared forecast errors. The starting
-point for the parameters is $\alpha = \beta = \gamma = 0.2$; the
-starting point for the initializer is described in
-section~\ref{sec:init}. Optimization is performed using the constrained
-L-BFGS algorithm (see the chapter on Numerical methods in the \GUG).
-
-If an initializer is given via the \texttt{init} argument to
-\dtk{holt_winters} but \texttt{theta} is not given, then
-\texttt{theta} is optimized conditional on the supplied
-\texttt{init}. However, if \texttt{theta} is given but not
-\texttt{init} the initializer is simply as described in
-section~\ref{sec:init}.
 
 \section{Output details}
 \label{sec:out}
 
+\section{GUI usage}
+\label{sec:gui}
 
+\section{Technical details}
+\label{sec:details}
 
-\section{Rule-of-thumb initialization}
-\label{sec:init}
+\subsection{Rule-of-thumb initialization}
 
-If the \texttt{init} argument to \dtk{holt_winters} is not given, the
-initializer is calculated as per the suggestion in \cite{hyndman98}
-(also see \cite{hyndman2010}:
+If no \texttt{init} value is supplied by the caller of
+\dtk{holt_winters}, the initializer is calculated as per the suggestion
+in \cite{hyndman98} (also see \cite{hyndman2010}:
 \begin{itemize}
 \item The initial level, $\ell_{\tau-1}$, is set to the mean of the
   $m$ values $y_{\tau}, y_{\tau+1},\dots, y_{\tau+m-1}$.
@@ -206,24 +199,28 @@ initializer is calculated as per the suggestion in \cite{hyndman98}
     y_{\tau+i+m} - y_{\tau+i},\; i=0,1,\dots,m-1
  \]
 \item The initial seasonals are then set to the ratio of period-specific
-  $y_t$ to $\ell_{\tau-1}$ for the first $m$ observations (in the
-  multiplicative case) or the difference between $y_t$ and
+  $y_t$ to $\ell_{\tau-1}$ for the first $m$ observations
+  (multiplicative case) or the difference between $y_t$ and
   $\ell_{\tau-1}$ (additive case).
 \end{itemize}
-If \texttt{theta} is given by the caller this initializer is used as-is,
-otherwise it is taken as the starting point for joint optimization with
-$\theta$.
 
-\section{The additive method}
-\label{sec:additive}
+\subsection{Optimization}
 
-In this case the recursion is as follows:
-\begin{align*}
-  \ell_t &= \alpha (y_t - s_{t-m}) + (1-\alpha) (\ell_{t-1} + b_{t-1})\\
-  b_t &= \beta (\ell_t - \ell_{t-1}) + (1-\beta) b_{t-1}\\
-  s_t &= \gamma (y_t - \ell_t) + (1-\gamma) s_{t-m}\\
-  \hat{y}_{t+h|t} &= \ell_t + hb_t + s_{t+h-m(k+1)}
-\end{align*}
+If neither \texttt{theta} nor \texttt{init} is given, the parameter
+values and initializer are optimized jointly, with the criterion of
+minimizing the sum of squared forecast errors for the training
+range. The starting point for the parameters is
+$\alpha = \beta = 0.2, \gamma = 0.05$; the starting point for the
+initializer is as described above.  Optimization is performed using the
+L-BFGS algorithm (see the chapter on Numerical methods in the \GUG\ for
+details), with $\alpha$, $\beta$ and $\gamma$ constrained to lie in
+$[0,1]$.
+
+If an initializer is given by the caller but \texttt{theta} is not
+given, then $\theta$ is optimized conditional on the supplied
+\texttt{init}. In the converse case---\texttt{theta} is given but no
+\texttt{init}---the initializer is just the rule-of-thumb value; no
+optimization is performed.
 
 \bibliographystyle{gretl}
 \bibliography{gretl}

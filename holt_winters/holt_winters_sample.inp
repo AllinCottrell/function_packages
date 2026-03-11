@@ -2,7 +2,7 @@ include holt_winters.gfn
 open aus_holidays.gdt
 dataset addobs 12
 
-bundle hwb = holt_winters(Trips, null, null, 0, 12)
+bundle hwb = holt_winters(Trips, _(n_fcast=12))
 print hwb
 list L = mat2list(hwb.X)
 gnuplot y forecast --time --with-lines --output=display

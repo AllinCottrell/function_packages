@@ -103,7 +103,7 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
 
    if doinit
       scalar len = 3 + 2 + $pd
-      matrix b = {0.2; 0.2; 0.2} | init
+      matrix b = {0.2; 0.2; 0.05} | init
       matrix bounds = zeros(len, 3)
       loop i=1..len
          if i < 4
@@ -113,7 +113,7 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
          endif
       endloop
    else
-      matrix b = {0.2; 0.2; 0.2}
+      matrix b = {0.2; 0.2; 0.05}
       matrix bounds = {1,0,1; 2,0,1; 3,0,1}
       # set this just once
       X0[m,2] = init[1]
@@ -160,37 +160,67 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
    return b
 end function
 
-function void hw_checks (const series y, int t2)
+function void hw_checks (const series y, int t2,
+                         const matrix theta,
+                         const matrix init)
    if $pd == 1
       funcerr "Periodicity = 1, no seasonality!"
    endif
    smpl ; t2
    if sum(ok(y)) < $nobs
-      funcerr "Missing values in y"
+      funcerr "y has missing values"
    endif
+   if exists(theta)
+      if nelem(theta) != 3
+         funcerr "theta must be a 3-vector"
+      else
+         loop i=1..3
+            errorif(theta[i] < 0 || theta[i] > 1,
+              sprintf("theta[%d] is out of bounds", i))
+         endloop
+      endif
+   endif
+   scalar ni = exists(init) ? nelem(init) : 0
+   errorif(ni > 0 && ni != $pd + 2,
+     sprintf("init must have %d elements", $pd + 2))
+end function
+
+function bundle hw_default_args (void)
+   bundle b
+   b.theta = {0.2, 0.2, 0.05}'
+   b.init = {}
+   b.method = 2
+   b.n_fcast = 0
+   b.verbose = 1
+   b.bounds = _(method={1,2}, verbose={0,3}, n_fcast={0,NA})
+   return b
 end function
 
 function bundle holt_winters (const series y,
-                              matrix theta[auto] "α, β, γ",
-                              matrix init[auto] "initializer",
-                              int method[1:2:2] {"additive", "multiplicative"},
-                              int n_fcast[0::0],
-                              int verbose[0:3:1])
+                              const bundle specs)
    scalar m = $pd
    scalar t1 = $t1
-   scalar t2 = $nobs - n_fcast
    scalar h = 1
    scalar k = 0
-   series a b s f
    scalar SSE = 0
    scalar n = 0
    scalar doinit = 1
+
+   fixed_theta = inbundle(specs, "theta")
+   fixed_init = inbundle(specs, "theta")
+   bundle args = hw_default_args()
+   errorif(bcheck(&args, specs), "aborting")
+
+   scalar t2 = $nobs - args.n_fcast
+   hw_checks(y, t2, args.theta, args.init)
+
+   scalar method = args.method
+   scalar verbose = args.verbose
+   series a b s f
    list L = y a b s f
 
-   # basic checks
-   hw_checks(y, t2)
-
-   if exists(init)
+   if fixed_init
+      matrix init = args.init
       doinit = 0 # preserve the caller's init
    else
       matrix init = hw_auto_init(y, method)
@@ -199,8 +229,10 @@ function bundle holt_winters (const series y,
       print init
    endif
 
-   if !exists(theta)
-      theta = hw_auto_parms(L, t2, &init, doinit, method, verbose)
+   if fixed_theta
+      matrix theta = args.theta
+   else
+      matrix theta = hw_auto_parms(L, t2, &init, doinit, method, verbose)
       if !ok(theta[1])
          funcerr "Failed to estimate parameters"
       endif
@@ -268,4 +300,34 @@ function bundle holt_winters (const series y,
    bundle ret = _(theta, init, method, X, RMSE)
 
    return ret
+end function
+
+function scalar hw_precheck (void)
+   # return non-zero if dataset is not suitable:
+   # we require $pd > 1 and sufficient observations
+   return $pd == 1 || $nobs < 4 * $pd
+end function
+
+function bundle hw_ui_maker (void)
+   bundle b
+   b.alpha = _(depends="parms=2")
+   b.beta  = _(depends="parms=2")
+   b.gamma = _(depends="parms=2")
+   return b
+end function
+
+function bundle hw_gui (const series y,
+                        int parms[1:2:1] {"automatic", "pre-specified"},
+                        scalar alpha[0:1:0.2:0.0001] "level, α",
+                        scalar  beta[0:1:0.2:0.0001] "trend, β",
+                        scalar gamma[0:1:0.05:0.0001] "season, γ",
+                        int method[1:2:2] {"additive", "multiplicative"},
+                        int n_fcast[0::0],
+                        int verbose[0:3:1])
+   if parms == 1
+      return holt_winters(y, _(method, n_fcast, verbose))
+   else
+      matrix theta = {alpha, beta, gamma}
+      return holt_winters(y, _(theta, method, n_fcast, verbose))
+   endif
 end function
