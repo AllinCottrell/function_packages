@@ -7,11 +7,12 @@
 \usepackage[authoryear]{natbib}
 \usepackage{smallhds,url}
 \usepackage{hyperref}
+%\usepackage{verbatim} %,fancyvrb
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
 
-\hypersetup{pdftitle={holt_winters 0.1},
+\hypersetup{pdftitle={holt-winters 0.1},
             pdfauthor={Allin Cottrell},
             colorlinks=true,
             linkcolor=blue,
@@ -31,10 +32,9 @@
 
 \section{Introduction}
 
-This is a draft of a package to implement the Holt--Winters forecasting
-method, namely triple exponential smoothing with level, trend and
-seasonal components.  The package requires time-series data with a
-seasonal dimension.
+This package implements the Holt--Winters forecasting method, namely
+triple exponential smoothing with level, trend and seasonal components.
+It requires time-series data with a seasonal dimension.
 
 There are two variants of Holt--Winters, differing with respect to their
 treatment of the seasonal component, which can be either additive or
@@ -102,27 +102,27 @@ forecasting. The second (optional) bundle argument may contain one or
 more of the following options:
 
 \begin{itemize}
-\item \texttt{theta}: if supplied, this must be a 3-vector holding the
-  smoothing parameters $\theta$ = ($\alpha$, $\beta$, $\gamma$), with
-  $0 \le \theta_i \le 1,\, \forall i$.  If \texttt{parms} is not given
-  these parameters are determined automatically.
-\item \texttt{init}: if supplied, this must be a vector of length $2+m$
-  holding initial values. Let $\tau$ indicate the first observation for
-  which a forecast is wanted; then the \texttt{init} values should be
-  $\ell_{\tau-1}$, $b_{\tau-1}$, and $s_{\tau-i}, i = m, m-1,
-  \dots,1$. If \texttt{init} is not given the initializer is set
+\item \texttt{theta} (matrix): if supplied, this must be a 3-vector
+  holding the smoothing parameters $\theta$ = ($\alpha$, $\beta$,
+  $\gamma$), with $0 \le \theta_i \le 1,\, \forall i$.  If
+  \texttt{parms} is not given these parameters are determined
   automatically.
-\item \texttt{method}: an integer specifying the treatment of the
-  seasonal term as either additive (1) or multiplicative (2, the
-  default).
-\item \dtk{n_fcast}: an integer specifying the number of observations
-  at the end of the incoming sample range to reserve for out-of-sample
+\item \texttt{init} (matrix): if supplied, this must be a vector of
+  length $2+m$ holding initial values. Let $\tau$ indicate the first
+  observation used in the recursion; then the \texttt{init} values
+  should be $\ell_{\tau-1}$, $b_{\tau-1}$, and
+  $s_{\tau-i}, i = m, m-1, \dots,1$. If \texttt{init} is not given the
+  initializer is set automatically.
+\item \texttt{method} (integer): specifies the treatment of the seasonal
+  term as either additive (1) or multiplicative (2, the default).
+\item \dtk{n_fcast} (integer): specifies the number of observations at
+  the end of the incoming sample range to reserve for out-of-sample
   forecasting. The observations used for estimation/training will run
   from the beginning of the incoming sample range to the end of that
   range minus the value given for \dtk{n_fcast}. The default value is 0
   (filtering, with no out-of-sample forecast).
-\item \texttt{verbose}: an integer which controls the verbosity of
-  output, with levels 0, 1 (the default), 2 or 3.
+\item \texttt{verbose} (integer): controls the verbosity of output, with
+  levels 0, 1 (the default), 2 or 3.
 \end{itemize}
 
 \subsection{Return value}
@@ -148,7 +148,7 @@ This is a bundle containing the following elements:
 
 We'll start with a simple example---an approximate but passable
 replication of the multiplicative Australian tourism example given by
-\cite{hyndman2021}. Here's the hansl code:
+\cite{hyndman2021}. Here's the hansl code:\label{pg:ex1}
 \begin{code}
 open aus_holidays.gdt --frompkg=holt_winters
 dataset addobs 12
@@ -157,10 +157,10 @@ bundle hwb = holt_winters(Trips, _(n_fcast=12))
 
 The \dtk{aus_holidays} dataset contains 80 quarterly observations from
 1998:1 to 2017:4, which will be used for training the model. The twelve
-added observations, 2018:1 to 2020:4, will then be used for an
-out-of-sample forecast. Since values were not specified for
+added observations, 2018:1 to 2020:4, will then be used for
+out-of-sample forecasting. Since values are not specified for
 \texttt{theta} or \texttt{init}, both the parameters and the initializer
-for the Holt--Winters recursion are optimized automatically---see
+for the Holt--Winters recursion will be optimized automatically---see
 section~\ref{sec:details} for details.
 
 There being no call to \texttt{smpl} in the script above, $t_1$ and
@@ -178,6 +178,78 @@ to get pretend out-of-sample forecasts for 2016:1 to 2017:4.
 
 \section{Output details}
 \label{sec:out}
+
+Table~\ref{tab:verbose} shows what is printed by \dtk{holt_winters} as a
+function of the verbose option. An example of the table of results
+displayed when \texttt{verbose} is 1 or greater is presented in the
+lower part of listing~\ref{list:results}. The matrix \texttt{X} that's
+included in the bundle returned by \dtk{holt_winters} is basically a
+matrix version of this table, with somewhat more descriptive column
+headings. If you want to grab the columns of \texttt{X} as a list of
+series you can do something like
+\begin{code}
+bundle hwb = holt_winters(Trips, _(n_fcast=12))
+list L = mat2list{hwb.X}
+list L print # show the members of L
+\end{code}
+
+\begin{table}[htbp]
+  \caption{Effect of the verbose option}
+  \label{tab:verbose}  
+  \begin{tabular}{cp{4.5in}}
+    \textit{verbose} & \textit{cumulative effect} \\[6pt]
+    0 & Nothing is printed. \\
+    1 & Parameters and initializer are reported, also a table
+        of results (see below) and the SSE and RMSE for the
+        training data.\\
+    2 & If optimization is performed, partial information on
+        progress of the iterative procedure is shown. \\
+    3 & If optimization is performed, progress of the
+        optimizer is shown in full.
+  \end{tabular}
+\end{table}
+
+\begin{script}[htbp]
+    \caption{Partial listing of results from the first example on
+      page~\ref{pg:ex1}: \texttt{y} = original data,
+      \texttt{a} = level, \texttt{b} = trend,
+      \texttt{s} = seasonal, \texttt{f} = forecast. Forecasts
+    for 2018:1 and beyond are out-of-sample.}
+  \label{list:results}
+\begin{code}
+estimated initializer:
+
+level       9.7602 
+trend    -0.028109 
+seas1       1.1804 
+seas2      0.98165 
+seas3      0.94105 
+seas4      0.95808
+
+SSE = 13.4951, RMSE = 0.410718
+
+                  y            a            b            s            f
+
+1998:1     11.80604      9.79856     -0.01994     1.180433     11.48812
+1998:2      9.27566      9.69731     -0.02994     0.981654      9.59922
+1998:3      8.64249      9.54811     -0.04460     0.941049      9.09748
+1998:4      9.29952      9.55357     -0.03844     0.958077      9.10509
+...
+2017:1     12.40642     10.63437      0.08623     1.180433     12.60120
+2017:2     10.47120     10.70735      0.08460     0.981654     10.52392
+2017:3     10.49917     10.88197      0.09567     0.941049     10.15576
+2017:4     11.21082     11.15617    0.1176140     0.958077     10.51742
+2018:1                                                         13.30794
+2018:2                                                         11.18241
+2018:3                                                         10.83055
+2018:4                                                         11.13920
+2019:1                                                         13.86328
+2019:2                                                         11.64423
+2019:3                                                         11.27327
+2019:4                                                         11.58993
+...
+\end{code}
+\end{script}
 
 \section{GUI usage}
 \label{sec:gui}
