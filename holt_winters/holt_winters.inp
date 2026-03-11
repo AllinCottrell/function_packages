@@ -47,7 +47,7 @@ function matrix hw_auto_init (series y "Target series",
 end function
 
 function scalar hw_crit (matrix parms, matrix *X,
-                         int method, bool doinit)
+                         int method, int optim)
    # BFGS callback: determine SSE given @parms
    scalar α = parms[1]
    scalar β = parms[2]
@@ -59,7 +59,7 @@ function scalar hw_crit (matrix parms, matrix *X,
 
    # note: X = X0 | {y, a, b, s, f}
 
-   if doinit
+   if optim == 2
       # optimizing the initializer: reset using @parms
       X[m,2] = parms[4]
       X[m,3] = parms[5]
@@ -96,12 +96,12 @@ function scalar hw_crit (matrix parms, matrix *X,
 end function
 
 function matrix hw_auto_parms (list L, int t2, matrix *init,
-                               bool doinit, int method,
+                               int optim, int method,
                                int verbose)
    # driver for automatic estimation of parameters
    matrix X0 = NA * ones($pd,5)
 
-   if doinit
+   if optim == 2
       scalar len = 3 + 2 + $pd
       matrix b = {0.2; 0.2; 0.05} | init
       matrix bounds = zeros(len, 3)
@@ -136,18 +136,18 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
       set max_verbose on
       set bfgs_verbskip 5
    endif
-   catch C = BFGScmin(&b, bounds, hw_crit(b, &X, method, doinit))
+   catch C = BFGScmin(&b, bounds, hw_crit(b, &X, method, optim))
    err = $error
    if err
       printf "Got error %d from BFGScmin\n", err
-      eval hw_crit(b, &X, method, doinit)
+      eval hw_crit(b, &X, method, optim)
       b[1] = NA
    else
       if verbose > 0
          printf "automatic parameter values:\n"
          printf "  α = %g, β = %g, γ = %g\n", b[1], b[2], b[3]
       endif
-      if doinit
+      if optim == 2
          loop i = 1..nelem(init)
             init[i] = b[3+i]
          endloop
@@ -166,8 +166,10 @@ function void hw_checks (const series y, int t2,
    if $pd == 1
       funcerr "Periodicity = 1, no seasonality!"
    endif
+   errorif(t2 - $t1 + 1 < 4 * $pd,
+     sprintf("Insufficient observations for training"))
    smpl ; t2
-   if sum(ok(y)) < $nobs
+   if 0 # sum(ok(y)) < $nobs
       funcerr "y has missing values"
    endif
    if exists(theta)
@@ -204,7 +206,7 @@ function bundle holt_winters (const series y,
    scalar k = 0
    scalar SSE = 0
    scalar n = 0
-   scalar doinit = 1
+   scalar optim = 2 # both theta and init
 
    fixed_theta = inbundle(specs, "theta")
    fixed_init = inbundle(specs, "theta")
@@ -213,7 +215,20 @@ function bundle holt_winters (const series y,
 
    scalar t2 = $nobs - args.n_fcast
    hw_checks(y, t2, args.theta, args.init)
-
+   # trim the tail of the sample range if needed
+   tmax = $t2
+   loop t=$t1..t2
+      if !ok(y[t])
+         tmax = t-1
+         break
+      endif
+   endloop
+   if tmax < t2
+      t2 = tmax + args.n_fcast
+      smpl ; t2
+      t2 -= args.n_fcast
+   endif
+   
    scalar method = args.method
    scalar verbose = args.verbose
    series a b s f
@@ -221,7 +236,7 @@ function bundle holt_winters (const series y,
 
    if fixed_init
       matrix init = args.init
-      doinit = 0 # preserve the caller's init
+      optim = 1 # theta only
    else
       matrix init = hw_auto_init(y, method)
    endif
@@ -231,8 +246,9 @@ function bundle holt_winters (const series y,
 
    if fixed_theta
       matrix theta = args.theta
+      optim = 0 # neither theta nor init
    else
-      matrix theta = hw_auto_parms(L, t2, &init, doinit, method, verbose)
+      matrix theta = hw_auto_parms(L, t2, &init, optim, method, verbose)
       if !ok(theta[1])
          funcerr "Failed to estimate parameters"
       endif
@@ -300,6 +316,16 @@ function bundle holt_winters (const series y,
    bundle ret = _(theta, init, method, X, RMSE)
 
    return ret
+end function
+
+function void hw_plot (const bundle *b,
+                       int ptype[1:2:1] {"actual and forecast", "components"})
+   list L = mat2list(b.X)
+   if ptype == 1
+      gnuplot y forecast --time --with-lines --output=display
+   else
+      tsplots level trend seasonal --output=display
+   endif
 end function
 
 function scalar hw_precheck (void)

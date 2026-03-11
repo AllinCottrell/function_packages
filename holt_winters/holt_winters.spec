@@ -12,6 +12,7 @@ public = holt_winters hw_gui
 gui-main = hw_gui
 gui-precheck = hw_precheck
 ui-maker = hw_ui_maker
+bundle-plot = hw_plot
 help = holt_winters.pdf
 data-files = aus_holidays.gdt
 sample-script = holt_winters_sample.inp
