@@ -2,10 +2,10 @@ DOC = holt_winters.pdf
 SRC = holt_winters.tex
 
 $(DOC): $(SRC)
-	pdflatex $<
+	xelatex $<
 	bibtex holt_winters.aux
-	pdflatex $<
-	pdflatex $<
+	xelatex $<
+	xelatex $<
 
 clean:
 	rm -f *.aux *.log *.out *.bbl *.blg *~ $(DOC)

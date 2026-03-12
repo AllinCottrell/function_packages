@@ -1,5 +1,7 @@
 \documentclass{article}
 \usepackage[nohead]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{fontspec}
 \usepackage{amsmath}
 \usepackage{verbatim,fancyvrb}
 \usepackage{color,gretl}
@@ -9,8 +11,13 @@
 \usepackage{hyperref}
 %\usepackage{verbatim} %,fancyvrb
 
+\setmonofont{DejaVu Sans Mono}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
+
+%\DeclareUnicodeCharacter{03B1}{\textalpha}
+%\DeclareUnicodeCharacter{03B2}{\textbeta}
+%\DeclareUnicodeCharacter{03B3}{\textalpha}
 
 \hypersetup{pdftitle={holt-winters 0.1},
             pdfauthor={Allin Cottrell},
@@ -31,10 +38,14 @@
 \end{center}
 
 \section{Introduction}
+\label{sec:intro}
 
 This package implements the Holt--Winters forecasting method, namely
 triple exponential smoothing with level, trend and seasonal components.
-It requires time-series data with a seasonal dimension.
+It requires time-series data with a seasonal dimension. Quarterly or
+monthly data are the best bet for suitability. Daily or hourly data
+might be suitable, subject to the qualifications noted in
+section~\ref{sec:daily}.
 
 There are two variants of Holt--Winters, differing with respect to their
 treatment of the seasonal component, which can be either additive or
@@ -67,7 +78,7 @@ start and end of this range as $t_1$ and
 $t_2$, respectively.\footnote{This range can be set via the
   \texttt{smpl} command. If \texttt{smpl} has not been invoked since a
   dataset was opened $t_1$ will equal 1 and
-  $t2$ will equal the total number of observations.} The package will
+  $t_2$ will equal the total number of observations.} The package will
 operate on one or two contiguous sub-ranges:
 \begin{enumerate}
 \item a training or estimation range, starting at
@@ -86,9 +97,9 @@ target series in that range. It's OK if there are missing values in the
 second range, and in fact if there any are non-missing values they will
 be ignored. If you just want to use Holt--Winters as a
 filter---decomposing a series into its components---and don't care about
-out-of-sample forecasts, it's OK to have $n=0$, but then you should
-ensure that $t_2$ is set to exclude any trailing missing values for the
-input series.
+out-of-sample forecasts, it's OK to have $n=0$. Then the function will
+try to ensure that any trailing missing values of the input series are
+excluded.
 
 \section{The public function}
 
@@ -117,10 +128,8 @@ more of the following options:
   term as either additive (1) or multiplicative (2, the default).
 \item \dtk{n_fcast} (integer): specifies the number of observations at
   the end of the incoming sample range to reserve for out-of-sample
-  forecasting. The observations used for estimation/training will run
-  from the beginning of the incoming sample range to the end of that
-  range minus the value given for \dtk{n_fcast}. The default value is 0
-  (filtering, with no out-of-sample forecast).
+  forecasting. The default value is 0 (filtering, with no out-of-sample
+  forecast).
 \item \texttt{verbose} (integer): controls the verbosity of output, with
   levels 0, 1 (the default), 2 or 3.
 \end{itemize}
@@ -217,6 +226,9 @@ list L print # show the members of L
     for 2018:1 and beyond are out-of-sample.}
   \label{list:results}
 \begin{code}
+automatic parameter values:
+  α = 0.246679, β = 0.122927, γ = 0
+
 estimated initializer:
 
 level       9.7602 
@@ -243,10 +255,6 @@ SSE = 13.4951, RMSE = 0.410718
 2018:2                                                         11.18241
 2018:3                                                         10.83055
 2018:4                                                         11.13920
-2019:1                                                         13.86328
-2019:2                                                         11.64423
-2019:3                                                         11.27327
-2019:4                                                         11.58993
 ...
 \end{code}
 \end{script}
@@ -277,11 +285,13 @@ level, trend and seasonal components.
 \section{Technical details}
 \label{sec:details}
 
-\subsection{Rule-of-thumb initialization}
+This section offers some details on the rule-of-thumb initialization
+with which the Holt--Winters recursion is started, and the optimization
+that is carried out if \texttt{init} and/or \texttt{theta} are not given
+by the caller.
 
-If no \texttt{init} value is supplied by the caller of
-\dtk{holt_winters}, the initializer is calculated as per the suggestion
-in \cite{hyndman98} (also see \cite{hyndman2010}:
+First, when \texttt{init} is not supplied, the initializer is calculated
+as per the suggestion in \cite{hyndman98} (also see \cite{hyndman2010}:
 \begin{itemize}
 \item The initial level, $\ell_{\tau-1}$, is set to the mean of the
   $m$ values $y_{\tau}, y_{\tau+1},\dots, y_{\tau+m-1}$.
@@ -296,23 +306,44 @@ in \cite{hyndman98} (also see \cite{hyndman2010}:
   $\ell_{\tau-1}$ (additive case).
 \end{itemize}
 
-\subsection{Optimization}
+As regards optimization, three cases arise.
+\begin{itemize}
+\item If neither \texttt{theta} nor \texttt{init} is given, the
+  parameter values and initializer are optimized jointly, with the
+  criterion of minimizing the sum of squared forecast errors for the
+  training range. The starting point for the parameters is
+  $\alpha = \beta = 0.2, \gamma = 0.05$; the starting point for the
+  initializer is as described above. Optimization is performed using the
+  L-BFGS algorithm (see the chapter on Numerical methods in the \GUG\
+  for details), with $\alpha$, $\beta$ and $\gamma$ constrained to lie
+  in $[0,1]$.
+\item If an initializer is given by the caller but \texttt{theta} is not
+  given, then $\theta$ is optimized conditional on the supplied
+  \texttt{init}.
+\item If \texttt{theta} is given but not \texttt{init}, the initializer
+  is just the rule-of-thumb value; no optimization is performed. In
+  principle the initializer could be optimized conditional on $\theta$
+  and that's a possible future refinement if it seems there's a real use
+  case.
+\end{itemize}
 
-If neither \texttt{theta} nor \texttt{init} is given, the parameter
-values and initializer are optimized jointly, with the criterion of
-minimizing the sum of squared forecast errors for the training
-range. The starting point for the parameters is
-$\alpha = \beta = 0.2, \gamma = 0.05$; the starting point for the
-initializer is as described above.  Optimization is performed using the
-L-BFGS algorithm (see the chapter on Numerical methods in the \GUG\ for
-details), with $\alpha$, $\beta$ and $\gamma$ constrained to lie in
-$[0,1]$.
+\section{Daily and hourly data}
+\label{sec:daily}
 
-If an initializer is given by the caller but \texttt{theta} is not
-given, then $\theta$ is optimized conditional on the supplied
-\texttt{init}. In the converse case---\texttt{theta} is given but no
-\texttt{init}---the initializer is just the rule-of-thumb value; no
-optimization is performed.
+As mentioned in section~\ref{sec:intro}, the Holt--Winters procedure may
+be applicable to daily data, with $m$ = 5, 6 or 7 days per
+week. In this context `seasonality' means intra-week
+variability. However, the results will be meaningful only if the data
+are `complete', in the sense that each week in the sample range includes
+$m$ valid daily observations. It should go without saying that financial
+market data, even if complete, are unlikely to be suitable since
+seasonal variation would be a clear violation of market efficiency (in
+the narrow sense in which market efficiency is a plausible hypothesis).
+
+Gretl also supports hourly data ($m=24$) and Holt--Winters may work if
+there's `seasonality' in the form of intra-day variability. Again,
+however, the series in question has to be complete over the given sample
+range.
 
 \bibliographystyle{gretl}
 \bibliography{gretl}

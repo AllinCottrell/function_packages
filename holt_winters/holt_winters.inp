@@ -224,6 +224,7 @@ function bundle holt_winters (const series y,
    scalar SSE = 0
    scalar n = 0
    scalar optim = 2 # both theta and init
+   # string yname = argname(y, "y")
 
    fixed_theta = inbundle(specs, "theta")
    fixed_init = inbundle(specs, "theta")
@@ -231,7 +232,7 @@ function bundle holt_winters (const series y,
    errorif(bcheck(&args, specs), "aborting")
 
    hw_checks(y, args.theta, args.init)
-
+   
    matrix limits = hw_ranges(y, args.n_fcast)
    scalar t1 = limits[1]
    scalar t2 = limits[2]
