@@ -11,6 +11,7 @@ data-requirement = needs-time-series-data
 public = holt_winters hw_gui
 gui-main = hw_gui
 gui-precheck = hw_precheck
+gui-help = hw_gui_help.md
 ui-maker = hw_ui_maker
 bundle-plot = hw_plot
 help = holt_winters.pdf

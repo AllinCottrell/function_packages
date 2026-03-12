@@ -160,17 +160,34 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
    return b
 end function
 
-function void hw_checks (const series y, int t2,
+function matrix hw_ranges (const series y, int nfc)
+   matrix ret = zeros(1,3)
+   catch smpl --contiguous y
+   if $error
+      funcerr "Missing values encountered"
+   endif
+   ret[1] = $t1
+   ret[2] = $t2
+   scalar tail = $tmax - $t2
+   if tail == nfc
+      ret[3] = $tmax
+   elif tail > nfc
+      ret[3] = $t2 + nfc
+   elif tail < nfc
+      ret[2] -= nfc - tail
+      ret[3] = $tmax
+   endif
+   ntrain = ret[2] - ret[1] + 1
+   errorif(ntrain < 4 * $pd, 
+     "Insufficient observations for training")
+   return ret
+end function
+
+function void hw_checks (const series y,
                          const matrix theta,
                          const matrix init)
    if $pd == 1
       funcerr "Periodicity = 1, no seasonality!"
-   endif
-   errorif(t2 - $t1 + 1 < 4 * $pd,
-     sprintf("Insufficient observations for training"))
-   smpl ; t2
-   if 0 # sum(ok(y)) < $nobs
-      funcerr "y has missing values"
    endif
    if exists(theta)
       if nelem(theta) != 3
@@ -213,21 +230,14 @@ function bundle holt_winters (const series y,
    bundle args = hw_default_args()
    errorif(bcheck(&args, specs), "aborting")
 
-   scalar t2 = $nobs - args.n_fcast
-   hw_checks(y, t2, args.theta, args.init)
-   # trim the tail of the sample range if needed
-   tmax = $t2
-   loop t=$t1..t2
-      if !ok(y[t])
-         tmax = t-1
-         break
-      endif
-   endloop
-   if tmax < t2
-      t2 = tmax + args.n_fcast
-      smpl ; t2
-      t2 -= args.n_fcast
-   endif
+   hw_checks(y, args.theta, args.init)
+   
+   matrix limits = hw_ranges(y, args.n_fcast)
+   scalar t1 = limits[1]
+   scalar t2 = limits[2]
+   scalar t3 = limits[3]
+   smpl t1 t3
+   smpl
    
    scalar method = args.method
    scalar verbose = args.verbose
@@ -276,14 +286,14 @@ function bundle holt_winters (const series y,
          a[t] = α * (y[t] − s_1) + (1−α) * (a_ + b_)
          b[t] = β * (a[t] - a_) + (1-β) * b_
          s[t] = γ * (y[t] − a[t]) + (1−γ) * s_1
-         if t < $t2
+         if t < t3
             f[t+1] = a[t] + b[t] + s_2
          endif
       else
          a[t] = α * (y[t] / s_1) + (1-α) * (a_ + b_)
          b[t] = β * (a[t] - a_) + (1-β) * b_
          s[t] = γ * y[t] / a[t] + (1-γ) * s_1
-         if t < $t2
+         if t < t3
             f[t+1] = (a[t] + b[t]) * s_2
          endif
       endif
@@ -293,7 +303,7 @@ function bundle holt_winters (const series y,
          n++
       endif
    endloop
-   loop t=t2+1..$nobs-1
+   loop t=t2+1..t3-1
       # out of sample
       h++
       k = floor((h-1)/m)
