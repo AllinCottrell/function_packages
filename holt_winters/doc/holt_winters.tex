@@ -1,6 +1,5 @@
 \documentclass{article}
 \usepackage[nohead]{geometry}
-\usepackage[utf8]{inputenc}
 \usepackage{fontspec}
 \usepackage{amsmath}
 \usepackage{verbatim,fancyvrb}
@@ -9,7 +8,6 @@
 \usepackage[authoryear]{natbib}
 \usepackage{smallhds,url}
 \usepackage{hyperref}
-%\usepackage{verbatim} %,fancyvrb
 
 \setmonofont{DejaVu Sans Mono}
 \setlength{\parindent}{0pt}
@@ -25,7 +23,6 @@
             linkcolor=blue,
             urlcolor=red,
             citecolor=steel,
-            bookmarks=true,
             bookmarksnumbered=true,
             plainpages=false
 }
@@ -71,15 +68,14 @@ Multiplicative:
   \hat{y}_{t+h|t} &= (\ell_t + hb_t)\, s_{t+h-m(k+1)}
 \end{align*}
 
-It may be helpful to start with an overview. Like most functions in
-gretl, \dtk{holt_winters} confines its operations to the sample range
-in force when the function is called. We'll refer to the (1-based)
-start and end of this range as $t_1$ and
-$t_2$, respectively.\footnote{This range can be set via the
+Like most functions in gretl, \dtk{holt_winters} confines its
+operations to the sample range in force when the function is
+called. We'll refer to the (1-based) start and end of this range as
+$t_1$ and $t_2$, respectively.\footnote{This range can be set via the
   \texttt{smpl} command. If \texttt{smpl} has not been invoked since a
-  dataset was opened $t_1$ will equal 1 and
-  $t_2$ will equal the total number of observations.} The package will
-operate on one or two contiguous sub-ranges:
+  dataset was opened $t_1$ will equal 1 and $t_2$ will equal the total
+  number of observations.} The package will operate on one or two
+contiguous sub-ranges:
 \begin{enumerate}
 \item a training or estimation range, starting at
   $t_1$, where the Holt--Winters recursion is applied and
@@ -156,8 +152,9 @@ This is a bundle containing the following elements:
 \label{sec:auto}
 
 We'll start with a simple example---an approximate but passable
-replication of the multiplicative Australian tourism example given by
-\cite{hyndman2021}. Here's the hansl code:\label{pg:ex1}
+replication of the Australian tourism example given by
+\cite{hyndman2021} (multiplicative variant). Here's the hansl
+code:\label{pg:ex1}
 \begin{code}
 open aus_holidays.gdt --frompkg=holt_winters
 dataset addobs 12
@@ -188,14 +185,14 @@ to get pretend out-of-sample forecasts for 2016:1 to 2017:4.
 \section{Output details}
 \label{sec:out}
 
-Table~\ref{tab:verbose} shows what is printed by \dtk{holt_winters} as a
-function of the verbose option. An example of the table of results
-displayed when \texttt{verbose} is 1 or greater is presented in the
-lower part of listing~\ref{list:results}. The matrix \texttt{X} that's
-included in the bundle returned by \dtk{holt_winters} is basically a
-matrix version of this table, with somewhat more descriptive column
-headings. If you want to grab the columns of \texttt{X} as a list of
-series you can do something like
+Table~\ref{tab:verbose} shows what is printed by \dtk{holt_winters} as
+a function of the \texttt{verbose} option. An example of the table of
+results displayed when \texttt{verbose} is 1 or greater is presented
+in the lower part of listing~\ref{list:results}. The matrix \texttt{X}
+that's included in the bundle returned by \dtk{holt_winters} is
+basically a matrix version of this table, with somewhat more
+descriptive column headings. If you want to grab the columns of
+\texttt{X} as a list of series you can do something like
 \begin{code}
 bundle hwb = holt_winters(Trips, _(n_fcast=12))
 list L = mat2list{hwb.X}
@@ -330,7 +327,7 @@ As regards optimization, three cases arise.
 \section{Daily and hourly data}
 \label{sec:daily}
 
-As mentioned in section~\ref{sec:intro}, the Holt--Winters procedure may
+As mentioned in section~\ref{sec:intro} the Holt--Winters procedure may
 be applicable to daily data, with $m$ = 5, 6 or 7 days per
 week. In this context `seasonality' means intra-week
 variability. However, the results will be meaningful only if the data
@@ -341,7 +338,7 @@ seasonal variation would be a clear violation of market efficiency (in
 the narrow sense in which market efficiency is a plausible hypothesis).
 
 Gretl also supports hourly data ($m=24$) and Holt--Winters may work if
-there's `seasonality' in the form of intra-day variability. Again,
+there's seasonality in the form of intra-day variability. Again,
 however, the series in question has to be complete over the given sample
 range.
 
