@@ -254,6 +254,26 @@ SSE = 13.4951, RMSE = 0.410718
 \section{GUI usage}
 \label{sec:gui}
 
+When you install this package you should get the option of attaching it
+as the menu item \textsf{Variable/Filter/Holt-Winters} in gretl's main
+window. Clicking this item brings up the dialog box shown in
+Figure~\ref{fig:dialog}.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[scale=0.65]{hw_dialog}
+  \caption{Holt--Winters dialog, under the Variable/Filter menu}
+  \label{fig:dialog}
+\end{figure}
+
+Hopefully the choices available in the dialog are fairly
+self-explanatory, but clicking the \textsf{Help} button will bring up a
+brief explanation of each control. On clicking \textsf{OK} you should
+get a window showing the results. The toolbar at the top of this
+window includes a \textsf{Graph} button which gives access to two types
+of plot, one showing actual and forecast \texttt{y} and one showing the
+level, trend and seasonal components.
+
 \section{Technical details}
 \label{sec:details}
 

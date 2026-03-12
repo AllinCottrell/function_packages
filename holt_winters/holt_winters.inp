@@ -178,7 +178,7 @@ function matrix hw_ranges (const series y, int nfc)
       ret[3] = $tmax
    endif
    ntrain = ret[2] - ret[1] + 1
-   errorif(ntrain < 4 * $pd, 
+   errorif(ntrain < 4 * $pd,
      "Insufficient observations for training")
    return ret
 end function
@@ -231,18 +231,27 @@ function bundle holt_winters (const series y,
    errorif(bcheck(&args, specs), "aborting")
 
    hw_checks(y, args.theta, args.init)
-   
+
    matrix limits = hw_ranges(y, args.n_fcast)
    scalar t1 = limits[1]
    scalar t2 = limits[2]
    scalar t3 = limits[3]
    smpl t1 t3
-   smpl
-   
+
    scalar method = args.method
    scalar verbose = args.verbose
    series a b s f
    list L = y a b s f
+
+   if verbose > 0
+      printf "Recursion will run from %s to %s\n",
+        obslabel(t1), obslabel(t2)
+      if args.n_fcast > 0
+         printf "Out-of-sample forecast: %s to %s\n",
+           obslabel(t2+1), obslabel(t3)
+      endif
+      printf "\n"
+   endif
 
    if fixed_init
       matrix init = args.init
@@ -297,11 +306,9 @@ function bundle holt_winters (const series y,
             f[t+1] = (a[t] + b[t]) * s_2
          endif
       endif
-      if ok(f[t])
-         scalar u = y[t] - f[t]
-         SSE += u*u
-         n++
-      endif
+      scalar u = y[t] - f[t]
+      SSE += u*u
+      n++
    endloop
    loop t=t2+1..t3-1
       # out of sample
