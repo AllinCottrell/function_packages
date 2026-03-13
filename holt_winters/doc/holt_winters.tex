@@ -9,15 +9,10 @@
 \usepackage{smallhds,url}
 \usepackage{hyperref}
 
-%\setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]
 \setmonofont{DejaVu Sans Mono}[Scale=0.9]
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
-
-%\DeclareUnicodeCharacter{03B1}{\textalpha}
-%\DeclareUnicodeCharacter{03B2}{\textbeta}
-%\DeclareUnicodeCharacter{03B3}{\textalpha}
 
 \hypersetup{pdftitle={holt-winters 0.1},
             pdfauthor={Allin Cottrell},
@@ -33,18 +28,18 @@
 
 \begin{center}
   {\Large \textbf{holt\_winters 0.1}} \\[6pt]
-  Allin, 2026-03-09
+  Allin, 2026-03-13
 \end{center}
 
 \section{Introduction}
 \label{sec:intro}
 
 This package implements the Holt--Winters forecasting method, namely
-triple exponential smoothing with level, trend and seasonal components.
-It requires time-series data with a seasonal dimension. Quarterly or
-monthly data are the best bet for suitability. Daily or hourly data
-might be suitable, subject to the qualifications noted in
-section~\ref{sec:daily}.
+triple exponential smoothing with level, trend and seasonal components
+\citep{holt57,winters60}.  It requires time-series data with a
+seasonal dimension. Quarterly or monthly data are the best bet for
+suitability. Daily or hourly data might be suitable, subject to the
+qualifications noted in section~\ref{sec:daily}.
 
 There are two variants of Holt--Winters, differing with respect to their
 treatment of the seasonal component, which can be either additive or
@@ -102,9 +97,9 @@ excluded.
 \section{The public function}
 
 The \dtk{holt_winters} function has the following signature:
-\begin{code}
+\begin{nscode}
 function bundle holt_winters (const series y, const bundle specs)
-\end{code}
+\end{nscode}
 
 The required argument \texttt{y} specifies the series for filtering and
 forecasting. The second (optional) bundle argument may contain one or
@@ -157,11 +152,11 @@ We'll start with a simple example---an approximate but passable
 replication of the Australian tourism example given by
 \cite{hyndman2021} (multiplicative variant). Here's the hansl
 code:\label{pg:ex1}
-\begin{code}
+\begin{nscode}
 open aus_holidays.gdt --frompkg=holt_winters
 dataset addobs 12
 bundle hwb = holt_winters(Trips, _(n_fcast=12))
-\end{code}
+\end{nscode}
 
 The \dtk{aus_holidays} dataset contains 80 quarterly observations from
 1998:1 to 2017:4, which will be used for training the model. The twelve
@@ -178,10 +173,10 @@ observations, giving a genuine out-of-sample forecast. In some cases one
 might want a `pretend' out-of-sample forecast---a `forecast' of values
 that are present in the dataset but not used in estimation. With the
 Australian tourism data one could do something like the following
-\begin{code}
+\begin{nscode}
 open aus_holidays.gdt --frompkg=holt_winters
 bundle hwb = holt_winters(Trips, _(n_fcast=8))
-\end{code}
+\end{nscode}
 to get pretend out-of-sample forecasts for 2016:1 to 2017:4.
 
 \section{Output details}
@@ -195,11 +190,11 @@ that's included in the bundle returned by \dtk{holt_winters} is
 basically a matrix version of this table, with somewhat more
 descriptive column headings. If you want to grab the columns of
 \texttt{X} as a list of series you can do something like
-\begin{code}
+\begin{nscode}
 bundle hwb = holt_winters(Trips, _(n_fcast=12))
 list L = mat2list{hwb.X}
 list L print # show the members of L
-\end{code}
+\end{nscode}
 
 \begin{table}[htbp]
   \caption{Effect of the verbose option}
