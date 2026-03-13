@@ -102,6 +102,7 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
    matrix X0 = NA * ones($pd,5)
 
    if optim == 2
+      # optimizing both theta and init
       scalar len = 3 + 2 + $pd
       matrix b = {0.2; 0.2; 0.05} | init
       matrix bounds = zeros(len, 3)
@@ -113,9 +114,10 @@ function matrix hw_auto_parms (list L, int t2, matrix *init,
          endif
       endloop
    else
+      # optimizing theta conditional on init
       matrix b = {0.2; 0.2; 0.05}
       matrix bounds = {1,0,1; 2,0,1; 3,0,1}
-      # set this just once
+      # set the initializer just once
       X0[m,2] = init[1]
       X0[m,3] = init[2]
       X0[1:m,4] = init[3:]
@@ -216,7 +218,7 @@ function bundle hw_default_args (void)
 end function
 
 function bundle holt_winters (const series y,
-                              const bundle specs)
+                              const bundle specs[null])
    scalar m = $pd
    scalar t1 = $t1
    scalar h = 1
@@ -229,7 +231,9 @@ function bundle holt_winters (const series y,
    fixed_theta = inbundle(specs, "theta")
    fixed_init = inbundle(specs, "theta")
    bundle args = hw_default_args()
-   errorif(bcheck(&args, specs), "aborting")
+   if exists(specs)
+      errorif(bcheck(&args, specs), "aborting")
+   endif
 
    hw_checks(y, args.theta, args.init)
    
@@ -248,10 +252,11 @@ function bundle holt_winters (const series y,
       printf "Recursion will run from %s to %s\n",
         obslabel(t1), obslabel(t2)
       if args.n_fcast > 0
-         printf "Out-of-sample forecast: %s to %s\n",
+         printf "Out-of-sample forecast: %s to %s\n\n",
            obslabel(t2+1), obslabel(t3)
+      else
+         printf "Out-of-sample forecast: none\n\n",
       endif
-      printf "\n"
    endif
 
    if fixed_init
@@ -286,7 +291,7 @@ function bundle holt_winters (const series y,
    endif
 
    loop t = t1..t2
-      # within sample
+      # within sample recursion
       i = 1 + t - t1
       s_1 = i <= m ? init[2+i] : s[t−m]
       s_2 =  i < m ? init[3+i] : s[t+1−m]
@@ -312,7 +317,7 @@ function bundle holt_winters (const series y,
       n++
    endloop
    loop t=t2+1..t3-1
-      # out of sample
+      # out of sample forecasts
       h++
       k = floor((h-1)/m)
       if method == 1
