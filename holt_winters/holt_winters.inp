@@ -255,7 +255,7 @@ function bundle holt_winters (const series y,
          printf "Out-of-sample forecast: %s to %s\n\n",
            obslabel(t2+1), obslabel(t3)
       else
-         printf "Out-of-sample forecast: none\n\n",
+         printf "Out-of-sample forecast: none\n\n"
       endif
    endif
 
