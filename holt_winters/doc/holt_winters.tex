@@ -98,12 +98,13 @@ excluded.
 
 The \dtk{holt_winters} function has the following signature:
 \begin{nscode}
-function bundle holt_winters (const series y, const bundle specs)
+function bundle holt_winters (const series y, const bundle specs[null])
 \end{nscode}
 
-The required argument \texttt{y} specifies the series for filtering and
-forecasting. The second (optional) bundle argument may contain one or
-more of the following options:
+The required argument \texttt{y} specifies the series to be processed.
+The second argument---which can be omitted, as indicated by the
+\texttt{null} modifier---may contain one or more of the following
+options:
 
 \begin{itemize}
 \item \texttt{theta} (matrix): if supplied, this must be a 3-vector
@@ -112,9 +113,9 @@ more of the following options:
   \texttt{parms} is not given these parameters are determined
   automatically.
 \item \texttt{init} (matrix): if supplied, this must be a vector of
-  length $2+m$ holding initial values. Let $\tau$ indicate the first
-  observation used in the recursion; then the \texttt{init} values
-  should be $\ell_{\tau-1}$, $b_{\tau-1}$, and
+  length $2+m$ holding initial values. If observation $\tau$ is the
+  first to be used in the recursion, the \texttt{init} values correspond
+  to $\ell_{\tau-1}$, $b_{\tau-1}$, and
   $s_{\tau-i}, i = m, m-1, \dots,1$. If \texttt{init} is not given the
   initializer is set automatically.
 \item \texttt{method} (integer): specifies the treatment of the seasonal
@@ -285,14 +286,15 @@ that is carried out if \texttt{init} and/or \texttt{theta} are not given
 by the caller.
 
 First, when \texttt{init} is not supplied, the initializer is calculated
-as per the suggestion in \cite{hyndman98} (also see \cite{hyndman2010}:
+as per the suggestion in \cite{hyndman98}, which is also described in
+\cite{hyndman2010}:
 \begin{itemize}
 \item The initial level, $\ell_{\tau-1}$, is set to the mean of the
   $m$ values $y_{\tau}, y_{\tau+1},\dots, y_{\tau+m-1}$.
 \item The initial trend, $b_{\tau-1}$, is set to the mean of the
-  $m$ seasonal differences
+  first $m$ seasonal differences:
  \[
-    y_{\tau+i+m} - y_{\tau+i},\; i=0,1,\dots,m-1
+    m^{-1} \sum_{i=0}^{m-1} \left(y_{\tau+i+m} - y_{\tau+i}\right)
  \]
 \item The initial seasonals are then set to the ratio of period-specific
   $y_t$ to $\ell_{\tau-1}$ for the first $m$ observations
