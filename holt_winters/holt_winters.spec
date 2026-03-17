@@ -1,7 +1,7 @@
 author = Allin Cottrell
 email = cottrell@wfu.edu
 version = 0.1
-date = 2026-03-11
+date = 2026-03-17
 tags = C53
 description = Holt-Winters
 label = Holt-Winters

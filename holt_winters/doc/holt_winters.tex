@@ -1,5 +1,6 @@
 \documentclass{article}
-\usepackage[nohead]{geometry}
+\usepackage[letterpaper,body={6.1in,9in},top=.8in,left=1.2in]{geometry}
+%\usepackage[nohead]{geometry}
 \usepackage{fontspec}
 \usepackage{amsmath}
 \usepackage{verbatim,fancyvrb}
@@ -28,7 +29,7 @@
 
 \begin{center}
   {\Large \textbf{holt\_winters 0.1}} \\[6pt]
-  Allin, 2026-03-13
+  Allin Cottrell, 2026-03-17
 \end{center}
 
 \section{Introduction}
@@ -94,9 +95,9 @@ out-of-sample forecasts, it's OK to have $n=0$. Then the function will
 try to ensure that any trailing missing values of the input series are
 excluded.
 
-\section{The public function}
+\section{The public functions}
 
-The \dtk{holt_winters} function has the following signature:
+The primary function has the following signature:
 \begin{nscode}
 function bundle holt_winters (const series y, const bundle specs[null])
 \end{nscode}
@@ -128,9 +129,8 @@ options:
   levels 0, 1 (the default), 2 or 3.
 \end{itemize}
 
-\subsection{Return value}
-
-This is a bundle containing the following elements:
+The return value from \dtk{holt_winters} is is a bundle containing the
+following elements:
 \begin{itemize}
 \item \texttt{theta}: a 3-vector holding the parameter values used in
   forecasting.
@@ -145,6 +145,15 @@ This is a bundle containing the following elements:
 \item \texttt{RMSE}: the root mean squared error for the 1-step ahead
   forecasts made using the training data.
 \end{itemize}
+
+A simple plotting function is also supplied:
+\begin{code}
+function void hw_plot (bundle *b, int ptype)
+\end{code}
+The first argument should be a bundle obtained from \dtk{holt_winters}
+and the second argument should be either 1, for a plot of actual and
+forecast values, or 2, for a tripartite plot of the level, trend and
+seasonal components.
 
 \section{Command-line usage}
 \label{sec:auto}
@@ -262,20 +271,28 @@ as the menu item \textsf{Variable/Filter/Holt-Winters} in gretl's main
 window. Clicking this item brings up the dialog box shown in
 Figure~\ref{fig:dialog}.
 
-\begin{figure}[htbp]
+\begin{figure}[htpb]
   \centering
   \includegraphics[scale=0.65]{hw_dialog}
   \caption{Holt--Winters dialog, under the Variable/Filter menu}
   \label{fig:dialog}
 \end{figure}
 
+\begin{figure}[p]
+  \centering
+  \includegraphics[scale=0.5]{output_window}
+  \caption{Holt--Winters output window}
+  \label{fig:output}
+\end{figure}
+
 Hopefully the choices available in the dialog are fairly
-self-explanatory, but clicking the \textsf{Help} button will bring up a
-brief explanation of each control. On clicking \textsf{OK} you should
-get a window showing the results. The toolbar at the top of this
-window includes a \textsf{Graph} button which gives access to two types
-of plot, one showing actual and forecast \texttt{y} and one showing the
-level, trend and seasonal components.
+self-explanatory, but clicking the \textsf{Help} button will bring up
+a brief explanation of each control. On clicking \textsf{OK} you
+should get a window showing the results (Figure~\ref{fig:output}). The
+toolbar at the top of this window includes a \textsf{Graph} button
+which gives access to two types of plot, one showing actual and
+forecast \texttt{y} and one showing the level, trend and seasonal
+components.
 
 \section{Technical details}
 \label{sec:details}
