@@ -1,7 +1,7 @@
 PREFIX = $(shell pkg-config --variable=prefix gretl)
 GFNDIR = $(PREFIX)/share/gretl/functions
-PKG = holt_winters
-DOC = doc/holt_winters.pdf
+PKG = Winters
+DOC = doc/Winters.pdf
 DATA = aus_holidays.gdt
 
 $(PKG).gfn: $(PKG).inp $(PKG).spec $(PKG)_sample.inp

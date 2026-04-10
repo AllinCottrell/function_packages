@@ -1,9 +1,9 @@
-DOC = holt_winters.pdf
-SRC = holt_winters.tex
+DOC = Winters.pdf
+SRC = Winters.tex
 
 $(DOC): $(SRC)
 	xelatex $<
-	bibtex holt_winters.aux
+	bibtex Winters.aux
 	xelatex $<
 	xelatex $<
 
