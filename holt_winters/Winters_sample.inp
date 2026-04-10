@@ -1,9 +1,9 @@
-include holt_winters.gfn
+include Winters.gfn
 open aus_holidays.gdt
 dataset addobs 12
 
-bundle hwb = holt_winters(Trips, _(n_fcast=12))
+bundle hwb = Winters(Trips)
 print hwb
-list L = mat2list(hwb.X)
+list L = mat2list(hwb.W)
 gnuplot y forecast --time --with-lines --output=display
 tsplots level trend seasonal --output=display
