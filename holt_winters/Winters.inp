@@ -199,15 +199,11 @@ function void winters_checks (const series y,
          endloop
       endif
    endif
-   scalar ni = exists(init) ? nelem(init) : 0
-   errorif(ni > 0 && ni != $pd + 2,
-     sprintf("init must have %d elements", $pd + 2))
 end function
 
 function bundle winters_default_args (void)
    bundle b
    b.theta = {0.2, 0.2, 0.05}'
-   b.init = {}
    b.formula = 2
    b.npred = 0
    b.verbose = 1
@@ -225,13 +221,11 @@ function bundle Winters (const series y,
    scalar n = 0
    scalar optim = 2 # both theta and init
    scalar fixed_theta = 0
-   scalar fixed_init = 0
    # string yname = argname(y, "y")
 
    bundle args = winters_default_args()
    if exists(specs)
       fixed_theta = inbundle(specs, "theta")
-      fixed_init = inbundle(specs, "init")
       errorif(bcheck(&args, specs), "aborting")
    endif
 
@@ -262,12 +256,7 @@ function bundle Winters (const series y,
       endif
    endif
 
-   if fixed_init
-      matrix init = args.init
-      optim = 1 # theta only
-   else
-      matrix init = winters_auto_init(y, formula)
-   endif
+   matrix init = winters_auto_init(y, formula)
    if verbose > 1
       print init
    endif
