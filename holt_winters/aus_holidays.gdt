@@ -2,7 +2,8 @@
 <!DOCTYPE gretldata SYSTEM "gretldata.dtd">
 
 <gretldata version="1.5" name="aus_holidays" frequency="4" n="80" startobs="1998:1" endobs="2017:4" type="time-series">
-<description>Data imported from CSV file 'aus_holidays.csv', 2026-03-05 10:42
+<description>Data imported from CSV file 'aus_holidays.csv'.
+See Table 8.3 in Rob Hyndman's https://otexts.com/fpp3/holt-winters.html
 </description>
 <variables count="1">
 <variable name="Trips"
