@@ -46,8 +46,7 @@ function matrix winters_auto_init (series y "Target series",
    return ret
 end function
 
-function scalar winters_crit (matrix parms, matrix *X,
-                              int formula, int optim)
+function scalar winters_crit (matrix parms, matrix *X, int formula)
    # BFGS callback: determine SSE given @parms
    scalar α = parms[1]
    scalar β = parms[2]
@@ -59,16 +58,14 @@ function scalar winters_crit (matrix parms, matrix *X,
 
    # note: X = X0 | {y, a, b, s, f}
 
-   if optim == 2
-      # optimizing the initializer: reset using @parms
-      X[m,2] = parms[4]
-      X[m,3] = parms[5]
-      X[1:m,4] = parms[6:]'
-      if formula == 1
-         X[m+1,5] = parms[4] + parms[5] + parms[6]
-      else
-         X[m+1,5] = (parms[4] + parms[5]) * parms[6]
-      endif
+   # for optimizing the initializer: reset using @parms
+   X[m,2] = parms[4]
+   X[m,3] = parms[5]
+   X[1:m,4] = parms[6:]'
+   if formula == 1
+      X[m+1,5] = parms[4] + parms[5] + parms[6]
+   else
+      X[m+1,5] = (parms[4] + parms[5]) * parms[6]
    endif
 
    # training data
@@ -96,37 +93,20 @@ function scalar winters_crit (matrix parms, matrix *X,
 end function
 
 function matrix winters_auto_parms (list L, int t2, matrix *init,
-                                    int optim, int formula,
-                                    int verbose)
+                                    int formula, int verbose)
    # driver for automatic estimation of parameters
    matrix X0 = NA * ones($pd,5)
 
-   if optim == 2
-      # optimizing both theta and init
-      scalar len = 3 + 2 + $pd
-      matrix b = {0.2; 0.2; 0.05} | init
-      matrix bounds = zeros(len, 3)
-      loop i=1..len
-         if i < 4
-            bounds[i,] = {i, 0, 1}
-         else
-            bounds[i,] = {i, -$huge, $huge}
-         endif
-      endloop
-   else
-      # optimizing theta conditional on init
-      matrix b = {0.2; 0.2; 0.05}
-      matrix bounds = {1,0,1; 2,0,1; 3,0,1}
-      # set the initializer just once
-      X0[m,2] = init[1]
-      X0[m,3] = init[2]
-      X0[1:m,4] = init[3:]
-      if formula == 1
-         X0[m+1,5] = init[1] + init[2] + init[3]
+   scalar len = 3 + 2 + $pd
+   matrix b = {0.2; 0.2; 0.05} | init
+   matrix bounds = zeros(len, 3)
+   loop i=1..len
+      if i < 4
+         bounds[i,] = {i, 0, 1}
       else
-         X0[m+1,5] = (init[1] + init[2]) * init[3]
+         bounds[i,] = {i, -$huge, $huge}
       endif
-   endif
+   endloop
 
    smpl ; t2
    set skip_missing off
@@ -138,25 +118,23 @@ function matrix winters_auto_parms (list L, int t2, matrix *init,
       set max_verbose on
       set bfgs_verbskip 5
    endif
-   catch C = BFGScmin(&b, bounds, winters_crit(b, &X, formula, optim))
+   catch C = BFGScmin(&b, bounds, winters_crit(b, &X, formula))
    err = $error
    if err
       printf "Got error %d from BFGScmin\n", err
-      eval winters_crit(b, &X, formula, optim)
+      eval winters_crit(b, &X, formula)
       b[1] = NA
    else
       if verbose > 0
          printf "automatic parameter values:\n"
          printf "  α = %g, β = %g, γ = %g\n", b[1], b[2], b[3]
       endif
-      if optim == 2
-         loop i = 1..nelem(init)
-            init[i] = b[3+i]
-         endloop
-         if verbose > 0
-            printf "\nestimated initializer:\n\n"
-            eval init
-         endif
+      loop i = 1..nelem(init)
+         init[i] = b[3+i]
+      endloop
+      if verbose > 0
+         printf "\nestimated initializer:\n\n"
+         eval init
       endif
    endif
    return b
@@ -184,8 +162,7 @@ function matrix winters_ranges (const series y, int npred)
 end function
 
 function void winters_checks (const series y,
-                              const matrix theta,
-                              const matrix init)
+                              const matrix theta)
    if $pd == 1
       funcerr "Periodicity = 1, no seasonality!"
    endif
@@ -219,7 +196,7 @@ function bundle Winters (const series y,
    scalar k = 0
    scalar SSE = 0
    scalar n = 0
-   scalar optim = 2 # both theta and init
+   scalar optim = 1
    scalar fixed_theta = 0
    # string yname = argname(y, "y")
 
@@ -229,8 +206,8 @@ function bundle Winters (const series y,
       errorif(bcheck(&args, specs), "aborting")
    endif
 
-   winters_checks(y, args.theta, args.init)
-   
+   winters_checks(y, args.theta)
+
    matrix limits = winters_ranges(y, args.npred)
    scalar t1 = limits[1]
    scalar t2 = limits[2]
@@ -249,7 +226,7 @@ function bundle Winters (const series y,
          printf "Intra-sample forecast: %s to %s\n\n",
            obslabel(t2+1), obslabel(t3)
       elif t3 > t2
-          printf "Out-of-sample forecast: %s to %s\n\n",
+         printf "Out-of-sample forecast: %s to %s\n\n",
            obslabel(t2+1), obslabel(t3)
       else
          printf "Number of forecasts: 0\n\n"
@@ -263,9 +240,9 @@ function bundle Winters (const series y,
 
    if fixed_theta
       matrix theta = args.theta
-      optim = 0 # neither theta nor init
+      optim = 0
    else
-      matrix theta = winters_auto_parms(L, t2, &init, optim, formula, verbose)
+      matrix theta = winters_auto_parms(L, t2, &init, formula, verbose)
       if !ok(theta[1])
          funcerr "Failed to estimate parameters"
       endif
@@ -335,7 +312,7 @@ end function
 
 function void Winters_plot (const bundle *b,
                             int ptype[1:2:1] {"actual and forecast", "components"})
-   list L = mat2list(b.X)
+   list L = mat2list(b.W)
    if ptype == 1
       gnuplot y forecast --time --with-lines --output=display
    else
