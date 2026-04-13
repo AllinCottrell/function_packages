@@ -218,9 +218,11 @@ function bundle Winters (const series y,
    scalar verbose = args.verbose
    series a b s f
    list L = y a b s f
-
+   
    if verbose > 0
-      printf "Recursion will run from %s to %s\n",
+      printf "Winters, using %s formula\n", \
+        formula == 1 ? "additive" : "multiplicative"
+      printf "Recursion runs from %s to %s\n",
         obslabel(t1), obslabel(t2)
       if args.npred > 0
          printf "Intra-sample forecast: %s to %s\n\n",
@@ -299,12 +301,15 @@ function bundle Winters (const series y,
    scalar RMSE = sqrt(SSE/n)
    if verbose > 0
       printf "SSE = %g, RMSE = %g\n", SSE, RMSE
+      rename a level
+      rename b trend
+      rename s seasonal
+      rename f forecast
       print L -o
    endif
 
    set skip_missing off
    matrix W = {L}
-   cnameset(W, "y level trend seasonal forecast")
    bundle ret = _(theta, init, formula, W, RMSE)
 
    return ret

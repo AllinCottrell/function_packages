@@ -244,13 +244,15 @@ list L print # show the members of L
 \end{table}
 
 \begin{script}[htbp]
-    \caption{Partial listing of results from the first example on
-      page~\ref{pg:ex1}: \texttt{y} = original data,
-      \texttt{a} = level, \texttt{b} = trend,
-      \texttt{s} = seasonal, \texttt{f} = forecast. Forecasts
-    for 2018:1 and beyond are out-of-sample.}
+  \caption{Partial listing of results from the first example on
+    page~\ref{pg:ex1}: Forecasts for 2018:1 and beyond are
+    out-of-sample.}
   \label{list:results}
 \begin{code}
+Winters, using multiplicative formula
+Recursion runs from 1998:1 to 2017:4
+Out-of-sample forecast: 2018:1 to 2020:4
+
 automatic parameter values:
   α = 0.246679, β = 0.122927, γ = 0
 
@@ -265,7 +267,7 @@ seas4      0.95808
 
 SSE = 13.4951, RMSE = 0.410718
 
-                  y            a            b            s            f
+                  y        level        trend       season     forecast
 
 1998:1     11.80604      9.79856     -0.01994     1.180433     11.48812
 1998:2      9.27566      9.69731     -0.02994     0.981654      9.59922
@@ -374,6 +376,55 @@ series in question has to be complete over the given sample range.
 
 \section{Updating from Winters 1.1}
 \label{sec:update}
+
+Listing~\ref{list:compat} shows the sample script from version 1.1 of
+the package along with the revised code required to produce similar
+results from version 2.0. Some comments are in order. Note that while
+in version 1.1 the arguments are strictly positional, in version 2.0
+they are in effect named, since they appear as elements of a gretl
+bundle (apart from the first required series argument). And the
+meaning of ``default smoothing parameters'' has changed; rather than
+indicating a fixed vector of values this now means that the parameters
+are automatically optimized.
+
+\begin{script}[p]
+  \caption{Winters 1.1 sample script with updates for 2.0}
+  \label{list:compat}
+\begin{code}
+
+\end{code}
+First part (version 1.1), multiplicative formula:
+\begin{scode}
+include Winters.gfn
+open data9-3.gdt
+
+# formu=1, delta1=0.5, delta2=0.1, delta3=0.7, intra-sample predictions=4
+bundle BW = Winters(reskwh, 1, 0.5, 0.1, 0.7, 4)
+series reskwh_W_mul = BW.reskwh_W_mul
+\end{scode}
+First part (version 2.0), multiplicative is the default:
+\begin{scode}
+include Winters.gfn
+open data9-3.gdt
+
+bundle BW = Winters(reskwh, _(theta = {0.5, 0.1, 0.7}, npred = 4))
+series reskwh_W_mul = BW.W[,5]
+\end{scode}
+Second part (version 1.1) with 4 added observations, additive formula,
+and default smoothing parameters of 0.3, 0.1, 0.7:
+\begin{scode}
+dataset addobs 4
+bundle BW2 = Winters(reskwh, 0)
+series reskwh_W_add = BW2.reskwh_W_add
+\end{scode}
+Second part (version 2.0) with 4 added observations, additive formula,
+and the default of optimized parameters:
+\begin{scode}
+dataset addobs 4
+bundle BW2 = Winters(reskwh, _(formula=1))
+series reskwh_W_add = BW2.W[,5]
+\end{scode}
+\end{script}
 
 \bibliographystyle{gretl}
 \bibliography{gretl}
