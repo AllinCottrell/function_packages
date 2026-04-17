@@ -10,10 +10,10 @@ seasonal component. In the multiplicative case the seasonal effect is
 proportional to the level-plus-trend component; in the additive case it's
 simply added to level-plus-trend.
 
-- The `npred` selector allows you to reserve a certain number of observations
-(at the end of the available data) for intra-sample forecasts. This is ignored
-if the sample contains trailing observations beyond the range of the y data;
-in that case out-of-sample forecasts are made.
+- The `ntest` selector allows you to reserve a certain number of observations
+(at the end of the available data) for intra-sample forecasts. If the sample
+contains trailing observations beyond the range of the y data, setting this
+to zero means that out-of-sample forecasts will be made.
 
 - If you want to see more details of the procedure, increase the `verbose` level.
 

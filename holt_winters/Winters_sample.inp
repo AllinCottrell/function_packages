@@ -2,6 +2,7 @@ include Winters.gfn
 open aus_holidays.gdt
 dataset addobs 12
 
+# with 12 out-of-sample forecasts
 bundle hwb = Winters(Trips)
 print hwb
 list L = mat2list(hwb.W)

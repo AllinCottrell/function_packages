@@ -1,7 +1,7 @@
 set verbose off
 
 function matrix winters_auto_init (series y "Target series",
-                                   int formula)
+                                   int additive)
    scalar m = $pd
    scalar t2 = $t1+m-1
    scalar am1 = 0
@@ -24,7 +24,7 @@ function matrix winters_auto_init (series y "Target series",
    # seasonal indices
    i = 3
    loop t=$t1..t2
-      if formula == 1
+      if additive
          # deviation from average
          ret[i] = y[t] - ret[1]
       else
@@ -46,7 +46,7 @@ function matrix winters_auto_init (series y "Target series",
    return ret
 end function
 
-function scalar winters_crit (matrix parms, matrix *X, int formula)
+function scalar winters_crit (matrix parms, matrix *X, bool additive)
    # BFGS callback: determine SSE given @parms
    scalar α = parms[1]
    scalar β = parms[2]
@@ -62,7 +62,7 @@ function scalar winters_crit (matrix parms, matrix *X, int formula)
    X[m,2] = parms[4]
    X[m,3] = parms[5]
    X[1:m,4] = parms[6:]'
-   if formula == 1
+   if additive
       X[m+1,5] = parms[4] + parms[5] + parms[6]
    else
       X[m+1,5] = (parms[4] + parms[5]) * parms[6]
@@ -70,7 +70,7 @@ function scalar winters_crit (matrix parms, matrix *X, int formula)
 
    # training data
    loop t = m+1..tmax
-      if formula == 1
+      if additive
          X[t,2] = α * (X[t,1] - X[t-m,4]) + (1-α) * (X[t-1,2] + X[t-1,3])
          X[t,3] = β * (X[t,2] - X[t-1,2]) + (1-β) * X[t-1,3]
          X[t,4] = γ * (X[t,1] - X[t,2]) + (1-γ) * X[t-m,4]
@@ -93,7 +93,7 @@ function scalar winters_crit (matrix parms, matrix *X, int formula)
 end function
 
 function matrix winters_auto_parms (list L, int t2, matrix *init,
-                                    int formula, int verbose)
+                                    int additive, int verbose)
    # driver for automatic estimation of parameters
    matrix X0 = NA * ones($pd,5)
 
@@ -118,11 +118,11 @@ function matrix winters_auto_parms (list L, int t2, matrix *init,
       set max_verbose on
       set bfgs_verbskip 5
    endif
-   catch C = BFGScmin(&b, bounds, winters_crit(b, &X, formula))
+   catch C = BFGScmin(&b, bounds, winters_crit(b, &X, additive))
    err = $error
    if err
       printf "Got error %d from BFGScmin\n", err
-      eval winters_crit(b, &X, formula)
+      eval winters_crit(b, &X, additive)
       b[1] = NA
    else
       if verbose > 0
@@ -140,7 +140,7 @@ function matrix winters_auto_parms (list L, int t2, matrix *init,
    return b
 end function
 
-function matrix winters_ranges (const series y, int npred)
+function matrix winters_ranges (const series y, int ntest)
    matrix ret = zeros(1,3)
    catch smpl --contiguous y
    if $error
@@ -149,10 +149,12 @@ function matrix winters_ranges (const series y, int npred)
    ret[1] = $t1 # start of contiguous y
    ret[2] = $t2 # end of contiguous y
    scalar tail = $tmax - $t2
-   if tail > 0
+   if ntest > 0
+      ret[2] = $t2 - ntest
+      ret[3] = $t2
+   elif tail > 0
       ret[3] = $tmax
    else
-      ret[2] = $t2 - npred
       ret[3] = $t2
    endif
    ntrain = ret[2] - ret[1] + 1
@@ -178,13 +180,28 @@ function void winters_checks (const series y,
    endif
 end function
 
+function void winters_add_eval_stats (bundle *b)
+   scalar T = rows(b.W)
+   scalar t0 = T - b.ntest + 1
+   scalar SSE = 0
+   scalar MAE = 0
+   scalar fcerr
+   loop t=t0..T
+      fcerr = b.W[t,1] - b.W[t,5]
+      SSE += fcerr * fcerr
+      MAE += abs(fcerr)
+   endloop
+   b.RMSE_test = sqrt(SSE/b.ntest)
+   b.MAE_test = MAE / b.ntest
+end function
+
 function bundle winters_default_args (void)
    bundle b
    b.theta = {0.2, 0.2, 0.05}'
-   b.formula = 2
-   b.npred = 0
+   b.additive = 0
+   b.ntest = 0
    b.verbose = 1
-   b.bounds = _(formula={1,2}, verbose={0,3}, npred={0,NA})
+   b.bounds = _(additive={0,1}, verbose={0,3}, ntest={0,NA})
    return b
 end function
 
@@ -198,7 +215,7 @@ function bundle Winters (const series y,
    scalar n = 0
    scalar optim = 1
    scalar fixed_theta = 0
-   # string yname = argname(y, "y")
+   string yname = argname(y, "y")
 
    bundle args = winters_default_args()
    if exists(specs)
@@ -207,24 +224,25 @@ function bundle Winters (const series y,
    endif
 
    winters_checks(y, args.theta)
+   scalar ntest = args.ntest
 
-   matrix limits = winters_ranges(y, args.npred)
+   matrix limits = winters_ranges(y, ntest)
    scalar t1 = limits[1]
    scalar t2 = limits[2]
    scalar t3 = limits[3]
    smpl t1 t3
 
-   scalar formula = args.formula
+   scalar additive = args.additive
    scalar verbose = args.verbose
    series a b s f
    list L = y a b s f
-   
+
    if verbose > 0
       printf "Winters, using %s formula\n", \
-        formula == 1 ? "additive" : "multiplicative"
+        additive ? "additive" : "multiplicative"
       printf "Recursion runs from %s to %s\n",
         obslabel(t1), obslabel(t2)
-      if args.npred > 0
+      if args.ntest > 0
          printf "Intra-sample forecast: %s to %s\n\n",
            obslabel(t2+1), obslabel(t3)
       elif t3 > t2
@@ -235,7 +253,7 @@ function bundle Winters (const series y,
       endif
    endif
 
-   matrix init = winters_auto_init(y, formula)
+   matrix init = winters_auto_init(y, additive)
    if verbose > 1
       print init
    endif
@@ -244,7 +262,7 @@ function bundle Winters (const series y,
       matrix theta = args.theta
       optim = 0
    else
-      matrix theta = winters_auto_parms(L, t2, &init, formula, verbose)
+      matrix theta = winters_auto_parms(L, t2, &init, additive, verbose)
       if !ok(theta[1])
          funcerr "Failed to estimate parameters"
       endif
@@ -255,7 +273,7 @@ function bundle Winters (const series y,
    scalar γ = theta[3]
 
    # forecast for the first data-point
-   if formula == 1
+   if additive
       f[t1] = init[1] + init[2] + init[3]
    else
       f[t1] = (init[1] + init[2]) * init[3]
@@ -268,7 +286,7 @@ function bundle Winters (const series y,
       s_2 =  i < m ? init[3+i] : s[t+1−m]
       a_ = t == t1 ? init[1] : a[t-1]
       b_ = t == t1 ? init[2] : b[t-1]
-      if formula == 1
+      if additive
          a[t] = α * (y[t] − s_1) + (1−α) * (a_ + b_)
          b[t] = β * (a[t] - a_) + (1-β) * b_
          s[t] = γ * (y[t] − a[t]) + (1−γ) * s_1
@@ -291,7 +309,7 @@ function bundle Winters (const series y,
       # out of sample forecasts
       h++
       k = floor((h-1)/m)
-      if formula == 1
+      if additive
          f[t+1] = a[t2] + h*b[t2] + s[t2+h-m*(k+1)]
       else
          f[t+1] = (a[t2] + h*b[t2]) * s[t2+h-m*(k+1)]
@@ -300,7 +318,7 @@ function bundle Winters (const series y,
 
    scalar RMSE = sqrt(SSE/n)
    if verbose > 0
-      printf "SSE = %g, RMSE = %g\n", SSE, RMSE
+      printf "training SSE = %g, RMSE = %g\n", SSE, RMSE
       rename a level
       rename b trend
       rename s seasonal
@@ -310,7 +328,19 @@ function bundle Winters (const series y,
 
    set skip_missing off
    matrix W = {L}
-   bundle ret = _(theta, init, formula, W, RMSE)
+   bundle ret = _(theta, init, additive, ntest, W, RMSE, yname)
+
+   if ntest > 0
+      winters_add_eval_stats(&ret)
+      if verbose > 0
+         printf "testing RMSE = %g, MAE = %g\n", ret.RMSE_test,
+           ret.MAE_test
+      endif
+   endif
+   
+   if verbose > 0
+      printf "\n"
+   endif
 
    return ret
 end function
@@ -319,7 +349,11 @@ function void Winters_plot (const bundle *b,
                             int ptype[1:2:1] {"actual and forecast", "components"})
    list L = mat2list(b.W)
    if ptype == 1
-      gnuplot y forecast --time --with-lines --output=display
+      string yname = b.yname
+      if yname != "y"
+         rename y @yname
+      endif
+      gnuplot @yname forecast --time --with-lines --output=display
    else
       tsplots level trend seasonal --output=display
    endif
@@ -345,12 +379,13 @@ function bundle Winters_gui (const series y,
                              scalar  beta[0:1:0.2:0.0001] "trend, β",
                              scalar gamma[0:1:0.05:0.0001] "season, γ",
                              int formula[1:2:2] {"additive", "multiplicative"},
-                             int npred[0::0] "npred, see Help",
+                             int ntest[0::0] "ntest, see Help",
                              int verbose[0:3:1])
+   scalar additive = formula == 1
    if parms == 1
-      return Winters(y, _(formula, npred, verbose))
+      return Winters(y, _(additive, ntest, verbose))
    else
       matrix theta = {alpha, beta, gamma}
-      return Winters(y, _(theta, formula, npred, verbose))
+      return Winters(y, _(theta, additive, ntest, verbose))
    endif
 end function
