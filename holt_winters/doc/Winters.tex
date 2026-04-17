@@ -396,6 +396,9 @@ forecasts, the forecasts will differ by version but we're obviously
 not in a position to offer forecast evaluation statistics.
 
 \begin{script}[p]
+  \caption{Winters 1.1 examples with corresponding 2.0 code}
+  \label{list:compat}
+$\quad$ \\[1ex]
 Common initial code
 \begin{scode}
 include Winters.gfn
@@ -433,8 +436,6 @@ dataset addobs 4
 bundle BW3 = Winters(reskwh, _(additive=1))
 series reskwh_W_add = BW3.W[,5]
 \end{scode}
-  \caption{Winters 1.1 examples with updates for 2.0}
-  \label{list:compat}
 \end{script}
 
 The output data in the returned bundle also differ slightly across the
