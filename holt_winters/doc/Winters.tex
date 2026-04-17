@@ -1,13 +1,11 @@
 \documentclass{article}
 \usepackage[letterpaper,body={6.1in,9in},top=.8in,left=1.2in]{geometry}
-%\usepackage[nohead]{geometry}
-\usepackage{fontspec}
-\usepackage{amsmath}
+\usepackage[no-math]{fontspec}
 \usepackage{verbatim,fancyvrb}
-\usepackage{color,gretl}
+\usepackage{gretl}
+%\usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage[authoryear]{natbib}
-\usepackage{smallhds,url}
 \usepackage{hyperref}
 
 \setmonofont{DejaVu Sans Mono}[Scale=0.9]
@@ -139,7 +137,10 @@ options:
 The return value from \texttt{Winters} is is a bundle containing the
 following elements:
 \begin{itemize}
-\item \texttt{theta}: a 3-vector holding the smoothing parameter values.
+\item \texttt{theta}: a 3-vector holding the smoothing parameter
+  values.
+\item \texttt{init}: a vector of length $m+2$ holding the initializer:
+  level, trend and $m$ seasonals.
 \item \texttt{additive}: 1 if the seasonal formula used was additive or
   0 if it was multiplicative.
 \item \texttt{ntest}: a non-negative integer indicating how many
@@ -170,7 +171,7 @@ seasonal components.
 
 We'll start with a simple example---an approximate but passable
 replication of the Australian tourism example given by
-\cite{hyndman2021} (multiplicative variant). Here's the hansl
+\cite{hyndman2021}, multiplicative variant. Here's the hansl
 code:\label{pg:ex1}
 \begin{nscode}
 open aus_holidays.gdt --frompkg=Winters
@@ -362,29 +363,37 @@ series in question has to be complete over the given sample range.
 \section{Updating from Winters 1.1}
 \label{sec:update}
 
-Listing~\ref{list:compat} shows some cases based on the sample script
-for version 1.1 of the package along with the revised code required to
-produce similar results from version 2.0. Note that while in version
-1.1 the \texttt{Winters} arguments are strictly positional, in version
-2.0 they are in effect named, since they appear as elements of a gretl
-bundle (apart from the first required series argument). And the
-meaning of ``default smoothing parameters'' has changed: in version
-1.1 that means using a fixed parameter vector,
+Listing~\ref{list:compat} shows three cases drawing on the sample
+script for version 1.1 of the package along with the revised code
+required to produce similar results from version 2.0. Note that while
+in version 1.1 the \texttt{Winters} arguments are strictly positional,
+in version 2.0 they are in effect named, since they appear as elements
+of a gretl bundle (apart from the first required series argument). And
+the meaning of ``default smoothing parameters'' has changed: in
+version 1.1 that means using a fixed parameter vector,
 $\theta = (0.3, 0.1, 0.7)$, while in version 2.0 it means that the
 parameters are automatically optimized, along with the initializer.
 
-In Listing~\ref{list:compat} we could have had version 2.0 replicate
-the results using the default $\theta$ from version 1.1, but it seems
-more informative to compare that default with optimized results.  In
-Case 1, with a specified parameter vector, the results are the same
-for the two versions, namely RMSE = 74.792 and MAE = 73.132 for the
-testing forecasts. In Case 2, the default parameter vector in 1.1
-gives a slight improvement: RMSE = 74.033, MAE = 70.341. The optimized
-parameters with 2.0 give a more substantial improvement: RMSE =
-65.582, MAE = 60.895.
+When $\theta$ is specified the two versions should produce identical
+forecasts: over the training range, $\hat{y}_{t|t-1}$, and over the
+testing or out-of-sample range, $\hat{y}_{T+h|T}$ where $T$ is the
+last training observation and $h = 1,2,\dots$.\footnote{With one
+  qualification: following Hyndman's procedure the first training
+  forecast in version 2.0 is for the first observation of \texttt{y},
+  while in version 1.1 the forecasts start $m$ periods later.}  So in
+Case 1 we find that the testing results are the same for the two
+versions, namely RMSE = 74.792 and MAE = 73.132.
 
-In Case 3, with genuine out-of-sample forecasts, we're obviously not
-in a position to offer forecast evaluation statistics.
+In Case 2 of the listing we could have had version 2.0 replicate the
+results using the default $\theta$ from version 1.1, but it's more
+informative to compare that default with optimized results. The
+automatic $\theta$ in version 1.1 gives a slight improvement over Case
+1: RMSE = 74.033, MAE = 70.341. The optimized parameters with 2.0 give
+a more substantial improvement: RMSE = 65.582, MAE = 60.895.
+
+In Case 3, with automatic parameters and genuine out-of-sample
+forecasts, the forecasts will differ by version but we're obviously
+not in a position to offer forecast evaluation statistics.
 
 \begin{script}[p]
 Common initial code
@@ -405,7 +414,7 @@ series reskwh_W_mul = BW.W[,5]
 Case 2: Multiplicative, 4 testing forecasts, automatic parameters
 \begin{scode}
 # version 1.1
-bundle BW2 = Winters(reskwh, 4)
+bundle BW2 = Winters(reskwh,1,,,,4)
 series reskwh_W_mul = BW2.reskwh_W_mul
 
 # version 2.0
@@ -428,12 +437,11 @@ series reskwh_W_add = BW3.W[,5]
   \label{list:compat}
 \end{script}
 
-The output data in the returned bundle also differ slightly across
-the versions of the package. In version 1.11 four series are included:
-the original series, the one-step ahead forecast, level-plus-trend,
-and seasonal. Version 2.0 gives a five-column matrix holding the
-original series, level, trend, seasonal, and forecast (as in
-\cite{hyndman2021}).
+The output data in the returned bundle also differ slightly across the
+versions of the package. In version 1.11 four series are included: the
+original series, the one-step ahead forecast, level-plus-trend, and
+seasonal. Version 2.0 gives a five-column matrix holding the original
+series, level, trend, seasonal, and forecast as in \cite{hyndman2021}.
 
 \bibliographystyle{gretl}
 \bibliography{gretl}

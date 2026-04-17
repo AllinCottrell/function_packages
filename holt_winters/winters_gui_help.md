@@ -11,7 +11,7 @@ proportional to the level-plus-trend component; in the additive case it's
 simply added to level-plus-trend.
 
 - The `ntest` selector allows you to reserve a certain number of observations
-(at the end of the available data) for intra-sample forecasts. If the sample
+(at the end of the available data) for testing forecasts. If the sample
 contains trailing observations beyond the range of the y data, setting this
 to zero means that out-of-sample forecasts will be made.
 

@@ -137,7 +137,7 @@ function matrix winters_auto_parms (list L, int t2, matrix *init,
          eval init
       endif
    endif
-   return b
+   return b[1:3]
 end function
 
 function matrix winters_ranges (const series y, int ntest)
@@ -280,7 +280,7 @@ function bundle Winters (const series y,
    endif
 
    loop t = t1..t2
-      # within sample recursion
+      # training recursion
       i = 1 + t - t1
       s_1 = i <= m ? init[2+i] : s[t−m]
       s_2 =  i < m ? init[3+i] : s[t+1−m]
@@ -306,7 +306,7 @@ function bundle Winters (const series y,
       n++
    endloop
    loop t=t2+1..t3-1
-      # out of sample forecasts
+      # h-step-ahead forecasts
       h++
       k = floor((h-1)/m)
       if additive
@@ -316,9 +316,9 @@ function bundle Winters (const series y,
       endif
    endloop
 
-   scalar RMSE = sqrt(SSE/n)
+   scalar RMSE_train = sqrt(SSE/n)
    if verbose > 0
-      printf "training SSE = %g, RMSE = %g\n", SSE, RMSE
+      printf "training SSE = %g, RMSE = %g\n", SSE, RMSE_train
       rename a level
       rename b trend
       rename s seasonal
@@ -328,7 +328,7 @@ function bundle Winters (const series y,
 
    set skip_missing off
    matrix W = {L}
-   bundle ret = _(theta, init, additive, ntest, W, RMSE, yname)
+   bundle ret = _(theta, init, additive, ntest, W, RMSE_train, yname)
 
    if ntest > 0
       winters_add_eval_stats(&ret)
@@ -373,7 +373,7 @@ function bundle winters_ui_maker (void)
    return b
 end function
 
-function bundle Winters_gui (const series y,
+function bundle Winters_gui (series y,
                              int parms[1:2:1] {"automatic", "pre-specified"},
                              scalar alpha[0:1:0.2:0.0001] "level, α",
                              scalar  beta[0:1:0.2:0.0001] "trend, β",
@@ -382,10 +382,14 @@ function bundle Winters_gui (const series y,
                              int ntest[0::0] "ntest, see Help",
                              int verbose[0:3:1])
    scalar additive = formula == 1
+   string yname = argname(y, "y")
+   if yname != "y"
+      rename y @yname
+   endif
    if parms == 1
-      return Winters(y, _(additive, ntest, verbose))
+      return Winters(@yname, _(additive, ntest, verbose))
    else
       matrix theta = {alpha, beta, gamma}
-      return Winters(y, _(theta, additive, ntest, verbose))
+      return Winters(@yname, _(theta, additive, ntest, verbose))
    endif
 end function
