@@ -1,7 +1,7 @@
 set verbose off
 
 function matrix winters_auto_init (series y "Target series",
-                                   int additive)
+                                   bool additive)
    scalar m = $pd
    scalar t2 = $t1+m-1
    scalar am1 = 0

@@ -1,5 +1,5 @@
 include Winters.gfn
-open aus_holidays.gdt
+open aus_holidays.gdt --frompkg=Winters
 dataset addobs 12
 
 # with 12 out-of-sample forecasts
