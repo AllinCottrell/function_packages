@@ -205,6 +205,17 @@ function bundle winters_default_args (void)
    return b
 end function
 
+function void add_virtual_series (bundle *b)
+   string s = sprintf("%s_level", b.yname)
+   b[s] = "virtual_series:W[,2]"
+   s = sprintf("%s_trend", b.yname)
+   b[s] = "virtual_series:W[,3]"
+   s = sprintf("%s_season", b.yname)
+   b[s] = "virtual_series:W[,4]"
+   s = sprintf("%s_fcast", b.yname)
+   b[s] = "virtual_series:W[,5]"
+end function
+
 function bundle Winters (const series y,
                          const bundle specs[null])
    scalar m = $pd
@@ -337,7 +348,11 @@ function bundle Winters (const series y,
            ret.MAE_test
       endif
    endif
-   
+
+   if $version >= 20261
+      add_virtual_series(&ret)
+   endif
+
    if verbose > 0
       printf "\n"
    endif
