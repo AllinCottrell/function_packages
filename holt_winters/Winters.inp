@@ -214,6 +214,8 @@ function void add_virtual_series (bundle *b)
    b[s] = "virtual_series:W[,4]"
    s = sprintf("%s_fcast", b.yname)
    b[s] = "virtual_series:W[,5]"
+   s = sprintf("%s_irreg", b.yname)
+   b[s] = "virtual_series:W[,1]-W[,5]"
 end function
 
 function bundle Winters (const series y,
@@ -363,14 +365,15 @@ end function
 function void Winters_plot (const bundle *b,
                             int ptype[1:2:1] {"actual and forecast", "components"})
    list L = mat2list(b.W)
+   string yname = b.yname
    if ptype == 1
-      string yname = b.yname
       if yname != "y"
          rename y @yname
       endif
       gnuplot @yname forecast --time --with-lines --output=display
    else
-      tsplots level trend seasonal --output=display
+      series irreg = b[sprintf("%s_irreg", yname)]
+      tsplots level trend seasonal irreg --output=display
    endif
 end function
 
