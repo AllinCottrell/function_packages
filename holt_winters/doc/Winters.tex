@@ -28,19 +28,20 @@
 \begin{center}
   {\Large \textbf{Winters 2.0}} \\[6pt]
   Ignacio Díaz-Emparanza and Allin Cottrell \\[6pt]
-  2026-04-18
+  2026-04-23
 \end{center}
 
 \section{Introduction}
 \label{sec:intro}
 
-This package implements the forecasting method devised by P. R.
-Winters \citeyearpar{winters60}, namely triple exponential smoothing
-with level, trend and seasonal components (see also \citealt{holt57}).
-It requires time-series data with a seasonal dimension. Quarterly or
-monthly data are the best bet for suitability. Daily or hourly data
-might be suitable, subject to the qualifications noted in
-section~\ref{sec:daily}.
+This package implements the forecasting method devised by P. R. Winters
+\citeyearpar{winters60}, namely triple exponential smoothing with level,
+trend and seasonal components.  It requires time-series data with a
+seasonal dimension. Quarterly or monthly data are the best bet for
+suitability. Daily or hourly data might be suitable, subject to the
+qualifications noted in section~\ref{sec:daily}. If you want double
+exponential smoothing (level and trend with no seasonal, as in
+\citealt{holt57}), try the \textsf{Holt} package.
 
 The previous version of this package (1.1) was written by Ignacio
 Díaz-Emparanza in 2022. This revision was written by Allin Cottrell,
@@ -163,8 +164,8 @@ function void Winters_plot (bundle *b, int ptype)
 \end{nscode}
 The first argument should be a bundle obtained from \texttt{Winters}
 and the second argument should be either 1, for a plot of actual and
-forecast values, or 2, for a tripartite plot of the level, trend and
-seasonal components.
+forecast values, or 2 for a four-part plot of the level, trend,
+seasonal and irregular components.
 
 \section{Command-line usage}
 \label{sec:auto}
@@ -275,14 +276,14 @@ traning SSE = 13.4951, RMSE = 0.410718
 \label{sec:gui}
 
 When you install this package you should get the option of attaching it
-as the menu item \textsf{Model/Univariate time series} in gretl's main
+as the menu item \textsf{Variable/Filter} in gretl's main
 window. Clicking this item brings up the dialog box shown in
 Figure~\ref{fig:dialog}.
 
 \begin{figure}[htpb]
   \centering
   \includegraphics[scale=0.65]{Winters_dialog}
-  \caption{Winters dialog, under the Model/Univariate time series menu}
+  \caption{Winters dialog, under the Variable/Filter menu}
   \label{fig:dialog}
 \end{figure}
 

@@ -1,11 +1,11 @@
 author = Ignacio Diaz-Emparanza and Allin Cottrell
 email = cottrell@wfu.edu
 version = 2.0
-date = 2026-04-18
+date = 2026-04-23
 tags = C53
 description = Winters forecasting method
 label = Winters
-menu-attachment = MAINWIN/Model/TSModels
+menu-attachment = MAINWIN/Variable/Filter
 min-version = 2025a
 data-requirement = needs-time-series-data
 public = Winters Winters_gui Winters_plot
