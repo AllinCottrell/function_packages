@@ -28,7 +28,7 @@
 \begin{center}
   {\Large \textbf{Winters 2.0}} \\[6pt]
   Ignacio Díaz-Emparanza and Allin Cottrell \\[6pt]
-  2026-04-23
+  2026-04-24
 \end{center}
 
 \section{Introduction}
@@ -209,7 +209,7 @@ basically a matrix version of this table. If you want to grab the
 columns of \texttt{W} as a list of series you can do something like
 \begin{nscode}
 bundle wb = Winters(Trips)
-list L = mat2list{wb.W}
+list L = mat2list(wb.W)
 list L print # show the members of L
 \end{nscode}
 
