@@ -180,6 +180,19 @@ function void winters_checks (const series y,
    endif
 end function
 
+function void add_virtual_series (bundle *b)
+   string s = sprintf("%s_level", b.yname)
+   b[s] = "virtual_series:W[,2]"
+   s = sprintf("%s_trend", b.yname)
+   b[s] = "virtual_series:W[,3]"
+   s = sprintf("%s_season", b.yname)
+   b[s] = "virtual_series:W[,4]"
+   s = sprintf("%s_fcast", b.yname)
+   b[s] = "virtual_series:W[,5]"
+   s = sprintf("%s_irreg", b.yname)
+   b[s] = "virtual_series:W[,1]-W[,5]"
+end function
+
 function void winters_add_eval_stats (bundle *b)
    scalar T = rows(b.W)
    scalar t0 = T - b.ntest + 1
@@ -338,6 +351,10 @@ function bundle Winters (const series y,
       endif
    endif
 
+   if $version >= 20262
+      add_virtual_series(&ret)
+   endif
+
    if verbose > 0
       printf "\n"
    endif
@@ -348,8 +365,8 @@ end function
 function void Winters_plot (const bundle *b,
                             int ptype[1:2:1] {"actual and forecast", "components"})
    list L = mat2list(b.W)
-   string yname = b.yname
    if ptype == 1
+      string yname = b.yname
       if yname != "y"
          rename y @yname
       endif
