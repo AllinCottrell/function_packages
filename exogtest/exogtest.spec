@@ -7,6 +7,7 @@ model-requirement = tsls
 tags = C26 C12
 label = Exogeneity
 menu-attachment = MODELWIN/Analysis
+model-requirement = tsls
 public = exogtest GUI_exogtest
 gui-main = GUI_exogtest
 list-maker = exogtest_listmaker
