@@ -1,0 +1,156 @@
+function matrix ordered_Pmat (const matrix cut, series zhat, bool lgt[0])
+   # compute the estimated probability for each response at
+   # each observation
+   scalar n = $nobs
+   scalar ncut = rows(cut)
+   scalar m = ncut + 1
+   matrix Pij = zeros(n, m)
+   strings S = array(n)
+   scalar zhi
+   if lgt
+      loop i=1..n --quiet
+         zhi = zhat[$t1+i-1]
+         if ok(zhi)
+            Pij[i,1] = logistic(cut[1]-zhi)
+            loop j=2..ncut --quiet
+               Pij[i,j] = logistic(cut[j]-zhi) - logistic(cut[j-1]-zhi)
+            endloop
+            Pij[i,m] = 1 - logistic(cut[ncut]-zhi)
+         else
+            Pij[i,] = NA
+         endif
+         S[i] = obslabel(i)
+      endloop
+   else
+      loop i=1..n --quiet
+         zhi = zhat[$t1+i-1]
+         if ok(zhi)
+            Pij[i,1] = cnorm(cut[1]-zhi)
+            loop j=2..ncut --quiet
+               Pij[i,j] = cnorm(cut[j]-zhi) - cnorm(cut[j-1]-zhi)
+            endloop
+            Pij[i,m] = 1 - cnorm(cut[ncut]-zhi)
+         else
+            Pij[i,] = NA
+         endif
+         S[i] = obslabel(i)
+      endloop
+   endif
+   rnameset(Pij, S)
+   return Pij
+end function
+
+function matrix oprobit_Pmat (const matrix cut, series zhat)
+   # backward compatibility function
+   return ordered_Pmat(cut, zhat, 0)
+end function
+
+function series ordered_prediction (const matrix cut, series zhat,
+                                    int ymin[0], bool lgt[0],
+                                    int ptype[1:3:1])
+   # produce a series containing point predictions on
+   # any one of three methods
+   series ret
+   if ptype == 1 || ptype == 3
+      matrix Pij = ordered_Pmat(cut, zhat, lgt)
+   endif
+   if ptype == 1
+      matrix pmax = imaxr(Pij) + ymin - 1
+      ret = pmax
+   elif ptype == 2
+      ret = ymin
+      loop j=1..nelem(cut) -q
+         ret += zhat > cut[j]
+      endloop
+   else
+      matrix mret = ymin + Pij * seq(0, nelem(cut))'
+      ret = round(mret)
+   endif
+   return ret
+end function
+
+function matrix all_ordered_predictions (const matrix cut,
+                                         series zhat,
+                                         int ymin[0], bool lgt[0])
+   # produce a matrix containing all three predictions
+   matrix ret
+   matrix Pij = ordered_Pmat(cut, zhat, lgt)
+   # pmax
+   ret = imaxr(Pij) + ymin - 1
+   # cuts
+   series p2 = ymin
+   loop j=1..nelem(cut) -q
+      p2 += zhat > cut[j]
+   endloop
+   ret ~= {p2}
+   # expectation
+   matrix p3 = ymin + Pij * seq(0, nelem(cut))'
+   ret ~= round(p3)
+   return ret
+end function
+
+function series oprobit_pred (const matrix cut, series zhat)
+   # backward compatibility function
+   return ordered_prediction(cut, zhat)
+end function
+
+function scalar ordered_precheck (void)
+   # check for ordered probit estimator
+   scalar err = 0
+   if $command != "probit" && $command != "logit"
+      err = 1
+   else
+      catch scalar ord = $["ordered"]
+      err = $error
+   endif
+   return err
+end function
+
+function void ordered_predict_print (bundle *b)
+   matrix Pij = b.Pij
+   matrix maxp = b.maxp
+   scalar ymin = b.ymin
+   npred = rows(Pij)
+   nresp = cols(Pij)
+
+   # determine greatest length of row label
+   strings RS = rnameget(Pij)
+   obslen = 0
+   loop i=1..npred -q
+      len = strlen(RS[i])
+      if len > obslen
+         obslen = len
+      endif
+   endloop
+
+   printf "Estimated response probabilities\n\n"
+   # emit header
+   printf "%*s ", obslen, " "
+   loop j=1..nresp -q
+      printf "%8d", j + ymin - 1
+   endloop
+   printf "  max(Pij)\n"
+   # matrix body
+   loop i=1..npred -q
+      printf " %*s", obslen, RS[i]
+      loop j=1..nresp -q
+         printf "%8.4f", Pij[i,j]
+      endloop
+      printf " %5d\n", maxp[i] + ymin - 1
+   endloop
+end function
+
+function bundle GUI_ordered_predict (void)
+   ## no-print ##
+   bundle ret
+   nx = $["nx"]
+   matrix cut = $coeff[nx+1:]
+   scalar lgt = $["command"] == "logit"
+   matrix Pij = ordered_Pmat(cut, $yhat, lgt)
+   ret.Pij = Pij
+   matrix ret.maxp = imaxr(Pij)
+   scalar ymin = 0
+   catch ymin = $["ymin"]
+   ret.ymin = ymin
+   return ret
+end function

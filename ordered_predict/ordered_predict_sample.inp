@@ -1,0 +1,50 @@
+/* 
+  Replicate the example in Wooldridge, Econometric
+  Analysis of Cross Section and Panel Data (MIT Press,
+  2002), section 15.10
+*/
+set verbose off
+include ordered_predict.gfn
+open pension.gdt
+
+# demographic characteristics of participant
+list DEMOG = age educ female black married
+# dummies coding for income level
+list INCOME = finc25 finc35 finc50 finc75 finc100 finc101
+# response variable
+series y = pctstck / 50
+# estimate ordered probit
+list X = choice DEMOG INCOME wealth89 prftshr
+probit y X
+# save the z-hat values
+series zhat = $yhat
+# save the cut-point coefficients in matrix cut
+scalar k = nelem(X)
+matrix cut = $coeff[k+1:]
+
+printf "Outcomes predicted via max-probability method\n"
+# get the (default) predicted responses
+series predicted = ordered_prediction(cut, zhat)
+print y predicted -o
+
+# percentage correctly predicted, overall
+pcc1 = 100 * sum(y == predicted)/$T
+# show predicted vs actual cross-tab
+xtab predicted y --column
+
+# extension: get all predictions and compare
+matrix Pred = all_ordered_predictions(cut, zhat, 0, 0)
+matrix my = {y}
+pcc = 100 * sumc(my .= Pred)/$T
+SAE = sumc(abs(my .- Pred))
+
+printf "\nComparison of point prediction methods\n"
+printf "(SAPE = sum of absolute prediction errors)\n"
+printf "---------------------------------\n"
+printf "              %% correct   SAPE\n"
+printf "pmax           %8.2f    %d\n", pcc[1], SAE[1]
+printf "cuts           %8.2f    %d\n", pcc[2], SAE[2]
+printf "expectation    %8.2f    %d\n", pcc[3], SAE[3]
+printf "\n"
+
+
