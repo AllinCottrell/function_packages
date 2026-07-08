@@ -9,6 +9,7 @@ tags = C25
 public = ordered_Pmat ordered_prediction GUI_ordered_predict \
  ordered_predict_print oprobit_Pmat oprobit_pred \
  all_ordered_predictions
+conflict = oprobit_predict
 gui-main = GUI_ordered_predict
 menu-only = GUI_ordered_predict
 gui-precheck = ordered_precheck

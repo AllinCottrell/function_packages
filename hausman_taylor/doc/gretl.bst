@@ -1,1 +1,1 @@
-/home/allin/stats/esl/gretl-git/doc/tex/gretl.bst
+/home/cottrell/stats/esl/gretl-git/doc/tex/gretl.bst

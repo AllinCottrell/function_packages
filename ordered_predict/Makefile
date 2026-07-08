@@ -6,9 +6,9 @@ DOC = doc/ordered_predict.pdf
 $(PKG).gfn: $(PKG).inp $(PKG).spec $(PKG)_sample.inp
 	gretlcli --makepkg $(PKG).inp
 
-$(PKG).zip: $(PKG).gfn $(PKG).pdf
+$(PKG).zip: $(PKG).gfn $(DOC)
 	rm -rf ./$(PKG) && mkdir ./$(PKG) && \
-	cp $(PKG).gfn $(PKG).pdf ./$(PKG)/ && \
+	cp $(PKG).gfn $(DOC) ./$(PKG)/ && \
 	zip -r $(PKG).zip $(PKG)
 
 $(DOC):

@@ -1,4 +1,9 @@
 function matrix exogtest (const bundle m, list x, bool quiet[0])
+   # check the bundle argumnt
+   if !inbundle(m, "command") || m.command != "tsls"
+      funcerr "The bundle argument must be obtained using the tsls command"
+   endif
+
    scalar ntest = nelem(x)
    list ylist = m.ylist
    list zlist = m.instlist
