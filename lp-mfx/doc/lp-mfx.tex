@@ -1,9 +1,9 @@
 \documentclass{article}
-\usepackage{doc,url,verbatim,fancyvrb}
-\usepackage{pifont,amsmath}
+\usepackage{verbatim,fancyvrb}
+\usepackage{amsmath}
 \usepackage{pkgheads}
 \usepackage[letterpaper,body={6.3in,9.15in},top=.8in,left=1.1in]{geometry}
-\usepackage[pdftex,hyperfootnotes=false]{hyperref}
+\usepackage[pdftex,hyperindex=false,hyperfootnotes=false]{hyperref}
 
 \usepackage[utf8]{inputenc}
 \DeclareUnicodeCharacter{2212}{-}
@@ -66,11 +66,11 @@ Per-observation marginal effects are available only when the dependent
 variable is ``unitary'' (either binary or logistic). Standard errors
 are not produced in this case.
 
-\section{Primary and non-primary regressors}
+\section{Primary and secondary regressors}
 
 Besides detecting, and giving special treatment to, 0/1 dummies among
 the regressors, \textsf{lp-mfx} attempts to identify two common cases
-of ``non-primary'' regressors, namely
+of secondary (non-primary) regressors, namely
 \begin{itemize}
 \item Regressor $x_j$ is the square of regressor $x_i$ (quadratic
   specification).
@@ -89,10 +89,10 @@ $x_3$ are
   \partial  P/\partial x_2 &=\phi(x\beta)\cdot (\beta_3 + \beta_5x_3) \\
   \partial  P/\partial x_3 &=\phi(x\beta)\cdot (\beta_4 + \beta_5x_2)
 \end{align*}
-while the non-primary terms, $x_1^2$ and $x_2 x_3$, do not possess
+while the secondary terms, $x_1^2$ and $x_2 x_3$, do not possess
 marginal effects of their own.
 
-To ensure that such non-primary terms are detected correctly, it is
+To ensure that such secondary terms are detected correctly, it is
 advisable to create them within gretl; any of the following
 commands will give the series in question labels that make them
 identifiable:
@@ -107,7 +107,7 @@ The names given to the series don't matter, only the expressions used
 to generate them; and in the expressions spaces or their absence don't
 matter.
 
-If you are using a third-party dataset that includes non-primary terms
+If you are using a third-party dataset that includes secondary terms
 that are not identified as such by descriptive labels, as an
 alternative to recreating the relevant series you may use the utility
 function \texttt{lp\_mfx\_fixlist()} supplied by \textsf{lp-mfx}.
@@ -126,7 +126,7 @@ after which we can be confident that \textsf{lp-mfx} will deal
 correctly with any squares or interactions among the regressors in
 \texttt{X}.
 
-Note that more elaborate cases of non-primary regressors are not
+Note that more elaborate cases of secondary regressors are not
 handled automatically at present (for example, cubes or higher powers
 of a regressor, or interaction terms that are the products of three or
 more variables).
@@ -177,7 +177,6 @@ results can be displayed in tabular form via the function
 bundle mf = lp_mfx($model)
 lp_mfx_print(&mf)
 \end{verbatim}
-
 
 \section{GUI access}
 \label{sec:gui}

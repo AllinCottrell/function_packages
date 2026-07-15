@@ -12,10 +12,10 @@ endif
 $(PKG).gfn: $(PKG).inp $(PKG).spec $(PKG)-sample.inp
 	gretlcli -b makepkg.inp
 
-$(PKG).pdf:
+doc/$(PKG).pdf:
 	make -C doc
 
-zipfile: $(PKG).gfn $(PKG).pdf
+zipfile: $(PKG).gfn doc/$(PKG).pdf
 	rm -rf ./$(PKG) && mkdir ./$(PKG) && \
 	cp $(PKG).gfn doc/$(PKG).pdf ./$(PKG)/ && \
 	zip -r $(PKG).zip $(PKG)
