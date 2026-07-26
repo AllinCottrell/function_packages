@@ -1,4 +1,4 @@
-include ../lp-mfx.inp
+include lp-mfx.gfn
 
 open ooballot -q
 
@@ -6,17 +6,17 @@ open ooballot -q
 smpl Status > 0 --restrict
 
 # ordered probit
-probit Vote 0 CPI
-bundle b = ordered_avg_mfx(Vote, $xlist, $coeff, $sample, 2)
-matrix m = b.mfx
-print m
+probit Vote 0 CPI Status
+bundle b = lp_mfx($model, 2, 0)
+lp_mfx_print(&b)
+# print b
+# quit
 
 foreign language=stata --send-data
-  oprobit vote cpi
-  margins, dydx(cpi) predict(outcome(0))
-  margins, dydx(cpi) predict(outcome(1))
-  margins, dydx(cpi) predict(outcome(2))
-  margins, dydx(cpi) predict(outcome(3))
+  oprobit vote cpi status
+  margins, dydx(cpi status) predict(outcome(0))
+  margins, dydx(cpi status) predict(outcome(1))
+  margins, dydx(cpi status) predict(outcome(2))
 end foreign
 
 

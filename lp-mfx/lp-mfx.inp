@@ -1,4 +1,4 @@
-function matrix condense_linfo (matrix m)
+function matrix condense_linfo (const matrix m)
     scalar n = sumc(m[,1])
     strings S = array(n)
     matrix mc = zeros(n, cols(m))
@@ -125,25 +125,27 @@ function matrix didx_dx (const matrix b, const matrix x, const matrix m)
     scalar sj, c
 
     loop i=1..nd -q
-        if m[i,2] == 0
-            # not a dummy; augment coeff if needed
-            j = m[i,1] # list position
-            sj = b[j] # own coefficient
-            if m[i,3] > 0
-                # handle squared term
-                sj += 2*b[m[i,3]]*x[j]
-            else
-                c = 4
-                loop while c < cmax --quiet
-                    if m[i,c] > 0
-                        # handle interaction
-                        sj += b[m[i,c+1]]*x[m[i,c]]
-                    endif
-                    c += 2
-                endloop
-            endif
-            s[i] = sj
+        if m[i,2] == 1
+            # a dummy, not handled here
+            continue
         endif
+        # augment coeff if needed
+        j = m[i,1] # list position
+        sj = b[j]  # own coefficient
+        if m[i,3] > 0
+            # handle squared term
+            sj += 2 * b[m[i,3]]*x[j]
+        else
+            c = 4
+            loop while c < cmax
+                if m[i,c] > 0
+                    # handle interaction
+                    sj += b[m[i,c+1]] * x[m[i,c]]
+                endif
+                c += 2
+            endloop
+        endif
+        s[i] = sj
     endloop
 
     return s
@@ -342,7 +344,7 @@ function matrix atmeans_vec (list XL, const matrix m,
     # compute mean X, etc.
     matrix x = ones(1, nelem(XL))
     list D = null
-    loop foreach i XL -q
+    loop foreach i XL
         if varnum(XL.$i) > 0
             if m[i,1] == 0 && m[i,3] > 0
                 # squared term: use square of mean
@@ -351,7 +353,7 @@ function matrix atmeans_vec (list XL, const matrix m,
                 # interaction term(s): use product of means
                 x[i] = mean(XL[m[i,4]]) * mean(XL[m[i,5]])
                 c = 6
-                loop while c < cmax --quiet
+                loop while c < cmax
                     x[i] += mean(XL[m[i,c]]) * mean(XL[m[i,c+1]])
                     c += 2
                 endloop
@@ -578,7 +580,8 @@ function bundle multi_average_mfx (const bundle mod, bool skip_se[0])
     ny = ret.n_outcomes
     ordered = (ret.model == "Ordered")
 
-    matrix m = _listinfo(XL,1)
+    matrix m = _listinfo(XL, 2)
+    m = condense_linfo(m)
     scalar nd = rows(m)
 
     matrix dp = zeros(nd, ny)
@@ -604,7 +607,7 @@ function bundle multi_average_mfx (const bundle mod, bool skip_se[0])
                 J += fdjac(theta, vec(ordered_dpj_dx(theta, Xt, ny, m, dist)))
             endif
         else
-            dp += mlogit_dpj_dx(mod.coeff, Xt, ny, m)'
+            dp += mlogit_dpj_dx(theta, Xt, ny, m)'
             if do_se
                 J += fdjac(theta, vec(mlogit_dpj_dx(theta, Xt, ny, m)))
             endif

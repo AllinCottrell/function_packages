@@ -1,10 +1,10 @@
 author = Allin Cottrell
 email = cottrell@wfu.edu
 version = 1.0
-date = 2019-04-29
+date = 2026-07-26
 description = logit/probit marginal effects
 tags = C25
-min-version = 2019b
+min-version = 2022b
 gui-main = GUI_lp_mfx
 label = Marginal effects
 menu-attachment = MODELWIN/Analysis
