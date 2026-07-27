@@ -1,0 +1,27 @@
+set verbose off
+nulldata 10
+set seed 8781564256
+series x1 = normal()
+series x2 = normal()
+series d = randgen(i, 0, 1)
+series d_x1 = d*x1
+series x2sq = x2^2
+list L = x1 d d_x1 x2 x2sq
+
+printf "listinfo args: 1 condenses, 2 specifies 'via data'\n"
+li1 = _listinfo(L,0)
+li2 = _listinfo(L,2)
+printf "using labels, then using data\n"
+print li1 li2
+
+printf "\n ** now with 'condense' specified **\n"
+li1 = _listinfo(L,1)
+li2 = _listinfo(L,3)
+printf "using labels, then using data\n"
+print li1 li2
+
+printf "Follow-up with all primary terms\n"
+list L = x1 d x2
+li1 = _listinfo(L,1)
+li2 = _listinfo(L,3)
+print li1 li2

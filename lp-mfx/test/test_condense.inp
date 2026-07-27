@@ -1,0 +1,20 @@
+include ../lp-mfx.inp
+nulldata 10
+set seed 8781564256
+series x1 = normal()
+series x2 = normal()
+series d = randgen(i, 0, 1)
+series d_x1 = d*x1
+series x2sq = x2^2
+list L = x1 d d_x1 x2 x2sq
+
+li1 = _listinfo(L,0) # not condensed
+li2 = _listinfo(L,1) # condensed
+li3 = condense_linfo(li1)
+print li1 li2 li3
+
+list L = x1 d x2
+li1 = _listinfo(L,0)
+li2 = _listinfo(L,1)
+li3 = condense_linfo(li1)
+print li1 li2 li3
