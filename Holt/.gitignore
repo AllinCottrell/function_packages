@@ -1,0 +1,7 @@
+testing
+*.gfn
+*.zip
+*~
+doc/*.aux
+doc/*.log
+doc/*.out

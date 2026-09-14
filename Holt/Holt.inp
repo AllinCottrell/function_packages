@@ -1,0 +1,338 @@
+set verbose off
+
+function matrix holt_auto_init (series y "Target series")
+    matrix ret = zeros(2, 1)
+
+    # printf "HERE $t1 = %d\n", $t1
+
+    # initial estimate of level: 1st period value
+    ret[1] = y[$t1]
+
+    # initial estimate of trend
+    ret[2] = y[$t1+1] - y[$t1]
+
+    # initial estimate of level
+    # ret[1] = y[$t1+1] -
+
+    # label the return vector
+    strings S = defarray("level", "trend")
+    rnameset(ret, S)
+
+    return ret
+end function
+
+function scalar holt_crit (matrix parms, matrix *X)
+    # BFGS callback: determine SSE given @parms
+    scalar α = parms[1]
+    scalar β = parms[2]
+    scalar SSE = 0
+    scalar tmax = rows(X)
+    scalar u
+
+    # note: X = X0 | {y, a, b, f}
+    # print X
+
+    # for optimizing the initializer: reset using @parms
+    X[1,2] = parms[3]
+    X[1,3] = parms[4]
+
+    # ??
+    X[2,4] = X[1,2] + X[1,3]
+
+    # training data
+    loop t = 2..tmax
+        X[t,2] = α * X[t,1] + (1-α) * (X[t-1,2] + X[t-1,3])
+        X[t,3] = β * (X[t,2] - X[t-1,2]) + (1-β) * X[t-1,3]
+        if t < tmax
+            X[t+1,4] = X[t,2] + X[t,3]
+        endif
+        u = X[t,1] - X[t,4]
+        SSE += u*u
+    endloop
+
+    return SSE
+end function
+
+function matrix holt_auto_parms (list L, int t2, matrix *init,
+                                 int verbose)
+    # driver for automatic estimation of parameters
+    matrix X0 = NA * ones(1,4)
+
+    scalar len = 4
+    matrix b = {0.2; 0.2} | init
+    matrix bounds = zeros(len, 3)
+    loop i=1..len
+        if i < 3
+            bounds[i,] = {i, 0, 1}
+        else
+            bounds[i,] = {i, -$huge, $huge}
+        endif
+    endloop
+
+    smpl ; t2
+    set skip_missing off
+    matrix X = X0 | {L}
+
+    if verbose == 3
+        set max_verbose full
+    elif verbose == 2
+        set max_verbose on
+        set bfgs_verbskip 5
+    endif
+    catch C = BFGScmin(&b, bounds, holt_crit(b, &X))
+    err = $error
+    if err
+        printf "Got error %d from BFGScmin\n", err
+        eval holt_crit(b, &X)
+        b[1] = NA
+    else
+        if verbose > 0
+            printf "automatic parameter values:\n"
+            printf "  α = %g, β = %g\n", b[1], b[2]
+        endif
+        loop i = 1..nelem(init)
+            init[i] = b[2+i]
+        endloop
+        if verbose > 0
+            printf "\nestimated initializer:\n\n"
+            eval init
+        endif
+    endif
+    return b[1:2]
+end function
+
+function matrix holt_ranges (const series y, int ntest)
+    matrix ret = zeros(1,3)
+    catch smpl --contiguous y
+    if $error
+        funcerr "Missing values encountered"
+    endif
+    ret[1] = $t1 # start of contiguous y
+    ret[2] = $t2 # end of contiguous y
+    scalar tail = $tmax - $t2
+    if ntest > 0
+        ret[2] = $t2 - ntest
+        ret[3] = $t2
+    elif tail > 0
+        ret[3] = $tmax
+    else
+        ret[3] = $t2
+    endif
+    ntrain = ret[2] - ret[1] + 1
+    errorif(ntrain < 4, "Insufficient observations for training")
+    return ret
+end function
+
+function void holt_checks (const series y,
+                           const matrix theta)
+    if exists(theta)
+        if nelem(theta) != 2
+            funcerr "theta must be a 2-vector"
+        else
+            loop i=1..2
+                errorif(theta[i] < 0 || theta[i] > 1,
+                  sprintf("theta[%d] is out of bounds", i))
+            endloop
+        endif
+    endif
+end function
+
+function void add_virtual_series (bundle *b)
+    string s = sprintf("%s_level", b.yname)
+    b[s] = "virtual_series:H[,2]"
+    s = sprintf("%s_trend", b.yname)
+    b[s] = "virtual_series:H[,3]"
+    s = sprintf("%s_fcast", b.yname)
+    b[s] = "virtual_series:H[,4]"
+    s = sprintf("%s_irreg", b.yname)
+    b[s] = "virtual_series:H[,1]-H[,4]"
+end function
+
+function void holt_add_eval_stats (bundle *b)
+    scalar T = rows(b.H)
+    scalar t0 = T - b.ntest + 1
+    scalar SSE = 0
+    scalar MAE = 0
+    scalar fcerr
+    loop t=t0..T
+        fcerr = b.H[t,1] - b.H[t,4]
+        SSE += fcerr * fcerr
+        MAE += abs(fcerr)
+    endloop
+    b.RMSE_test = sqrt(SSE/b.ntest)
+    b.MAE_test = MAE / b.ntest
+end function
+
+function bundle holt_default_args (void)
+    bundle b
+    b.theta = {0.2, 0.2}'
+    b.ntest = 0
+    b.verbose = 1
+    b.bounds = _(verbose={0,3}, ntest={0,NA})
+    return b
+end function
+
+function bundle Holt (const series y,
+                      const bundle specs[null])
+    scalar t1 = $t1
+    scalar h = 1
+    scalar k = 0
+    scalar SSE = 0
+    scalar n = 0
+    scalar optim = 1
+    scalar fixed_theta = 0
+    string yname = argname(y, "y")
+
+    bundle args = holt_default_args()
+    if exists(specs)
+        fixed_theta = inbundle(specs, "theta")
+        errorif(bcheck(&args, specs), "aborting")
+    endif
+
+    holt_checks(y, args.theta)
+    scalar ntest = args.ntest
+
+    matrix limits = holt_ranges(y, ntest)
+    scalar t1 = limits[1]
+    scalar t2 = limits[2]
+    scalar t3 = limits[3]
+    smpl t1 t3
+
+    scalar verbose = args.verbose
+    series a b f
+    list L = y a b f
+
+    if verbose > 0
+        printf "Holt double exponential smoothing\n"
+        printf "Recursion runs from %s to %s\n",
+          obslabel(t1), obslabel(t2)
+        if args.ntest > 0
+            printf "Intra-sample forecast: %s to %s\n\n",
+              obslabel(t2+1), obslabel(t3)
+        elif t3 > t2
+            printf "Out-of-sample forecast: %s to %s\n\n",
+              obslabel(t2+1), obslabel(t3)
+        else
+            printf "Number of forecasts: 0\n\n"
+        endif
+    endif
+
+    matrix init = holt_auto_init(y)
+    if verbose > 1
+        print init
+    endif
+
+    if fixed_theta
+        matrix theta = args.theta
+        optim = 0
+    else
+        matrix theta = holt_auto_parms(L, t2, &init, verbose)
+        if !ok(theta[1])
+            funcerr "Failed to estimate parameters"
+        endif
+    endif
+
+    scalar α = theta[1]
+    scalar β = theta[2]
+
+    # forecast for the first data-point
+    f[t1] = init[1] + init[2]
+
+    loop t = t1..t2
+        # training recursion
+        i = 1 + t - t1
+        a_ = t == t1 ? init[1] : a[t-1]
+        b_ = t == t1 ? init[2] : b[t-1]
+        a[t] = α * y[t] + (1−α) * (a_ + b_)
+        b[t] = β * (a[t] - a_) + (1-β) * b_
+        if t < t3
+            f[t+1] = a[t] + b[t]
+        endif
+        scalar u = y[t] - f[t]
+        SSE += u*u
+        n++
+    endloop
+    loop t=t2+1..t3-1
+        # h-step-ahead forecasts
+        h++
+        f[t+1] = a[t2] + h*b[t2]
+    endloop
+
+    scalar RMSE_train = sqrt(SSE/n)
+    if verbose > 0
+        printf "training SSE = %g, RMSE = %g\n", SSE, RMSE_train
+        rename a level
+        rename b trend
+        rename f forecast
+        print L -o
+    endif
+
+    set skip_missing off
+    matrix H = {L}
+    bundle ret = _(theta, init, ntest, H, RMSE_train, yname)
+
+    if ntest > 0
+        holt_add_eval_stats(&ret)
+        if verbose > 0
+            printf "testing RMSE = %g, MAE = %g\n", ret.RMSE_test,
+              ret.MAE_test
+        endif
+    endif
+
+    if verbose > 0
+        printf "\n"
+    endif
+
+    return ret
+end function
+
+function void Holt_plot (const bundle *b,
+                         int ptype[1:2:1] {"actual and forecast", "components"})
+    list L = mat2list(b.H)
+    if ptype == 1
+        string yname = b.yname
+        if yname != "y"
+            rename y @yname
+        endif
+        gnuplot @yname forecast --time --with-lines --output=display
+    else
+        series irreg = b.H[,1] - b.H[,4]
+        tsplots level trend irreg --output=display
+    endif
+end function
+
+function scalar holt_precheck (void)
+    # return non-zero if dataset is not suitable:
+    # we require sufficient observations
+    return $nobs < 10
+end function
+
+function bundle holt_ui_maker (void)
+    bundle b
+    b.alpha = _(depends="parms=2")
+    b.beta  = _(depends="parms=2")
+    return b
+end function
+
+function bundle Holt_gui (series y,
+                          int parms[1:2:1] {"automatic", "pre-specified"},
+                          scalar alpha[0:1:0.2:0.0001] "level, α",
+                          scalar  beta[0:1:0.2:0.0001] "trend, β",
+                          int ntest[0::0] "ntest, see Help",
+                          int verbose[0:3:1])
+    string yname = argname(y, "y")
+    if yname != "y"
+        rename y @yname
+    endif
+    bundle ret
+    if parms == 1
+        ret = Holt(@yname, _(ntest, verbose))
+    else
+        matrix theta = {alpha, beta, gamma}
+        ret = Holt(@yname, _(theta, ntest, verbose))
+    endif
+    if $version >= 20262
+        add_virtual_series(&ret)
+    endif
+    return ret
+end function

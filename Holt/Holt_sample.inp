@@ -1,0 +1,12 @@
+include Holt.inp
+# set verbose on
+open auspop.gdt
+dataset addobs 4
+
+# with 4 out-of-sample forecasts
+# set debug 2
+bundle hb = Holt(pop, _(verbose=3))
+print hb
+list L = mat2list(hb.H)
+gnuplot pop forecast --time --with-lines --output=display
+tsplots level trend --output=display
