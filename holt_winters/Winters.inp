@@ -351,10 +351,6 @@ function bundle Winters (const series y,
       endif
    endif
 
-   if $version >= 20262
-      add_virtual_series(&ret)
-   endif
-
    if verbose > 0
       printf "\n"
    endif
@@ -404,10 +400,15 @@ function bundle Winters_gui (series y,
    if yname != "y"
       rename y @yname
    endif
+   bundle ret
    if parms == 1
-      return Winters(@yname, _(additive, ntest, verbose))
+      ret = Winters(@yname, _(additive, ntest, verbose))
    else
       matrix theta = {alpha, beta, gamma}
-      return Winters(@yname, _(theta, additive, ntest, verbose))
+      ret = Winters(@yname, _(theta, additive, ntest, verbose))
    endif
+   if $version >= 20262
+      add_virtual_series(&ret)
+   endif
+   return ret
 end function
