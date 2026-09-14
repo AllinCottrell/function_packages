@@ -48,9 +48,9 @@ Section~\ref{sec:update} below for help with updating scripts for use
 with version 2.
 
 The filtering recursions and forecasting equation for Holt's method are
-shown below. The notation is based on \cite{hyndman2021}: $\ell$ denotes
-the level and $b$ the trend or slope; $\alpha$ and $\beta$ are the
-smoothing parameters.
+shown below. The notation is based on \cite[section 8.2]{hyndman2021}:
+$\ell$ denotes the level and $b$ the trend or slope; $\alpha$ and
+$\beta$ are the smoothing parameters.
 
 \begin{align*}
   \ell_t &= \alpha y_t + (1-\alpha) (\ell_{t-1} + b_{t-1})\\
@@ -147,32 +147,30 @@ components.
 \section{Command-line usage}
 \label{sec:auto}
 
-We'll start with a simple example [FIXME FIND ONE!]
-replication of the Australian tourism example given by
-\cite{hyndman2021}. Here's the hansl
-code:\label{pg:ex1}
+We'll start with a simple example: replication of the Australian
+population example given in \cite[section[8.2]{hyndman2021}. Here's the
+hansl code:\label{pg:ex1}
 \begin{nscode}
-open XXX.gdt
-dataset addobs 12
-bundle hb = Holt(XXX)
+open auspop.gdt --frompkg=Holt
+dataset addobs 10
+bundle hb = Holt(pop)
 \end{nscode}
 
-% The \dtk{XXX} dataset contains 80 quarterly observations from
-% 1998:1 to 2017:4, which will be used for training the model. The twelve
-% added observations, 2018:1 to 2020:4, will then be used for
-% out-of-sample forecasting. Since \texttt{theta} is not not specified
-% both the parameters and the initializer for the Winters recursion
-% will be optimized automatically; see section~\ref{sec:details} for
-% details.
+The \texttt{auspop} dataset contains 58 annual observations from
+1960 to 2017, which will be used for training the model. The ten
+added observations, 2018 to 2027, will then be used for
+out-of-sample forecasting. Since \texttt{theta} is not not specified
+both the parameters and the initializer for the Holt recursion
+will be optimized automatically; see section~\ref{sec:details} for
+details.
 
-As an alternative to the above one might not add any observations but
-use the \texttt{ntest} option to get \texttt{Winters} to generate
-pseudo-out-of-sample forecasts:
+One might choose, instead, to use the \texttt{ntest} option to get
+\texttt{Holt} to generate eight pseudo-out-of-sample forecasts:
 \begin{nscode}
-open XXX.gdt #--frompkg=Winters
-bundle wb = Holt(y, _(ntest=8))
+open auspop.gdt --frompkg=Holt
+bundle hb = Holt(pop, _(ntest=8))
 \end{nscode}
-This will produce forecasts for 2016:1 to 2017:4.
+This will produce forecasts for 2010 to 2017.
 
 \section{Output details}
 \label{sec:out}
@@ -185,9 +183,9 @@ that's included in the bundle returned by \texttt{Holt} is
 basically a matrix version of this table. If you want to grab the
 columns of \texttt{H} as a list of series you can do something like
 \begin{nscode}
-bundle hb = Holt(XXX)
+bundle hb = Holt(pop)
 list L = mat2list(hb.H)
-list L print # show the members of L
+list L print # show all the series in L
 \end{nscode}
 
 \begin{table}[htbp]
@@ -208,7 +206,7 @@ list L print # show the members of L
 
 \begin{script}[htbp]
   \caption{Partial listing of results from the first example on
-    page~\ref{pg:ex1}: Forecasts for 2018:1 and beyond are
+    page~\ref{pg:ex1}: Forecasts for 2018 and beyond are
     out-of-sample.}
   \label{list:results}
 \begin{code}
@@ -255,14 +253,14 @@ Figure~\ref{fig:dialog}.
 
 \begin{figure}[htpb]
   \centering
-  \includegraphics[scale=0.65]{Holt_dialog}
+  \includegraphics[scale=0.60]{Holt_dialog}
   \caption{Holt dialog, under the Variable/Filter menu}
   \label{fig:dialog}
 \end{figure}
 
 \begin{figure}[p]
   \centering
-  \includegraphics[scale=0.5]{output_window}
+  \includegraphics[scale=0.60]{output_window}
   \caption{Holt output window}
   \label{fig:output}
 \end{figure}
@@ -282,21 +280,13 @@ This section offers some details on the rule-of-thumb initialization
 with which the Holt recursion is started, and the optimization that
 is carried out if \texttt{theta} is not given by the caller.
 
-First, the rule-of-thumb is calculated as per the suggestion in
-\cite{hyndman98}, which is also described in \cite{hyndman2010}.
-Here $\tau$ denotes the first period in which $y$ is observed.
+First, the rule-of-thumb is calculated as follows (where $\tau$ denotes
+the first period in which $y$ is observed).
 \begin{itemize}
-\item The initial level, $\ell_{\tau-1}$, is set to the mean of the
-  $m$ values $y_{\tau}, y_{\tau+1},\dots, y_{\tau+m-1}$.
-\item The initial trend, $b_{\tau-1}$, is set to the mean of the
-  first $m$ seasonal differences:
- \[
-    m^{-1} \sum_{i=0}^{m-1} \left(y_{\tau+i+m} - y_{\tau+i}\right)
- \]
-\item The initial seasonals are then set to the ratio of period-specific
-  $y_t$ to $\ell_{\tau-1}$ for the first $m$ observations
-  (multiplicative case) or the difference between $y_t$ and
-  $\ell_{\tau-1}$ (additive case).
+\item The initial trend, $b_{\tau-1}$, is set to the first observed
+  difference, $y_{\tau+1} - y_{\tau}$.
+\item The initial level, $\ell_{\tau-1}$, is set to the first observed
+  value minus the initial trend, $y_{\tau}-b_{\tau-1}$.
 \end{itemize}
 
 As regards optimization, two cases arise.

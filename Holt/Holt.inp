@@ -3,16 +3,11 @@ set verbose off
 function matrix holt_auto_init (series y "Target series")
     matrix ret = zeros(2, 1)
 
-    # printf "HERE $t1 = %d\n", $t1
-
-    # initial estimate of level: 1st period value
-    ret[1] = y[$t1]
-
-    # initial estimate of trend
+    # initial estimate of trend, period 0
     ret[2] = y[$t1+1] - y[$t1]
 
-    # initial estimate of level
-    # ret[1] = y[$t1+1] -
+    # initial estimate of level, period 0
+    ret[1] = y[$t1] - ret[2]
 
     # label the return vector
     strings S = defarray("level", "trend")
