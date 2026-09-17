@@ -2,7 +2,7 @@ set verbose off
 
 function matrix holt_auto_init (series y "Target series")
     matrix ret = zeros(2, 1)
-
+    
     # initial estimate of trend, period 0
     ret[2] = y[$t1+1] - y[$t1]
 
@@ -173,6 +173,7 @@ function bundle Holt (const series y,
     scalar h = 1
     scalar k = 0
     scalar SSE = 0
+    scalar MAE = 0
     scalar n = 0
     scalar optim = 1
     scalar fixed_theta = 0
@@ -214,12 +215,16 @@ function bundle Holt (const series y,
 
     matrix init = holt_auto_init(y)
     if verbose > 1
-        print init
+        printf "initial level %g\n", init[1]
+        printf "initial trend %g\n", init[2]
     endif
 
     if fixed_theta
         matrix theta = args.theta
         optim = 0
+        if verbose > 1
+            printf "Fixed parameters α = %g, β = %g\n", theta[1], theta[2]
+        endif
     else
         matrix theta = holt_auto_parms(L, t2, &init, verbose)
         if !ok(theta[1])
@@ -245,6 +250,7 @@ function bundle Holt (const series y,
         endif
         scalar u = y[t] - f[t]
         SSE += u*u
+        MAE += abs(u)
         n++
     endloop
     loop t=t2+1..t3-1
@@ -254,8 +260,12 @@ function bundle Holt (const series y,
     endloop
 
     scalar RMSE_train = sqrt(SSE/n)
+    scalar MAE_train = MAE/n
     if verbose > 0
-        printf "training SSE = %g, RMSE = %g\n", SSE, RMSE_train
+        if verbose > 1
+            printf "\n"
+        endif
+        printf "training RMSE = %g, MAE = %g\n", RMSE_train, MAE_train
         rename a level
         rename b trend
         rename f forecast
@@ -264,7 +274,7 @@ function bundle Holt (const series y,
 
     set skip_missing off
     matrix H = {L}
-    bundle ret = _(theta, init, ntest, H, RMSE_train, yname)
+    bundle ret = _(theta, init, ntest, H, RMSE_train, MAE_train, yname)
 
     if ntest > 0
         holt_add_eval_stats(&ret)
