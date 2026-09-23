@@ -119,19 +119,19 @@ following elements:
 \begin{itemize}
 \item \texttt{theta}: a 2-vector holding the smoothing parameter
   values.
-\item \texttt{init}: a 2-vector of holding the initializer: level and
+\item \texttt{init}: a 2-vector of holding the initial level and
   trend.
 \item \texttt{ntest}: a non-negative integer indicating how many
   observations were reserved for pseudo-out-of-sample forecasting.
-\item \texttt{W}: a $T \times 4$ matrix.  Column 1 holds the data passed
+\item \texttt{H}: a $T \times 4$ matrix.  Column 1 holds the data passed
   as \texttt{y}; columns 2 and 3 hold the estimated level and trend; and
   column 4 holds forecasts. More details on this matrix are provided
   below.
 \item \dtk{RMSE_train}: the root mean squared error for the 1-step
   ahead forecasts made using the training data.
 \end{itemize}
-If \texttt{ntest} is non-zero, two additional items will be included
-in the bundle, namely the RMSE and Mean Absolute Error for the
+If \texttt{ntest} is non-zero, two additional items are included in the
+bundle, namely the RMSE and Mean Absolute Error for the
 pseudo-out-of-sample forecasts, under the keys \dtk{RMSE_test} and
 \dtk{MAE_test}.
 
@@ -141,7 +141,7 @@ function void Holt_plot (bundle *b, int ptype)
 \end{nscode}
 The first argument should be a bundle obtained from \texttt{Holt} and
 the second argument should be either 1 for a plot of actual and forecast
-values, or 2 for a three-part plot of the level, trend and irregular
+values, or 2 for a tripartite plot of the level, trend and irregular
 components.
 
 \section{Command-line usage}
@@ -206,40 +206,51 @@ list L print # show all the series in L
 
 \begin{script}[htbp]
   \caption{Partial listing of results from the first example on
-    page~\ref{pg:ex1}: Forecasts for 2018 and beyond are
-    out-of-sample.}
+    page~\ref{pg:ex1}, with 8 observations reserved for testing.}
   \label{list:results}
 \begin{code}
 Holt double exponential smoothing
-Recursion runs from 1998:1 to 2017:4
-Out-of-sample forecast: 2018:1 to 2020:4
+Recursion runs from 1960 to 2009
+Intra-sample forecast: 2010 to 2017
 
 automatic parameter values:
-  α = 0.246679, β = 0.122927, γ = 0
+  Î± = 1, Î² = 0.272337
 
 estimated initializer:
 
-level       9.7602
-trend    -0.028109
+level       10.052 
+trend      0.22477 
 
-traning SSE = 13.4951, RMSE = 0.410718
+training RMSE = 0.0651987, MAE = 0.0457728
 
-                  y        level        trend       season     forecast
+                y        level        trend     forecast
 
-1998:1     11.80604      9.79856     -0.01994     1.180433     11.48812
-1998:2      9.27566      9.69731     -0.02994     0.981654      9.59922
-1998:3      8.64249      9.54811     -0.04460     0.941049      9.09748
-1998:4      9.29952      9.55357     -0.03844     0.958077      9.10509
+1960     10.27648     10.27648    0.2247706     10.27648
+1961     10.48300     10.48300    0.2198011     10.50125
+1962     10.74200     10.74200    0.2304764     10.70280
+1963     10.95000     10.95000    0.2243553     10.97248
+1964     11.16700     11.16700    0.2223521     11.17436
+1965     11.38800     11.38800    0.2219839     11.38935
+1966     11.65100     11.65100    0.2331541     11.60998
+1967     11.79900     11.79900    0.2099635     11.88415
+1968     12.00900     12.00900    0.2099734     12.00896
+1969     12.26300     12.26300    0.2219635     12.21897
+1970     12.50700     12.50700    0.2279649     12.48496
 ...
-2017:1     12.40642     10.63437      0.08623     1.180433     12.60120
-2017:2     10.47120     10.70735      0.08460     0.981654     10.52392
-2017:3     10.49917     10.88197      0.09567     0.941049     10.15576
-2017:4     11.21082     11.15617    0.1176140     0.958077     10.51742
-2018:1                                                         13.30794
-2018:2                                                         11.18241
-2018:3                                                         10.83055
-2018:4                                                         11.13920
-...
+2006     20.69790     20.69790    0.2592030     20.63757
+2007     20.82760     20.82760    0.2239345     20.95710
+2008     21.24920     21.24920    0.2777662     21.05153
+2009     21.69170     21.69170    0.3226294     21.52697
+2010     22.03175                               22.01433
+2011     22.34002                               22.33696
+2012     22.74247                               22.65959
+2013     23.14590                               22.98222
+2014     23.50414                               23.30485
+2015     23.85078                               23.62748
+2016     24.21081                               23.95011
+2017     24.59893                               24.27274
+
+testing RMSE = 0.19298, MAE = 0.15957
 \end{code}
 \end{script}
 
@@ -314,20 +325,17 @@ required to produce similar results from version 2.0. Note that while
 in version 1.0 the \texttt{Holt} arguments are strictly positional,
 in version 2.0 they are in effect named, since they appear as elements
 of a gretl bundle (apart from the first required series argument). And
-the meaning of ``default smoothing parameters'' has changed: in
-version 1.1 that means using a fixed parameter vector, FIXME
+the meaning of ``automatic parameters'' has changed: in
+version 1.0 that means using the fixed parameter vector,
 $\theta = (0.3, 0.1)$, while in version 2.0 it means that the
-parameters are automatically optimized, along with the initializer.
+parameters are automatically optimized along with the initializer.
 
 When $\theta$ is specified the two versions should produce identical
 forecasts: over the training range, $\hat{y}_{t|t-1}$, and over the
 testing or out-of-sample range, $\hat{y}_{T+h|T}$ where $T$ is the last
-training observation and $h = 1,2,\dots$.\footnote{FIXME. With one
-  qualification: following Hyndman's procedure the first training
-  forecast in version 2.0 is for the first observation of \texttt{y},
-  while in version 1.0 the forecasts start $m$ periods later.}  So in
-Case 1 we find that the testing results are the same for the two
-versions, namely RMSE = XXX and MAE = XXX.
+training observation and $h = 1,2,\dots$.  So in Case 1 we find that the
+testing results are the same for the two versions, namely RMSE = 435.659
+and MAE = 369.170.
 
 In Case 2 of the listing we could have had version 2.0 replicate the
 results using the default $\theta$ from version 1.0, but it's more
@@ -341,33 +349,31 @@ forecasts, the forecasts will differ by version but we're obviously
 not in a position to offer forecast evaluation statistics.
 
 \begin{script}[p]
-  \caption{Winters 1.1 examples with corresponding 2.0 code}
+  \caption{Holt 1.0 examples with corresponding 2.0 code}
   \label{list:compat}
 $\quad$ \\[1ex]
 Common initial code
 \begin{scode}
 include Holt.gfn
-open data9-3.gdt
+open data3-6.gdt
 \end{scode}
-Case 1: Multiplicative, 4 testing forecasts, specified parameters
+Case 1: 
 \begin{scode}
-# version 1.1
-bundle BW1 = Holt(reskwh, 1, 0.5, 0.1, 0.7, 4)
-series reskwh_W_mul = BW.reskwh_W_mul
+# version 1.0
+bundle bh1 = Holt(Ct, 0.7, 0.1, 0)
+series Ct_fcast = bh1.reskwh_W_mul
 
 # version 2.0
-bundle BW1 = Holt(reskwh, _(theta = {0.5, 0.1, 0.7}, ntest = 4))
-series reskwh_W_mul = BW.W[,5]
+bundle bh2 = Holt(Ct, _(theta = {0.7, 0.1}))
+series Ct_fcast = bh2.H[,4]
 \end{scode}
-Case 2: Multiplicative, 4 testing forecasts, automatic parameters
+Case 2: automatic parameters and 4 testing forecasts
 \begin{scode}
-# version 1.1
-bundle BW2 = Holt(reskwh,1,,,,4)
-series reskwh_W_mul = BW2.reskwh_W_mul
+# version 1.0
+bundle bh1 = Holt(Ct,,,,,4)
 
 # version 2.0
-bundle BW2 = Holt(reskwh, _(ntest=4))
-series reskwh_W_mul = BW2.W[,5]
+bundle bh2 = Holt(Ct, _(ntest=4))
 \end{scode}
 Case 3: Additive, 4 out-of-sample forecasts, automatic parameters
 \begin{scode}

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gretldata SYSTEM "gretldata.dtd">
+
+<gretldata version="1.5" name="auspop" frequency="1" n="59" startobs="1959" endobs="2017" type="time-series">
+<description>Australian population data imported from the CSV file 'auspop.csv',
+as exported from R's fpp3 package, 2026-09-14.
+</description>
+<variables count="1">
+<variable name="pop"
+ label="population, millions"
+/>
+</variables>
+<observations count="59" labels="false">
+<obs>NA </obs>
+<obs>10.276477 </obs>
+<obs>10.483 </obs>
+<obs>10.742 </obs>
+<obs>10.95 </obs>
+<obs>11.167 </obs>
+<obs>11.388 </obs>
+<obs>11.651 </obs>
+<obs>11.799 </obs>
+<obs>12.009 </obs>
+<obs>12.263 </obs>
+<obs>12.507 </obs>
+<obs>12.937 </obs>
+<obs>13.177 </obs>
+<obs>13.38 </obs>
+<obs>13.723 </obs>
+<obs>13.893 </obs>
+<obs>14.033 </obs>
+<obs>14.192 </obs>
+<obs>14.358 </obs>
+<obs>14.514 </obs>
+<obs>14.692 </obs>
+<obs>14.927 </obs>
+<obs>15.178 </obs>
+<obs>15.369 </obs>
+<obs>15.544 </obs>
+<obs>15.758 </obs>
+<obs>16.0184 </obs>
+<obs>16.2639 </obs>
+<obs>16.5322 </obs>
+<obs>16.8144 </obs>
+<obs>17.0651 </obs>
+<obs>17.284 </obs>
+<obs>17.495 </obs>
+<obs>17.667 </obs>
+<obs>17.855 </obs>
+<obs>18.072 </obs>
+<obs>18.311 </obs>
+<obs>18.517 </obs>
+<obs>18.711 </obs>
+<obs>18.926 </obs>
+<obs>19.153 </obs>
+<obs>19.413 </obs>
+<obs>19.6514 </obs>
+<obs>19.8954 </obs>
+<obs>20.1274 </obs>
+<obs>20.3948 </obs>
+<obs>20.6979 </obs>
+<obs>20.8276 </obs>
+<obs>21.2492 </obs>
+<obs>21.6917 </obs>
+<obs>22.03175 </obs>
+<obs>22.340024 </obs>
+<obs>22.742475 </obs>
+<obs>23.145901 </obs>
+<obs>23.504138 </obs>
+<obs>23.850784 </obs>
+<obs>24.210809 </obs>
+<obs>24.598933 </obs>
+</observations>
+</gretldata>

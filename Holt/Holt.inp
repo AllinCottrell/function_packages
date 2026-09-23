@@ -178,7 +178,7 @@ function bundle Holt (const series y,
     scalar optim = 1
     scalar fixed_theta = 0
     string yname = argname(y, "y")
-
+    
     bundle args = holt_default_args()
     if exists(specs)
         fixed_theta = inbundle(specs, "theta")
@@ -196,14 +196,19 @@ function bundle Holt (const series y,
 
     scalar verbose = args.verbose
     series a b f
-    list L = y a b f
+    if "@yname" != "y"
+        series @yname = y
+        list L = @yname a b f
+    else
+        list L = y a b f
+    endif
 
     if verbose > 0
         printf "Holt double exponential smoothing\n"
         printf "Recursion runs from %s to %s\n",
           obslabel(t1), obslabel(t2)
         if args.ntest > 0
-            printf "Intra-sample forecast: %s to %s\n\n",
+            printf "Testing forecast: %s to %s\n\n",
               obslabel(t2+1), obslabel(t3)
         elif t3 > t2
             printf "Out-of-sample forecast: %s to %s\n\n",
@@ -296,6 +301,7 @@ function void Holt_plot (const bundle *b,
     list L = mat2list(b.H)
     if ptype == 1
         string yname = b.yname
+        # FIXME yname?
         if yname != "y"
             rename y @yname
         endif
