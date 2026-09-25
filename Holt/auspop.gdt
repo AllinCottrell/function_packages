@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE gretldata SYSTEM "gretldata.dtd">
 
-<gretldata version="1.5" name="auspop" frequency="1" n="59" startobs="1959" endobs="2017" type="time-series">
+<gretldata version="1.5" name="auspop" frequency="1" n="58" startobs="1960" endobs="2017" type="time-series">
 <description>Australian population data imported from the CSV file 'auspop.csv',
 as exported from R's fpp3 package, 2026-09-14.
 </description>
 <variables count="1">
 <variable name="pop"
- label="population, millions"
+ label="Australian population, millions"
 />
 </variables>
-<observations count="59" labels="false">
-<obs>NA </obs>
+<observations count="58" labels="false">
 <obs>10.276477 </obs>
 <obs>10.483 </obs>
 <obs>10.742 </obs>
