@@ -2,7 +2,7 @@ set verbose off
 
 function matrix holt_auto_init (series y "Target series")
     matrix ret = zeros(2, 1)
-    
+
     # initial estimate of trend, period 0
     ret[2] = y[$t1+1] - y[$t1]
 
@@ -82,6 +82,9 @@ function matrix holt_auto_parms (list L, int t2, matrix *init,
         b[1] = NA
     else
         if verbose > 0
+            if verbose > 1
+                printf "\n"
+            endif
             printf "automatic parameter values:\n"
             printf "  α = %g, β = %g\n", b[1], b[2]
         endif
@@ -89,8 +92,8 @@ function matrix holt_auto_parms (list L, int t2, matrix *init,
             init[i] = b[2+i]
         endloop
         if verbose > 0
-            printf "\nestimated initializer:\n\n"
-            eval init
+            printf "\nestimated initializer:\n"
+            printf "  level = %g, trend = %g\n", init[1], init[2]
         endif
     endif
     return b[1:2]
@@ -178,7 +181,7 @@ function bundle Holt (const series y,
     scalar optim = 1
     scalar fixed_theta = 0
     string yname = argname(y, "y")
-    
+
     bundle args = holt_default_args()
     if exists(specs)
         fixed_theta = inbundle(specs, "theta")
@@ -196,12 +199,7 @@ function bundle Holt (const series y,
 
     scalar verbose = args.verbose
     series a b f
-    if "@yname" != "y"
-        series @yname = y
-        list L = @yname a b f
-    else
-        list L = y a b f
-    endif
+    list L = y a b f
 
     if verbose > 0
         printf "Holt double exponential smoothing\n"
@@ -301,7 +299,6 @@ function void Holt_plot (const bundle *b,
     list L = mat2list(b.H)
     if ptype == 1
         string yname = b.yname
-        # FIXME yname?
         if yname != "y"
             rename y @yname
         endif
