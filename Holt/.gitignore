@@ -1,6 +1,7 @@
 testing
 *.gfn
 *.zip
+*.pdf
 *~
 doc/*.aux
 doc/*.log

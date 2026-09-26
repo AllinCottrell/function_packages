@@ -93,7 +93,7 @@ function matrix holt_auto_parms (list L, int t2, matrix *init,
         endloop
         if verbose > 0
             printf "\nestimated initializer:\n"
-            printf "  level = %g, trend = %g\n", init[1], init[2]
+            printf "  level = %g, trend = %g\n\n", init[1], init[2]
         endif
     endif
     return b[1:2]
@@ -203,7 +203,7 @@ function bundle Holt (const series y,
 
     if verbose > 0
         printf "Holt double exponential smoothing\n"
-        printf "Recursion runs from %s to %s\n",
+        printf "Training range: %s to %s\n",
           obslabel(t1), obslabel(t2)
         if args.ntest > 0
             printf "Testing forecast: %s to %s\n\n",
@@ -286,9 +286,13 @@ function bundle Holt (const series y,
               ret.MAE_test
         endif
     endif
-
+    
     if verbose > 0
         printf "\n"
+    endif
+    
+    if $version >= 20262
+        add_virtual_series(&ret)
     endif
 
     return ret
@@ -339,8 +343,9 @@ function bundle Holt_gui (series y,
         matrix theta = {alpha, beta, gamma}
         ret = Holt(@yname, _(theta, ntest, verbose))
     endif
-    if $version >= 20262
-        add_virtual_series(&ret)
-    endif
+    # This is now done in Holt()
+    # if $version >= 20262
+    #    add_virtual_series(&ret)
+    # endif
     return ret
 end function

@@ -4,6 +4,6 @@ open auspop.gdt --frompkg=Holt
 dataset addobs 10
 
 # training plus 10 out-of-sample forecasts
-bundle hb = Holt(pop, _(verbose=2))
+bundle hb = Holt(pop)
 Holt_plot(&hb, 1)
 Holt_plot(&hb, 2)

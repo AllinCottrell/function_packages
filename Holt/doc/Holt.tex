@@ -129,9 +129,12 @@ following elements:
   below.
 \item \dtk{RMSE_train}: the root mean squared error for the 1-step
   ahead forecasts made using the training data.
+\item \dtk{MAE_train}: the mean absolute error for the 1-step
+  ahead forecasts made using the training data.
+\item \texttt{yname}: the name of the input series.
 \end{itemize}
 If \texttt{ntest} is non-zero, two additional items are included in the
-bundle, namely the RMSE and Mean Absolute Error for the
+bundle, namely the RMSE and MAE for the
 pseudo-out-of-sample forecasts, under the keys \dtk{RMSE_test} and
 \dtk{MAE_test}.
 
@@ -139,38 +142,41 @@ A simple plotting function is also supplied:
 \begin{nscode}
 function void Holt_plot (bundle *b, int ptype)
 \end{nscode}
-The first argument should be a bundle obtained from \texttt{Holt} and
-the second argument should be either 1 for a plot of actual and forecast
-values, or 2 for a tripartite plot of the level, trend and irregular
-components.
+The first argument should be a pointer to a bundle obtained from
+\texttt{Holt} and the second argument should be either 1 for a plot of
+actual and forecast values, or 2 for a tripartite plot of the level,
+trend and irregular components.
 
 \section{Command-line usage}
 \label{sec:auto}
 
-We'll start with a simple example: replication of the Australian
-population example given in \cite[section[8.2]{hyndman2021}. Here's the
-hansl code:\label{pg:ex1}
+We'll illustrate with replication of the Australian population example
+given in \citet[section 8.2]{hyndman2021}. Here's the hansl
+code:
 \begin{nscode}
+include Holt.gfn
 open auspop.gdt --frompkg=Holt
 dataset addobs 10
 bundle hb = Holt(pop)
+Holt_plot(&hb, 1)
+Holt_plot(&hb, 2)
 \end{nscode}
 
-The \texttt{auspop} dataset contains 58 annual observations from
-1960 to 2017, which will be used for training the model. The ten
-added observations, 2018 to 2027, will then be used for
-out-of-sample forecasting. Since \texttt{theta} is not not specified
-both the parameters and the initializer for the Holt recursion
-will be optimized automatically; see section~\ref{sec:details} for
-details.
+The \texttt{auspop} dataset contains 58 annual observations from 1960 to
+2017, which is used for training the model. The ten added observations,
+2018 to 2027, are then used for out-of-sample forecasting. Since
+\texttt{theta} is not specified, both the parameters and the initializer
+for the Holt recursion will be optimized automatically; see
+section~\ref{sec:details} for details.
 
 One might choose, instead, to use the \texttt{ntest} option to get
-\texttt{Holt} to generate eight pseudo-out-of-sample forecasts:
+\texttt{Holt} to generate (say) four pseudo-out-of-sample forecasts:
 \begin{nscode}
 open auspop.gdt --frompkg=Holt
-bundle hb = Holt(pop, _(ntest=8))
+bundle hb = Holt(pop, _(ntest=4))
 \end{nscode}
-This will produce forecasts for 2010 to 2017.
+This generates forecasts for 2014 to 2017, and the RMSE and MAE for
+these testing forecasts are printed.
 
 \section{Output details}
 \label{sec:out}
@@ -205,52 +211,58 @@ list L print # show all the series in L
 \end{table}
 
 \begin{script}[htbp]
-  \caption{Partial listing of results from the first example on
-    page~\ref{pg:ex1}, with 8 observations reserved for testing.}
+  \caption{Partial listing of results from the first Australian
+    population example in Section~\ref{sec:auto}.}
   \label{list:results}
 \begin{code}
 Holt double exponential smoothing
-Recursion runs from 1960 to 2009
-Intra-sample forecast: 2010 to 2017
+Training range: 1960 to 2017
+Out-of-sample forecast: 2018 to 2027
 
 automatic parameter values:
-  Î± = 1, Î² = 0.272337
+  α = 1, β = 0.325466
 
 estimated initializer:
+  level = 10.0527, trend = 0.223798
 
-level       10.052 
-trend      0.22477 
-
-training RMSE = 0.0651987, MAE = 0.0457728
+training RMSE = 0.0620315, MAE = 0.0432489
 
                 y        level        trend     forecast
 
-1960     10.27648     10.27648    0.2247706     10.27648
-1961     10.48300     10.48300    0.2198011     10.50125
-1962     10.74200     10.74200    0.2304764     10.70280
-1963     10.95000     10.95000    0.2243553     10.97248
-1964     11.16700     11.16700    0.2223521     11.17436
-1965     11.38800     11.38800    0.2219839     11.38935
-1966     11.65100     11.65100    0.2331541     11.60998
-1967     11.79900     11.79900    0.2099635     11.88415
-1968     12.00900     12.00900    0.2099734     12.00896
-1969     12.26300     12.26300    0.2219635     12.21897
-1970     12.50700     12.50700    0.2279649     12.48496
+1960     10.27648     10.27648    0.2237983     10.27648
+1961     10.48300     10.48300    0.2181758     10.50028
+1962     10.74200     10.74200    0.2314627     10.70118
+1963     10.95000     10.95000    0.2238264     10.97346
+1964     11.16700     11.16700    0.2216046     11.17383
+1965     11.38800     11.38800    0.2214078     11.38860
+1966     11.65100     11.65100    0.2349447     11.60941
+1967     11.79900     11.79900    0.2066471     11.88594
+1968     12.00900     12.00900    0.2077384     12.00565
+1969     12.26300     12.26300    0.2227950     12.21674
+1970     12.50700     12.50700    0.2296965     12.48579
 ...
-2006     20.69790     20.69790    0.2592030     20.63757
-2007     20.82760     20.82760    0.2239345     20.95710
-2008     21.24920     21.24920    0.2777662     21.05153
-2009     21.69170     21.69170    0.3226294     21.52697
-2010     22.03175                               22.01433
-2011     22.34002                               22.33696
-2012     22.74247                               22.65959
-2013     23.14590                               22.98222
-2014     23.50414                               23.30485
-2015     23.85078                               23.62748
-2016     24.21081                               23.95011
-2017     24.59893                               24.27274
-
-testing RMSE = 0.19298, MAE = 0.15957
+2006     20.69790     20.69790    0.2642719     20.64034
+2007     20.82760     20.82760    0.2204733     20.96217
+2008     21.24920     21.24920    0.2859332     21.04807
+2009     21.69170     21.69170    0.3368904     21.53513
+2010     22.03175     22.03175    0.3379188     22.02859
+2011     22.34002     22.34002    0.3282704     22.36967
+2012     22.74247     22.74247    0.3524137     22.66829
+2013     23.14590     23.14590    0.3690165     23.09489
+2014     23.50414     23.50414    0.3655081     23.51492
+2015     23.85078     23.85078    0.3593691     23.86965
+2016     24.21081     24.21081    0.3595826     24.21015
+2017     24.59893     24.59893    0.3688719     24.57039
+2018                                            24.96780
+2019                                            25.33668
+2020                                            25.70555
+2021                                            26.07442
+2022                                            26.44329
+2023                                            26.81216
+2024                                            27.18104
+2025                                            27.54991
+2026                                            27.91878
+2027                                            28.28765
 \end{code}
 \end{script}
 
@@ -289,15 +301,15 @@ and one showing the level, trend and irregular components.
 
 This section offers some details on the rule-of-thumb initialization
 with which the Holt recursion is started, and the optimization that
-is carried out if \texttt{theta} is not given by the caller.
+is carried out if \texttt{theta} is not specified by the caller.
 
-First, the rule-of-thumb is calculated as follows (where $\tau$ denotes
-the first period in which $y$ is observed).
+First, the rule-of-thumb initialization is as follows, where $\tau$
+denotes the first period in which $y$ is observed.
 \begin{itemize}
+\item The initial level, $\ell_{\tau-1}$, is set to the first observed
+  value $y_{\tau}$.
 \item The initial trend, $b_{\tau-1}$, is set to the first observed
   difference, $y_{\tau+1} - y_{\tau}$.
-\item The initial level, $\ell_{\tau-1}$, is set to the first observed
-  value minus the initial trend, $y_{\tau}-b_{\tau-1}$.
 \end{itemize}
 
 As regards optimization, two cases arise.
@@ -311,42 +323,37 @@ As regards optimization, two cases arise.
   methods in the \GUG\ for details), with $\alpha$ and $\beta$
   constrained to lie in $[0,1]$.
 \item If \texttt{theta} is given, the initializer is just the
-  rule-of-thumb value; no optimization is performed. In principle the
-  initializer could be optimized conditional on $\theta$ and that's a
-  possible future refinement if it seems there's a real use case.
+  rule-of-thumb value; no optimization is performed.
 \end{itemize}
 
 \section{Updating from Holt 1.0}
 \label{sec:update}
 
-Listing~\ref{list:compat} shows three cases drawing on the sample
-script for version 1.0 of the package along with the revised code
-required to produce similar results from version 2.0. Note that while
-in version 1.0 the \texttt{Holt} arguments are strictly positional,
-in version 2.0 they are in effect named, since they appear as elements
-of a gretl bundle (apart from the first required series argument). And
-the meaning of ``automatic parameters'' has changed: in
-version 1.0 that means using the fixed parameter vector,
-$\theta = (0.3, 0.1)$, while in version 2.0 it means that the
-parameters are automatically optimized along with the initializer.
+If the caller specifies the smoothing parameters, $\theta$, and if the
+\texttt{init} argument in version 1.0 is set to 0 (meaning that the
+initializer is set via the rule of thumb described in the previous
+section), the two versions of the package will produce the same sequence
+of one-step-ahead forecasts. The relevant hansl code is shown under the
+heading \texttt{Case 1} in Listing~\ref{list:compat}. Note that while in
+version 1.0 the \texttt{Holt} arguments are strictly positional, in
+version 2.0 they are in effect named, since they appear as elements of a
+gretl bundle (apart from the first required series argument). This
+example also shows how to extract the forecast series from the
+respective returned bundles.
 
-When $\theta$ is specified the two versions should produce identical
-forecasts: over the training range, $\hat{y}_{t|t-1}$, and over the
-testing or out-of-sample range, $\hat{y}_{T+h|T}$ where $T$ is the last
-training observation and $h = 1,2,\dots$.  So in Case 1 we find that the
-testing results are the same for the two versions, namely RMSE = 435.659
-and MAE = 369.170.
+\texttt{Case 2} in the listing shows how to generate testing forecasts
+using each version of the package. In this case we don't specify
+$\theta$, but accept the default behavior of the \texttt{Holt} function,
+which differs by version. In version 1.0 $\theta$ defaults to the fixed
+vector $(0.3, 0.1)$ and the initializer is set via an OLS regresson
+using the first half of the training observations. In version 2.0
+$\theta$ and the initializer are jointly optimized using all of the
+training data.
 
-In Case 2 of the listing we could have had version 2.0 replicate the
-results using the default $\theta$ from version 1.0, but it's more
-informative to compare that default with optimized results. The
-automatic $\theta$ in version 1.0 gives a slight improvement over Case
-1: RMSE = XXX, MAE = XXX. The optimized parameters with 2.0 give
-a more substantial improvement: RMSE = XXX, MAE = XXX.
-
-In Case 3, with automatic parameters and genuine out-of-sample
-forecasts, the forecasts will differ by version but we're obviously
-not in a position to offer forecast evaluation statistics.
+\texttt{Case 3} exhibits the generation of an out-of-sample forecast
+after adding empty ``observations'' to the dataset. For both versions,
+only the input series needs to be specified. The default behavior
+differs as described for \texttt{Case 2}.
 
 \begin{script}[p]
   \caption{Holt 1.0 examples with corresponding 2.0 code}
@@ -357,49 +364,51 @@ Common initial code
 include Holt.gfn
 open data3-6.gdt
 \end{scode}
-Case 1: 
+Case 1, producing the same forecast sequence: 
 \begin{scode}
 # version 1.0
 bundle bh1 = Holt(Ct, 0.7, 0.1, 0)
-series Ct_fcast = bh1.reskwh_W_mul
-
+series fcast1 = bh1.Ct_Holt
 # version 2.0
 bundle bh2 = Holt(Ct, _(theta = {0.7, 0.1}))
-series Ct_fcast = bh2.H[,4]
+series fcast2 = bh2.H[,4] # or "= bh2.Ct_fcast" in gretl 2026c
 \end{scode}
-Case 2: automatic parameters and 4 testing forecasts
+Case 2, automatic parameters and 4 testing forecasts:
 \begin{scode}
 # version 1.0
-bundle bh1 = Holt(Ct,,,,,4)
-
+bundle bh1 = Holt(Ct, , , , 4)
 # version 2.0
 bundle bh2 = Holt(Ct, _(ntest=4))
 \end{scode}
-Case 3: Additive, 4 out-of-sample forecasts, automatic parameters
+Case 3, automatic parameters and 4 out-of-sample forecasts:
 \begin{scode}
-# version 1.1
 dataset addobs 4
-bundle BW3 = Holt(reskwh, 0)
-series reskwh_W_add = BW3.reskwh_W_add
-
+# version 1.0
+bundle bh1 = Holt(Ct)
 # version 2.0
-dataset addobs 4
-bundle BW3 = Holt(reskwh, _(additive=1))
-series reskwh_W_add = BW3.W[,5]
+bundle bh2 = Holt(Ct)
 \end{scode}
 \end{script}
 
-The output data in the returned bundle also differ slightly across the
-versions of the package. In version 1.0 four series are included: the
-original series, the one-step ahead forecast, level-plus-trend, and
-seasonal. Version 2.0 gives a four-column matrix holding the original
-series, level, trend and forecast as in \cite{hyndman2021}.
+The content of the returned bundle also differs across the versions of
+the package. In version 1.0 two series are included: the original series
+and the Holt forecast, while version 2.0 gives a four-column matrix
+holding the original series, level, trend and forecast as in
+\cite{hyndman2021}. Where version 1.0 reports the mean square error
+(MSE), version 2.0 reports the RMSE.
+
+% AAN $h$-step-ahead forecast variance:
+% \[
+%   \sigma^2_h = \sigma^2 \left[ 1 + (h-1) \{\alpha^2 + \alpha\beta h
+%         + \frac{1}{6} \beta^2h(2h-1) \} \right]
+% \]
 
 \section{Change log}
 \label{sec:log}
 
 \begin{itemize}
-\item \texttt{v2.0}: Initial release of substantially modified version.
+\item \texttt{v2.0}, 2026-09-26: Initial release of substantially
+  modified version.
 \end{itemize}
 
 \bibliographystyle{gretl}
