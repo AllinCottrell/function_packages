@@ -37,8 +37,8 @@
 This package implements the forecasting method devised by C. C. Holt
 \citeyearpar{holt57}, namely double exponential smoothing with level and
 trend and components.  It requires time-series data. If you want triple
-exponential smoothing (with a seasonal component), as in
-\citealt{winters60}), try the \textsf{Winters} package.
+exponential smoothing---with a seasonal component as in
+\citet{winters60}---please try the \textsf{Winters} package.
 
 A prior version of this package (1.0) was written by Ignacio
 Díaz-Emparanza in 2015. This revision was written by Allin Cottrell,
@@ -104,8 +104,8 @@ options:
 \begin{itemize}
 \item \texttt{theta} (matrix): if supplied, this must be a 2-vector
   holding the smoothing parameters $\theta$ = ($\alpha$, $\beta$), with
-  each parameter in $[0,1]$. If \texttt{parms} is not given these
-  parameters are determined automatically.
+  each parameter in $[0,1]$. Otherwise these parameters are determined
+  automatically.
 \item \texttt{ntest} (integer): specifies the number of
   observations at the end of the range of \texttt{y} values to reserve
   for testing via pseudo-out-of-sample forecasting. The default value
@@ -137,10 +137,14 @@ following elements:
   last forecast. If there are no post-training forecasts (testing or
   out-of-sample) the third element is equal to the second.
 \end{itemize}
+
 If \texttt{ntest} is non-zero, two additional items are included in the
-bundle, namely the RMSE and MAE for the
-pseudo-out-of-sample forecasts, under the keys \dtk{RMSE_test} and
-\dtk{MAE_test}.
+bundle, namely the RMSE and MAE for the pseudo-out-of-sample forecasts,
+under the keys \dtk{RMSE_test} and \dtk{MAE_test}.
+
+If any post-training forecasts are performed (either in response to
+\texttt{ntest} or out of sample), the matrix $H$ acquires a fifth
+column, holding standard errors for these forecasts.
 
 A simple plotting function is also supplied:
 \begin{nscode}
@@ -152,6 +156,17 @@ actual and forecast values, or 2 for a tripartite plot of the level,
 trend and irregular components. When post-training forecasts have been
 performed, the \texttt{ptype} = 1 plot includes 80 and 95 percent
 confidence intervals for these forecasts.
+
+A third public function is available when, and only when, post-training
+forecasts are generated:
+\begin{nscode}
+function matrix Holt_ci_matrix (const bundle b)
+\end{nscode}
+The argument must be a bundle obtained from \texttt{Holt}. The return
+value is a matrix with four columns, and rows equal to the number of
+post-training forecasts. The first two columns hold the lower and upper
+limits for an 80 percent confidence interval and the second two hold the
+limits for a 95 percent interval.
 
 \section{Command-line usage}
 \label{sec:auto}

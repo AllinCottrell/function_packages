@@ -7,7 +7,7 @@ DATA = auspop.gdt
 $(PKG).gfn: $(PKG).inp $(PKG).spec $(PKG)_sample.inp
 	gretlcli --makepkg $(PKG).inp
 
-$(PKG).zip: $(PKG).gfn $(DOC)
+$(PKG).zip: $(PKG).gfn $(DOC) $(DATA)
 	rm -rf $(PKG) && mkdir $(PKG) && cp $^ $(PKG) && zip -r $@ $(PKG)
 
 $(DOC):

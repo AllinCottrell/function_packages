@@ -170,8 +170,9 @@ function bundle holt_default_args (void)
     return b
 end function
 
-function matrix holt_ci_matrix (const bundle b)
+function matrix Holt_ci_matrix (const bundle b)
     hmax = b.limits[3] - b.limits[2]
+    errorif(hmax <= 0, "No post-training forecasts are available")
     df = rows(b.H) - hmax
     t80 = critical(t, df, 0.10)
     t95 = critical(t, df, 0.025)
