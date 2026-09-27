@@ -170,6 +170,46 @@ function bundle holt_default_args (void)
     return b
 end function
 
+function matrix holt_ci_matrix (const bundle b)
+    hmax = b.limits[3] - b.limits[2]
+    df = rows(b.H) - hmax
+    t80 = critical(t, df, 0.10)
+    t95 = critical(t, df, 0.025)
+    matrix CI = zeros(hmax, 4)
+    t = rows(b.H) - hmax + 1
+    scalar fc me
+    loop i=1..hmax
+        fc = b.H[t,4]
+        me = t80 * b.H[t,5]
+        CI[i,1] = fc - me
+        CI[i,2] = fc + me
+        me = t95 * b.H[t,5]
+        CI[i,3] = fc - me
+        CI[i,4] = fc + me
+        t++
+    endloop
+    cnameset(CI, "Lo80 Hi80 Lo95 Hi95")
+    return CI
+end function
+
+function void holt_add_fcse (bundle *bh)
+    # computes a sequence of Holt (AAN) forecast standard errors
+    # see https://otexts.com/fpp3/ets-forecasting.html, # 8.7
+    # and adds it to bundle b
+    α = bh.theta[1]
+    β = bh.theta[2]
+    s2 = bh.RMSE_train^2
+    hmax = bh.limits[3] - bh.limits[2]
+    vh = ones(rows(bh.H), 1) * NA
+    t = rows(vh) - hmax + 1
+    loop h=1..hmax
+        vh[t++] = s2 * (1 + (h-1)*(α^2 + α*β*h + (1/6)*β^2*h*(2*h-1)))
+    endloop
+    strings ss = cnameget(bh.H)
+    bh.H ~= sqrt(vh)
+    cnameset(bh.H, ss + "stderr")
+end function
+
 function bundle Holt (const series y,
                       const bundle specs[null])
     scalar t1 = $t1
@@ -277,7 +317,8 @@ function bundle Holt (const series y,
 
     set skip_missing off
     matrix H = {L}
-    bundle ret = _(theta, init, ntest, H, RMSE_train, MAE_train, yname)
+    bundle ret = _(theta, init, ntest, H, RMSE_train, MAE_train,
+      yname, limits)
 
     if ntest > 0
         holt_add_eval_stats(&ret)
@@ -291,11 +332,24 @@ function bundle Holt (const series y,
         printf "\n"
     endif
     
+    if ret.limits[3] > ret.limits[2]
+        holt_add_fcse(&ret)
+    endif
+    
     if $version >= 20262
         add_virtual_series(&ret)
     endif
 
     return ret
+end function
+
+function bundles holt_bands (list L, int df)
+    bundles bb = array(2)
+    t80 = critical(t, df, 0.10)
+    t95 = critical(t, df, 0.025)
+    bb[1] = _(center="forecast", width="stderr", factor=t95, style="fill", color="#BBD9F5")
+    bb[2] = _(center="forecast", width="stderr", factor=t80, style="fill", color="#6AADEC")
+    return bb
 end function
 
 function void Holt_plot (const bundle *b,
@@ -306,7 +360,14 @@ function void Holt_plot (const bundle *b,
         if yname != "y"
             rename y @yname
         endif
-        gnuplot @yname forecast --time --with-lines --output=display
+        if b.limits[3] > b.limits[2]
+            hmax = b.limits[3] - b.limits[2]
+            hbands = holt_bands(L, rows(b.H) - hmax)
+            gnuplot @yname forecast --time --with-lines --bands=hbands --output=display \
+              { set title "forecast with 80 and 95 percent intervals"; }
+        else
+            gnuplot @yname forecast --time --with-lines --output=display
+        endif
     else
         series irreg = b.H[,1] - b.H[,4]
         tsplots level trend irreg --output=display
