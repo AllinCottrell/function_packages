@@ -44,8 +44,8 @@ A prior version of this package (1.0) was written by Ignacio
 Díaz-Emparanza in 2015. This revision was written by Allin Cottrell,
 exploiting modern hansl syntax and adding functionality for automatic
 determination of the Holt smoothing parameters. See
-Section~\ref{sec:update} below for help with updating scripts for use
-with version 2.
+section~\ref{sec:update} below for an account of the differences between
+the versions.
 
 The filtering recursions and forecasting equation for Holt's method are
 shown below. The notation is based on \citet[section 8.2]{hyndman2021}:
@@ -143,30 +143,34 @@ bundle, namely the RMSE and MAE for the pseudo-out-of-sample forecasts,
 under the keys \dtk{RMSE_test} and \dtk{MAE_test}.
 
 If any post-training forecasts are performed (either in response to
-\texttt{ntest} or out of sample), the matrix $H$ acquires a fifth
+\texttt{ntest} or out of sample), the matrix \texttt{H} acquires a fifth
 column, holding standard errors for these forecasts.
 
-A simple plotting function is also supplied:
+A simple \textit{plotting} function is also supplied:
 \begin{nscode}
-function void Holt_plot (bundle *b, int ptype)
+function void Holt_plot (bundle *b, int ptype, matrix ci_levels[null])
 \end{nscode}
 The first argument should be a pointer to a bundle obtained from
 \texttt{Holt} and the second argument should be either 1 for a plot of
 actual and forecast values, or 2 for a tripartite plot of the level,
-trend and irregular components. When post-training forecasts have been
-performed, the \texttt{ptype} = 1 plot includes 80 and 95 percent
-confidence intervals for these forecasts.
+trend and irregular components. The third (optional) argument is
+referenced only when \texttt{ptype} = 1 and post-training forecasts have
+been performed, in which case confidence intervals will be shown. If
+\dtk{ci_levels} is supplied it must be a 2-vector holding two distinct
+confidence levels, in percentage form and in the range 50 to 99. If
+this argument is not given the levels default to 80\% and 95\%.
 
 A third public function is available when, and only when, post-training
 forecasts are generated:
 \begin{nscode}
-function matrix Holt_ci_matrix (const bundle b)
+function matrix Holt_ci_matrix (const bundle b, matrix ci_levels[null])
 \end{nscode}
 The argument must be a bundle obtained from \texttt{Holt}. The return
 value is a matrix with four columns, and rows equal to the number of
-post-training forecasts. The first two columns hold the lower and upper
-limits for an 80 percent confidence interval and the second two hold the
-limits for a 95 percent interval.
+post-training forecasts. By default the first two columns hold the lower
+and upper limits for an 80 percent \textit{confidence interval} and the
+second two hold the limits for a 95 percent interval. The optional
+\dtk{ci_levels} argument works just as with \dtk{Holt_plot}.
 
 \section{Command-line usage}
 \label{sec:auto}
@@ -204,11 +208,11 @@ these testing forecasts are printed.
 
 Table~\ref{tab:verbose} shows what is printed by \texttt{Holt} as a
 function of the \texttt{verbose} option. An example of the table of
-results displayed when \texttt{verbose} is 1 or greater is presented
-in the lower part of listing~\ref{list:results}. The matrix \texttt{H}
-that's included in the bundle returned by \texttt{Holt} is
-basically a matrix version of this table. If you want to grab the
-columns of \texttt{H} as a list of series you can do something like
+results displayed when \texttt{verbose} is 1 or greater is presented in
+the lower part of listing~\ref{list:results}. The matrix \texttt{H}
+that's included in the bundle returned by \texttt{Holt} is basically a
+matrix version of this table. If you want to grab the columns of
+\texttt{H} as a list of series you can do something like this:
 \begin{nscode}
 bundle hb = Holt(pop)
 list L = mat2list(hb.H)
@@ -222,7 +226,7 @@ list L print # show all the series in L
     \textit{verbose} & \textit{cumulative effect} \\[6pt]
     0 & Nothing is printed. \\
     1 & Parameters and initializer are reported, also a table
-        of results (see below) and the SSE and RMSE for the
+        of results (see below) and the RMSE and MAE for the
         training data.\\
     2 & If optimization is performed, partial information on
         progress of the iterative procedure is shown. \\

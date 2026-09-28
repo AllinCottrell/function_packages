@@ -170,26 +170,51 @@ function bundle holt_default_args (void)
     return b
 end function
 
-function matrix Holt_ci_matrix (const bundle b)
+function void check_ci_levels (matrix pc)
+    scalar err = 0
+    if nelem(pc) != 2
+        err = 1
+    elif min(pc) < 50 || max(pc) > 99
+        err = 2
+    elif pc[1] == pc[2]
+        err = 3
+    endif
+    errorif(err, "ci_levels: invalid argument")
+end function
+
+function matrix Holt_ci_matrix (const bundle b,
+                                matrix ci_levels[null])
     hmax = b.limits[3] - b.limits[2]
     errorif(hmax <= 0, "No post-training forecasts are available")
+    if exists(ci_levels)
+        check_ci_levels(ci_levels)
+    else
+        ci_levels = {80, 95}
+    endif
     df = rows(b.H) - hmax
-    t80 = critical(t, df, 0.10)
-    t95 = critical(t, df, 0.025)
+    ci1 = min(ci_levels)
+    ci2 = max(ci_levels)
+    f1 = critical(t, df, (100 - ci1) / 200)
+    f2 = critical(t, df, (100 - ci2) / 200)
     matrix CI = zeros(hmax, 4)
     t = rows(b.H) - hmax + 1
     scalar fc me
     loop i=1..hmax
         fc = b.H[t,4]
-        me = t80 * b.H[t,5]
+        me = f1 * b.H[t,5]
         CI[i,1] = fc - me
         CI[i,2] = fc + me
-        me = t95 * b.H[t,5]
+        me = f2 * b.H[t,5]
         CI[i,3] = fc - me
         CI[i,4] = fc + me
         t++
     endloop
-    cnameset(CI, "Lo80 Hi80 Lo95 Hi95")
+    strings cs = array(4)
+    cs[1] = sprintf("Lo%d", ci1)
+    cs[2] = sprintf("Hi%d", ci1)
+    cs[3] = sprintf("Lo%d", ci2)
+    cs[4] = sprintf("Hi%d", ci2)
+    cnameset(CI, cs)
     return CI
 end function
 
@@ -328,15 +353,15 @@ function bundle Holt (const series y,
               ret.MAE_test
         endif
     endif
-    
+
     if verbose > 0
         printf "\n"
     endif
-    
+
     if ret.limits[3] > ret.limits[2]
         holt_add_fcse(&ret)
     endif
-    
+
     if $version >= 20262
         add_virtual_series(&ret)
     endif
@@ -344,17 +369,19 @@ function bundle Holt (const series y,
     return ret
 end function
 
-function bundles holt_bands (list L, int df)
+function bundles holt_bands (list L, int df, scalar c1, scalar c2)
     bundles bb = array(2)
-    t80 = critical(t, df, 0.10)
-    t95 = critical(t, df, 0.025)
-    bb[1] = _(center="forecast", width="stderr", factor=t95, style="fill", color="#BBD9F5")
-    bb[2] = _(center="forecast", width="stderr", factor=t80, style="fill", color="#6AADEC")
+    # for plotting, show the wider band first
+    f1 = critical(t, df, (100 - c2) / 200)
+    f2 = critical(t, df, (100 - c1) / 200)
+    bb[1] = _(center="forecast", width="stderr", factor=f1, style="fill", color="#BBD9F5")
+    bb[2] = _(center="forecast", width="stderr", factor=f2, style="fill", color="#6AADEC")
     return bb
 end function
 
 function void Holt_plot (const bundle *b,
-                         int ptype[1:2:1] {"actual and forecast", "components"})
+                         int ptype[1:2:1] {"actual and forecast", "components"},
+                         matrix ci_levels[null])
     list L = mat2list(b.H)
     if ptype == 1
         string yname = b.yname
@@ -362,10 +389,21 @@ function void Holt_plot (const bundle *b,
             rename y @yname
         endif
         if b.limits[3] > b.limits[2]
+            if exists(ci_levels)
+                check_ci_levels(ci_levels)
+            else
+                ci_levels = {80, 95}
+            endif
             hmax = b.limits[3] - b.limits[2]
-            hbands = holt_bands(L, rows(b.H) - hmax)
-            gnuplot @yname forecast --time --with-lines --bands=hbands --output=display \
-              { set title "forecast with 80 and 95 percent intervals"; }
+            c1 = min(ci_levels)
+            c2 = max(ci_levels)
+            hbands = holt_bands(L, rows(b.H) - hmax, c1, c2)
+            list P = @yname forecast
+            plot P
+                options --time-series --with-lines --bands=hbands
+                printf "set title 'forecast with %d and %d percent intervals'",
+                  c1, c2
+            end plot --output=display
         else
             gnuplot @yname forecast --time --with-lines --output=display
         endif
@@ -405,9 +443,5 @@ function bundle Holt_gui (series y,
         matrix theta = {alpha, beta, gamma}
         ret = Holt(@yname, _(theta, ntest, verbose))
     endif
-    # This is now done in Holt()
-    # if $version >= 20262
-    #    add_virtual_series(&ret)
-    # endif
     return ret
 end function
