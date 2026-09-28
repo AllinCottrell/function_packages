@@ -9,3 +9,5 @@ doc/*.out
 doc/*.pdf
 doc/*.bbl
 doc/*.blg
+doc/*.bib
+doc/*.bst
