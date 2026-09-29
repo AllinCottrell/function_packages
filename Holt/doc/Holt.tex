@@ -28,7 +28,7 @@
 \begin{center}
   {\Large \textbf{Holt 2.0}} \\[6pt]
   Ignacio Díaz-Emparanza and Allin Cottrell \\[6pt]
-  2026-09-27
+  2026-09-29
 \end{center}
 
 \section{Introduction}
@@ -36,7 +36,7 @@
 
 This package implements the forecasting method devised by C. C. Holt
 \citeyearpar{holt57}, namely double exponential smoothing with level and
-trend and components.  It requires time-series data. If you want triple
+trend components.  It requires time-series data. If you want triple
 exponential smoothing---with a seasonal component as in
 \citet{winters60}---please try the \textsf{Winters} package.
 
@@ -119,8 +119,7 @@ following elements:
 \begin{itemize}
 \item \texttt{theta}: a 2-vector holding the smoothing parameter
   values.
-\item \texttt{init}: a 2-vector of holding the initial level and
-  trend.
+\item \texttt{init}: a 2-vector holding the initial level and trend.
 \item \texttt{ntest}: a non-negative integer indicating how many
   observations were reserved for pseudo-out-of-sample forecasting.
 \item \texttt{H}: a $T \times 4$ matrix.  Column 1 holds the data passed
@@ -206,34 +205,17 @@ these testing forecasts are printed.
 \section{Output details}
 \label{sec:out}
 
-Table~\ref{tab:verbose} shows what is printed by \texttt{Holt} as a
-function of the \texttt{verbose} option. An example of the table of
-results displayed when \texttt{verbose} is 1 or greater is presented in
-the lower part of listing~\ref{list:results}. The matrix \texttt{H}
-that's included in the bundle returned by \texttt{Holt} is basically a
-matrix version of this table. If you want to grab the columns of
-\texttt{H} as a list of series you can do something like this:
+An example of the table of results displayed when \texttt{verbose} is 1
+or greater is presented in the lower part of
+listing~\ref{list:results}. The matrix \texttt{H} that's included in the
+bundle returned by \texttt{Holt} is basically a matrix version of this
+table. If you want to grab the columns of \texttt{H} as a list of series
+you can do something like this:
 \begin{nscode}
 bundle hb = Holt(pop)
 list L = mat2list(hb.H)
 list L print # show all the series in L
 \end{nscode}
-
-\begin{table}[htbp]
-  \caption{Effect of the verbose option}
-  \label{tab:verbose}
-  \begin{tabular}{cp{4.5in}}
-    \textit{verbose} & \textit{cumulative effect} \\[6pt]
-    0 & Nothing is printed. \\
-    1 & Parameters and initializer are reported, also a table
-        of results (see below) and the RMSE and MAE for the
-        training data.\\
-    2 & If optimization is performed, partial information on
-        progress of the iterative procedure is shown. \\
-    3 & If optimization is performed, progress of the
-        optimizer is shown in full.
-  \end{tabular}
-\end{table}
 
 \begin{script}[htbp]
   \caption{Partial listing of results from the first Australian
@@ -362,63 +344,69 @@ where $\sigma^2$ is estimated by the MSE for the training data.
 \section{Comparison with Holt 1.0}
 \label{sec:update}
 
-If the caller specifies the smoothing parameters, $\theta$, and if the
-\texttt{init} argument in version 1.0 is set to 0 (meaning that the
-initializer is set via the rule of thumb described in the previous
-section), the two versions of the package will produce the same sequence
-of one-step-ahead forecasts. Relevant hansl code is shown under the
-heading \texttt{Case 1} in Listing~\ref{list:compat}. Note that while in
-version 1.0 the \texttt{Holt} arguments are strictly positional, in
-version 2.0 they are in effect named, since they appear as elements of a
-gretl bundle (apart from the first required series argument). This
-example also shows how to extract the forecast series from the
-respective returned bundles.
+For comparison, here's the signature of the \texttt{Holt()} function in
+version 1.0 of the package:
+\begin{code}
+function bundle Holt (series y "Dependent variable",
+  scalar delta1[0:1:0.3] "Level smoothness parameter",
+  scalar delta2[0:1:0.1] "Slope smoothness parameter",
+  int init[0:2:2] "Initial values",
+  int pred[0] "Number of final intra-sample predictions")
+\end{code}
+Note that while in version 1.0 the \texttt{Holt} arguments are strictly
+positional, in version 2.0 they are in effect named, since they appear
+as elements of a gretl bundle (apart from the first required series
+argument). However, the two variants have this feature in common: only
+the first (series) argument is required, the others being optional.
 
-\texttt{Case 2} in the listing shows how to generate testing forecasts
-using each version of the package. In this case we don't specify
-$\theta$, but accept the default behavior of the \texttt{Holt} function,
-which differs by version. In version 1.0 $\theta$ defaults to the fixed
-vector $(0.3, 0.1)$ and the initializer is set via an OLS regresson
-using the first half of the training observations. In version 2.0
-$\theta$ and the initializer are jointly optimized using all of the
-training data.
+Listing~\ref{list:compat} includes two scripts which each comprise three
+variant calls to the \texttt{Holt} function. The first script pertains to
+version 1.0 and the second to version 2.0.
 
-\texttt{Case 3} exhibits the generation of an out-of-sample forecast
-after adding empty ``observations'' to the dataset. For both versions,
-only the input series needs to be specified. The default behavior
-differs as described for \texttt{Case 2}.
+In the case of call (a), with the smoothing parameters specified by the
+caller and the \texttt{init} argument set to 0 for version 1.0, the two
+versions of the package will produce exactly the same sequence of
+one-step-ahead forecasts. This case shows how to extract the forecast
+series from the respective returned bundles.
+
+In calls (b) and (c) the smoothing parameters are determined
+automatically (and also \texttt{init} for version 1.0). In version 1.0
+that means using $\alpha = 0.3$, $\beta = 0.1$, and determining the
+initial level and trend via an OLS regression using the first half of
+the training data. In version 2.0, $\theta$ and the initializer are
+jointly optimized using all of the training data.
+
+Case (c) differs from (b) in that by adding empty observations to the
+dataset we can get genuine out-of-sample forecasts.
 
 \begin{script}[p]
-  \caption{Holt 1.0 examples with corresponding 2.0 code}
+  \caption{Holt 1.0 examples with corresponding 2.0 codes}
   \label{list:compat}
 $\quad$ \\[1ex]
-Common initial code
+Code for Holt 1.0
 \begin{scode}
 include Holt.gfn
 open data3-6.gdt
-\end{scode}
-Case 1, producing the same forecast sequence: 
-\begin{scode}
-# version 1.0
+# (a) user-specified parameters
 bundle bh1 = Holt(Ct, 0.7, 0.1, 0)
 series fcast1 = bh1.Ct_Holt
-# version 2.0
-bundle bh2 = Holt(Ct, _(theta = {0.7, 0.1}))
-series fcast2 = bh2.H[,4] # or "= bh2.Ct_fcast" in gretl 2026c
-\end{scode}
-Case 2, automatic parameters and 4 testing forecasts:
-\begin{scode}
-# version 1.0
+# (b) default (fixed), 4 testing forecasts
 bundle bh1 = Holt(Ct, , , , 4)
-# version 2.0
-bundle bh2 = Holt(Ct, _(ntest=4))
-\end{scode}
-Case 3, automatic parameters and 4 out-of-sample forecasts:
-\begin{scode}
+# (c) default (fixed) parameters, 4 out-of-sample forecasts
 dataset addobs 4
-# version 1.0
 bundle bh1 = Holt(Ct)
-# version 2.0
+\end{scode}
+Code for Holt 2.0
+\begin{scode}
+include Holt.gfn
+open data3-6.gdt
+# (a) user-specified parameters
+bundle bh2 = Holt(Ct, _(theta = {0.7, 0.1}))
+series fcast2 = bh2.H[,4] # or "= bh2.Ct_fcast" in gretl 2026c or later
+# (b) default (optimized) parameters, 4 testing forecasts
+bundle bh2 = Holt(Ct, _(ntest=4))
+# (c) default (optimized) parameters, 4 out-of-sample forecasts
+dataset addobs 4
 bundle bh2 = Holt(Ct)
 \end{scode}
 \end{script}
@@ -434,7 +422,7 @@ holding the original series, level, trend and forecast as in
 \label{sec:log}
 
 \begin{itemize}
-\item \texttt{v2.0}, 2026-09-27: Initial release of substantially
+\item \texttt{v2.0}, 2026-09-29: Initial release of substantially
   modified version.
 \end{itemize}
 

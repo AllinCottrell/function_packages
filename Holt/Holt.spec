@@ -1,7 +1,7 @@
 author = Ignacio Diaz-Emparanza and Allin Cottrell
 email = cottrell@wfu.edu
 version = 2.0
-date = 2026-09-27
+date = 2026-09-29
 tags = C53
 description = Holt's forecasting method
 label = Holt
