@@ -52,7 +52,7 @@ function matrix holt_auto_parms (list L, int t2, matrix *init,
     matrix X0 = NA * ones(1,4)
 
     scalar len = 4
-    matrix b = {0.2; 0.2} | init
+    matrix b = {0.5; 0.5} | init
     matrix bounds = zeros(len, 3)
     loop i=1..len
         if i < 3
@@ -161,7 +161,7 @@ end function
 
 function bundle holt_default_args (void)
     bundle b
-    b.theta = {0.2, 0.2}'
+    b.theta = {0.5, 0.5}'
     b.ntest = 0
     b.verbose = 1
     b.bounds = _(verbose={0,3}, ntest={0,NA})
