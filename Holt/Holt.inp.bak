@@ -15,58 +15,56 @@ function matrix holt_auto_init (series y "Target series")
     return ret
 end function
 
-function matrix holt_filter (const matrix theta, const matrix init,
-                             const matrix my)
-    # Run the Holt recursion over the column vector @my, given
-    # @theta = (α, β) and @init = (level, trend) for period 0.
-    # Returns a T x 4 matrix {y, level, trend, forecast}, where
-    # forecast[t] is the one-step-ahead forecast made at t-1.
-    #
-    # The recursion is linear in the state s_t = (level_t, trend_t):
-    #   s_t = A s_{t-1} + y_t * (α, αβ)'
-    # so it can be run in one shot via varsimul().
-    scalar α = theta[1]
-    scalar β = theta[2]
-    matrix A = {1-α, 1-α; -α*β, 1-α*β}
-    matrix U = my .* {α, α*β}
-    matrix S = varsimul(A, U, vec(init)')
-    # S has T+1 rows: row 1 is the initializer
-    matrix ret = my ~ S[2:,] ~ sumr(S[1:rows(S)-1,])
-    return ret
+function scalar holt_crit (matrix parms, matrix *X)
+    # BFGS callback: determine SSE given @parms
+    scalar α = parms[1]
+    scalar β = parms[2]
+    scalar SSE = 0
+    scalar tmax = rows(X)
+    scalar u
+
+    # note: X = X0 | {y, a, b, f}
+
+    # for optimizing the initializer: reset using @parms
+    X[1,2] = parms[3]
+    X[1,3] = parms[4]
+
+    # ??
+    X[2,4] = X[1,2] + X[1,3]
+
+    # training recursion
+    loop t = 2..tmax
+        X[t,2] = α * X[t,1] + (1-α) * (X[t-1,2] + X[t-1,3])
+        X[t,3] = β * (X[t,2] - X[t-1,2]) + (1-β) * X[t-1,3]
+        if t < tmax
+            X[t+1,4] = X[t,2] + X[t,3]
+        endif
+        u = X[t,1] - X[t,4]
+        SSE += u*u
+    endloop
+
+    return SSE
 end function
 
-function scalar holt_crit (const matrix theta, const matrix my,
-                           matrix *init)
-    # BFGS callback: SSE given @theta = (α, β), with the initializer
-    # concentrated out. Given (α, β) the one-step forecasts are linear
-    # in the period-0 state: f = f0 + C * init, where f0 is the forecast
-    # path from a zero initializer and the columns of C are the paths
-    # from initializers (1,0) and (0,1). So the SSE-minimizing @init
-    # is an OLS coefficient vector, written into @init.
-    #
-    # All three paths are run in one varsimul() call on a 6-variable
-    # block-diagonal system.
-    scalar α = theta[1]
-    scalar β = theta[2]
-    scalar T = rows(my)
-    matrix A = {1-α, 1-α; -α*β, 1-α*β}
-    matrix U = (my .* {α, α*β}) ~ zeros(T, 4)
-    matrix S = varsimul(I(3) ** A, U, {0, 0, 1, 0, 0, 1})
-    # forecasts: sum of lagged level and trend, for each subsystem
-    matrix F = S[1:T,] * (I(3) ** {1; 1})
-    matrix e
-    matrix c = mols(my - F[,1], F[,2:3], &e)
-    init[1] = c[1]
-    init[2] = c[2]
-    return sumc(e.^2)
-end function
-
-function matrix holt_auto_parms (const matrix my, matrix *init,
+function matrix holt_auto_parms (list L, int t2, matrix *init,
                                  int verbose)
-    # driver for automatic estimation of parameters: BFGS over (α, β)
-    # only, since the initializer is solved for exactly in holt_crit()
-    matrix theta = {0.5; 0.5}
-    matrix bounds = {1, 0, 1; 2, 0, 1}
+    # driver for automatic estimation of parameters
+    matrix X0 = NA * ones(1,4)
+
+    scalar len = 4
+    matrix b = {0.5; 0.5} | init
+    matrix bounds = zeros(len, 3)
+    loop i=1..len
+        if i < 3
+            bounds[i,] = {i, 0, 1}
+        else
+            bounds[i,] = {i, -$huge, $huge}
+        endif
+    endloop
+
+    smpl ; t2
+    set skip_missing off
+    matrix X = X0 | {L}
 
     if verbose == 3
         set max_verbose full
@@ -74,27 +72,29 @@ function matrix holt_auto_parms (const matrix my, matrix *init,
         set max_verbose on
         set bfgs_verbskip 5
     endif
-    catch scalar SSE = BFGScmin(&theta, bounds, holt_crit(theta, my, &init))
+    catch C = BFGScmin(&b, bounds, holt_crit(b, &X))
     err = $error
     if err
         printf "Got error %d from BFGScmin\n", err
-        theta[1] = NA
+        eval holt_crit(b, &X)
+        b[1] = NA
     else
-        # make sure @init corresponds to the final @theta
-        SSE = holt_crit(theta, my, &init)
         if verbose > 0
             if verbose > 1
                 printf "\n"
             endif
             printf "automatic parameter values:\n"
-            printf "  α = %g, β = %g\n", theta[1], theta[2]
+            printf "  α = %g, β = %g\n", b[1], b[2]
         endif
+        loop i = 1..nelem(init)
+            init[i] = b[2+i]
+        endloop
         if verbose > 0
             printf "\nestimated initializer:\n"
             printf "  level = %g, trend = %g\n\n", init[1], init[2]
         endif
     endif
-    return theta
+    return b[1:2]
 end function
 
 function matrix smoother_ranges (const series y, int ntest)
@@ -147,9 +147,16 @@ end function
 function void holt_add_eval_stats (bundle *b)
     scalar T = rows(b.H)
     scalar t0 = T - b.ntest + 1
-    matrix e = b.H[t0:T,1] - b.H[t0:T,4]
-    b.RMSE_test = sqrt(sumc(e.^2) / b.ntest)
-    b.MAE_test = sumc(abs(e)) / b.ntest
+    scalar SSE = 0
+    scalar MAE = 0
+    scalar fcerr
+    loop t=t0..T
+        fcerr = b.H[t,1] - b.H[t,4]
+        SSE += fcerr * fcerr
+        MAE += abs(fcerr)
+    endloop
+    b.RMSE_test = sqrt(SSE/b.ntest)
+    b.MAE_test = MAE / b.ntest
 end function
 
 function bundle holt_default_args (void)
@@ -229,6 +236,11 @@ end function
 
 function bundle Holt (const series y,
                       const bundle specs[null])
+    scalar t1 = $t1
+    scalar SSE = 0
+    scalar MAE = 0
+    scalar n = 0
+    scalar optim = 1
     scalar fixed_theta = 0
     string yname = argname(y, "y")
 
@@ -255,10 +267,6 @@ function bundle Holt (const series y,
         printf "Holt double exponential smoothing\n"
         printf "Training range: %s to %s\n",
           obslabel(t1), obslabel(t2)
-        if fixed_theta
-            printf "Fixed parameters α = %g, β = %g\n",
-              args.theta[1], args.theta[2]
-        endif
         if args.ntest > 0
             printf "Testing forecast: %s to %s\n\n",
               obslabel(t2+1), obslabel(t3)
@@ -276,41 +284,49 @@ function bundle Holt (const series y,
         printf "initial trend %g\n", init[2]
     endif
 
-    # training data as a column vector
-    smpl t1 t2
-    matrix my = {y}
-    smpl t1 t3
-
     if fixed_theta
         matrix theta = args.theta
+        optim = 0
+        if verbose > 0
+            printf "Fixed parameters α = %g, β = %g\n", theta[1], theta[2]
+        endif
     else
-        matrix theta = holt_auto_parms(my, &init, verbose)
+        matrix theta = holt_auto_parms(L, t2, &init, verbose)
         if !ok(theta[1])
             funcerr "Failed to estimate parameters"
         endif
     endif
-    theta = vec(theta)
 
-    # training: states and one-step-ahead forecasts
-    matrix Htr = holt_filter(theta, init, my)
-    matrix u = Htr[,1] - Htr[,4]
-    scalar n = rows(u)
-    scalar RMSE_train = sqrt(sumc(u.^2) / n)
-    scalar MAE_train = sumc(abs(u)) / n
+    scalar α = theta[1]
+    scalar β = theta[2]
 
-    # transcribe to series over t1..t2
-    smpl t1 t2
-    a = Htr[,2]
-    b = Htr[,3]
-    f = Htr[,4]
+    # forecast for the first data-point
+    f[t1] = init[1] + init[2]
 
-    # h-step-ahead forecasts over t2+1..t3 (test or out-of-sample)
-    if t3 > t2
-        smpl t2+1 t3
-        f = Htr[n,2] + seq(1, t3-t2)' * Htr[n,3]
-    endif
-    smpl t1 t3
+    loop t = t1..t2
+        # training recursion
+        i = 1 + t - t1
+        a_ = t == t1 ? init[1] : a[t-1]
+        b_ = t == t1 ? init[2] : b[t-1]
+        a[t] = α * y[t] + (1−α) * (a_ + b_)
+        b[t] = β * (a[t] - a_) + (1-β) * b_
+        if t < t3
+            f[t+1] = a[t] + b[t]
+        endif
+        scalar u = y[t] - f[t]
+        SSE += u*u
+        MAE += abs(u)
+        n++
+    endloop
+    scalar h = 1
+    loop t=t2+1..t3-1
+        # h-step-ahead forecasts
+        h++
+        f[t+1] = a[t2] + h*b[t2]
+    endloop
 
+    scalar RMSE_train = sqrt(SSE/n)
+    scalar MAE_train = MAE/n
     if verbose > 0
         if verbose > 1
             printf "\n"
@@ -338,9 +354,11 @@ function bundle Holt (const series y,
     if verbose > 0
         printf "\n"
     endif
+
     if ret.limits[3] > ret.limits[2]
         holt_add_fcse(&ret)
     endif
+
     if $version >= 20262
         add_virtual_series(&ret)
     endif
@@ -424,4 +442,3 @@ function bundle Holt_gui (series y,
     endif
     return ret
 end function
-
