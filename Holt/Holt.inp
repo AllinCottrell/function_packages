@@ -212,9 +212,12 @@ end function
 function void holt_add_fcse (bundle *bh)
     # computes a sequence of Holt (AAN) forecast standard errors
     # see https://otexts.com/fpp3/ets-forecasting.html, # 8.7
-    # and adds it to bundle b
+    # and adds it to bundle b.
+    # Note: the fpp3 formula is in terms of the ETS parametrization,
+    # in which the trend smoothing parameter is α times our β
+    # (fpp3 section 8.5)
     α = bh.theta[1]
-    β = bh.theta[2]
+    β = α * bh.theta[2]
     s2 = bh.RMSE_train^2
     hmax = bh.limits[3] - bh.limits[2]
     vh = ones(rows(bh.H), 1) * NA
@@ -311,14 +314,17 @@ function bundle Holt (const series y,
     endif
     smpl t1 t3
 
+    # use the same names whether or not we're printing, so that
+    # Holt_plot() and other consumers of H always find them
+    rename a level
+    rename b trend
+    rename f forecast
+
     if verbose > 0
         if verbose > 1
             printf "\n"
         endif
         printf "training RMSE = %g, MAE = %g\n", RMSE_train, MAE_train
-        rename a level
-        rename b trend
-        rename f forecast
         print L -o
     endif
 
@@ -419,7 +425,7 @@ function bundle Holt_gui (series y,
     if parms == 1
         ret = Holt(@yname, _(ntest, verbose))
     else
-        matrix theta = {alpha, beta}
+        matrix theta = {alpha, beta}'
         ret = Holt(@yname, _(theta, ntest, verbose))
     endif
     return ret

@@ -28,7 +28,7 @@
 \begin{center}
   {\Large \textbf{Holt 2.0}} \\[6pt]
   Ignacio Díaz-Emparanza and Allin Cottrell \\[6pt]
-  2026-09-29
+  2026-10-03
 \end{center}
 
 \section{Introduction}
@@ -321,13 +321,16 @@ first period in which $y$ is observed.
 As regards optimization, two cases arise.
 \begin{itemize}
 \item If \texttt{theta} is not specified, the parameter values and
-  initializer are optimized jointly, with the criterion of minimizing
-  the sum of squared one-step ahead forecast errors for the training
-  range. The starting point for the parameters is
-  $\alpha = \beta = 0.2$; the starting point for the initializer is as
-  described above. Optimization is performed using the L-BFGS algorithm
-  (see the chapter on Numerical methods in the \GUG\ for details), with
-  $\alpha$ and $\beta$ constrained to lie in $[0,1]$.
+  initializer are optimized, with the criterion of minimizing the sum of
+  squared one-step ahead forecast errors for the training range. The
+  starting point for the parameters is $\alpha = \beta = 0.5$; the
+  starting point for the initializer is as described above. Optimization
+  is performed using the L-BFGS algorithm (see the chapter on Numerical
+  methods in the \GUG\ for details), with $\alpha$ and $\beta$
+  constrained to lie in $[0,1]$ in conjunction with OLS to determine the
+  initial level and trend.\footnote{Thanks go to Jack Lucchetti for
+    suggesting a particularly efficient approach to the optimization,
+    making use of gretl's \texttt{varsimul} function.}
 \item If \texttt{theta} is given, the initializer is just the basic or
   rule-of-thumb value; no optimization is performed.
 \end{itemize}
@@ -422,7 +425,7 @@ holding the original series, level, trend and forecast as in
 \label{sec:log}
 
 \begin{itemize}
-\item \texttt{v2.0}, 2026-09-29: Initial release of substantially
+\item \texttt{v2.0}, 2026-10-03: Initial release of substantially
   modified version.
 \end{itemize}
 
