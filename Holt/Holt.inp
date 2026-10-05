@@ -364,6 +364,18 @@ function bundles ci_bands (list L, int df, scalar c1, scalar c2)
     return bb
 end function
 
+function void get_ci_vals (const bundle b, matrix ci_levels[null],
+                           scalar *c1, scalar *c2, scalar *hmax)
+    if exists(ci_levels)
+        check_ci_levels(ci_levels)
+    else
+        ci_levels = {80, 95}
+    endif
+    hmax = b.limits[3] - b.limits[2]
+    c1 = min(ci_levels)
+    c2 = max(ci_levels)
+end function
+
 function void Holt_plot (const bundle *b,
                          int ptype[1:2:1] {"actual and forecast", "components"},
                          matrix ci_levels[null])
@@ -374,14 +386,8 @@ function void Holt_plot (const bundle *b,
             rename y @yname
         endif
         if b.limits[3] > b.limits[2]
-            if exists(ci_levels)
-                check_ci_levels(ci_levels)
-            else
-                ci_levels = {80, 95}
-            endif
-            hmax = b.limits[3] - b.limits[2]
-            c1 = min(ci_levels)
-            c2 = max(ci_levels)
+            scalar c1 c2 hmax
+            get_ci_vals(b, ci_levels, &c1, &c2, &hmax)
             df = rows(b.H) - hmax - 4
             hbands = ci_bands(L, df, c1, c2)
             list P = @yname forecast
