@@ -462,15 +462,51 @@ function bundle Winters (const series y,
    return ret
 end function
 
+function bundles ci_bands (list L, int df, scalar c1, scalar c2)
+   bundles bb = array(2)
+   # for plotting, show the wider band first
+   f1 = critical(t, df, (100 - c2) / 200)
+   f2 = critical(t, df, (100 - c1) / 200)
+   bb[1] = _(center="forecast", width="stderr", factor=f1, style="fill", color="#BBD9F5")
+   bb[2] = _(center="forecast", width="stderr", factor=f2, style="fill", color="#6AADEC")
+   return bb
+end function
+
+function void get_ci_vals (const bundle b, matrix ci_levels[null],
+                           scalar *c1, scalar *c2, scalar *hmax)
+   if exists(ci_levels)
+      check_ci_levels(ci_levels)
+   else
+      ci_levels = {80, 95}
+   endif
+   hmax = b.limits[3] - b.limits[2]
+   c1 = min(ci_levels)
+   c2 = max(ci_levels)
+end function
+
 function void Winters_plot (const bundle *b,
-                            int ptype[1:2:1] {"actual and forecast", "components"})
+                            int ptype[1:2:1] {"actual and forecast", "components"},
+                            matrix ci_levels[null])
    list L = mat2list(b.W)
    if ptype == 1
       string yname = b.yname
       if yname != "y"
          rename y @yname
       endif
-      gnuplot @yname forecast --time --with-lines --output=display
+      if b.limits[3] > b.limits[2]
+         scalar c1 c2 hmax
+         get_ci_vals(b, ci_levels, &c1, &c2, &hmax)
+         df = rows(b.H) - hmax - 4
+         hbands = ci_bands(L, df, c1, c2)
+         list P = @yname forecast
+         plot P
+            options --time-series --with-lines --bands=hbands
+            printf "set title 'forecast with %d and %d percent intervals'",
+              c1, c2
+         end plot --output=display
+      else
+         gnuplot @yname forecast --time --with-lines --output=display
+      endif
    else
       series irreg = b.W[,1] - b.W[,5]
       tsplots level trend seasonal irreg --output=display
