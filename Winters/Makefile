@@ -13,6 +13,9 @@ $(PKG).zip: $(PKG).gfn $(DOC) $(DATA)
 $(DOC):
 	make -C doc
 
+install-gfn: $(PKG).gfn
+	mkdir -p $(GFNDIR)/$(PKG) && install -m 644 $< $(GFNDIR)/$(PKG)
+
 install: $(PKG).gfn $(DOC) $(DATA)
 	mkdir -p $(GFNDIR)/$(PKG) && install -m 644 $^ $(GFNDIR)/$(PKG)
 

@@ -325,7 +325,7 @@ end function
 
 function bundle winters_default_args (void)
    bundle b
-   b.theta = {0.2, 0.2, 0.05}'
+   b.theta = {0.5, 0.5, 0.05}'
    b.additive = 0
    b.ntest = 0
    b.verbose = 1
@@ -454,7 +454,9 @@ function bundle Winters (const series y,
    if verbose > 0
       printf "\n"
    endif
-
+   if $version >= 20262
+      add_virtual_series(&ret)
+   endif
    if additive && t3 > t2
       winters_add_fcse(&ret)
    endif
@@ -493,10 +495,10 @@ function void Winters_plot (const bundle *b,
       if yname != "y"
          rename y @yname
       endif
-      if b.limits[3] > b.limits[2]
+      if b.limits[3] > b.limits[2] && b.additive
          scalar c1 c2 hmax
          get_ci_vals(b, ci_levels, &c1, &c2, &hmax)
-         df = rows(b.H) - hmax - 4
+         df = rows(b.W) - hmax - (4 + $pd)
          hbands = ci_bands(L, df, c1, c2)
          list P = @yname forecast
          plot P
@@ -546,9 +548,6 @@ function bundle Winters_gui (series y,
    else
       matrix theta = {alpha, beta, gamma}
       ret = Winters(@yname, _(theta, additive, ntest, verbose))
-   endif
-   if $version >= 20262
-      add_virtual_series(&ret)
    endif
    return ret
 end function
