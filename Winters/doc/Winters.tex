@@ -170,10 +170,9 @@ seasonal and irregular components.
 \section{Command-line usage}
 \label{sec:auto}
 
-We'll start with a simple example---an approximate but passable
-replication of the Australian tourism example given by
-\cite{hyndman2021}, multiplicative variant. Here's the hansl
-code:\label{pg:ex1}
+We'll start with a simple example---replication of the Australian
+tourism example given by \cite{hyndman2021}, using the multiplicative
+variant. Here's the hansl code:\label{pg:ex1}
 \begin{nscode}
 open aus_holidays.gdt --frompkg=Winters
 dataset addobs 12
@@ -333,7 +332,7 @@ As regards optimization, two cases arise.
   initializer are optimized jointly, with the criterion of minimizing
   the sum of squared forecast errors for the training range. The
   starting point for the parameters is
-  $\alpha = \beta = 0.2, \gamma = 0.05$; the starting point for the
+  $\alpha = \beta = 0.5, \gamma = 0.05$; the starting point for the
   initializer is as described above. Optimization is performed using the
   L-BFGS algorithm (see the chapter on Numerical methods in the \GUG\
   for details), with $\alpha$, $\beta$ and $\gamma$ constrained to lie
@@ -399,42 +398,34 @@ forecasts, the forecasts will differ by version but we're obviously
 not in a position to offer forecast evaluation statistics.
 
 \begin{script}[p]
-  \caption{Winters 1.1 examples with corresponding 2.0 code}
+  \caption{Winters 1.1 examples with corresponding 2.2 code}
   \label{list:compat}
-$\quad$ \\[1ex]
-Common initial code
+  $\quad$ \\[1ex]
+Code for Winters 1.1
 \begin{scode}
 include Winters.gfn
 open data9-3.gdt
-\end{scode}
-Case 1: Multiplicative, 4 testing forecasts, specified parameters
-\begin{scode}
-# version 1.1
+# (a) Multiplicative, specified parameters, 4 testing forecasts
 bundle BW1 = Winters(reskwh, 1, 0.5, 0.1, 0.7, 4)
 series reskwh_W_mul = BW.reskwh_W_mul
-
-# version 2.0
-bundle BW1 = Winters(reskwh, _(theta = {0.5, 0.1, 0.7}, ntest = 4))
-series reskwh_W_mul = BW.W[,5]
-\end{scode}
-Case 2: Multiplicative, 4 testing forecasts, automatic parameters
-\begin{scode}
-# version 1.1
-bundle BW2 = Winters(reskwh,1,,,,4)
-series reskwh_W_mul = BW2.reskwh_W_mul
-
-# version 2.0
-bundle BW2 = Winters(reskwh, _(ntest=4))
-series reskwh_W_mul = BW2.W[,5]
-\end{scode}
-Case 3: Additive, 4 out-of-sample forecasts, automatic parameters
-\begin{scode}
-# version 1.1
+# (b) Multiplicative, default parameters, 4 testing forecasts
+bundle BW2 = Winters(reskwh, , , , 4)
+# (c) Additive, default parameters, 4 out-of-sample forecasts
 dataset addobs 4
 bundle BW3 = Winters(reskwh, 0)
 series reskwh_W_add = BW3.reskwh_W_add
-
-# version 2.0
+\end{scode}
+Code for Winters 2.2
+\begin{scode}
+include Winters.gfn
+open data9-3.gdt
+# (a) Multiplicative, specified parameters, 4 testing forecasts
+bundle BW1 = Winters(reskwh, _(theta = {0.5, 0.1, 0.7}, ntest = 4))
+series reskwh_W_mul = BW.W[,5]
+# (b) Multiplicative, optimized parameters, 4 testing forecasts
+bundle BW2 = Winters(reskwh, _(ntest=4))
+series reskwh_W_mul = BW2.W[,5]
+# (c) Additive, optimized parameters, 4 out-of-sample forecasts
 dataset addobs 4
 bundle BW3 = Winters(reskwh, _(additive=1))
 series reskwh_W_add = BW3.W[,5]

@@ -192,7 +192,7 @@ function matrix winters_auto_parms (const matrix my, matrix *init,
                                     bool additive, int verbose)
    # driver for automatic estimation of parameters
    scalar m = nelem(init) - 2
-   matrix b = {0.2; 0.2; 0.05}
+   matrix b = {0.5; 0.5; 0.05}
    if !additive
       # the additive case solves for the initializer internally
       b |= init[1:m+1]
@@ -566,8 +566,8 @@ end function
 
 function bundle Winters_gui (series y,
                              int parms[1:2:1] {"automatic", "pre-specified"},
-                             scalar alpha[0:1:0.2:0.0001] "level, α",
-                             scalar  beta[0:1:0.2:0.0001] "trend, β",
+                             scalar alpha[0:1:0.5:0.0001] "level, α",
+                             scalar  beta[0:1:0.5:0.0001] "trend, β",
                              scalar gamma[0:1:0.05:0.0001] "season, γ",
                              int formula[1:2:2] {"additive", "multiplicative"},
                              int ntest[0::0] "ntest, see Help",
