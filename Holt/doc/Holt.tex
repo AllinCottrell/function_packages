@@ -393,7 +393,7 @@ open data3-6.gdt
 # (a) user-specified parameters
 bundle bh1 = Holt(Ct, 0.7, 0.1, 0)
 series fcast1 = bh1.Ct_Holt
-# (b) default (fixed), 4 testing forecasts
+# (b) default (fixed) parameters, 4 testing forecasts
 bundle bh1 = Holt(Ct, , , , 4)
 # (c) default (fixed) parameters, 4 out-of-sample forecasts
 dataset addobs 4
