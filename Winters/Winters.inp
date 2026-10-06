@@ -239,6 +239,37 @@ function matrix winters_auto_parms (const matrix my, matrix *init,
    return b[1:3]
 end function
 
+function scalar winters_given_theta (const matrix theta, const matrix my,
+                                     matrix *init, bool additive,
+                                     int verbose)
+   # optimize the initializer conditional on fixed @theta
+   scalar m = nelem(init) - 2
+   if additive
+      # the initializer is concentrated out by OLS
+      winters_crit_add(theta, my, &init)
+   else
+      matrix b = init[1:m+1]
+      if verbose == 3
+         set max_verbose full
+      elif verbose == 2
+         set max_verbose on
+         set bfgs_verbskip 5
+      endif
+      catch scalar SSE = BFGSmin(&b, winters_crit_mult(theta | b, my, m))
+      err = $error
+      if err
+         printf "Got error %d from BFGSmin\n", err
+         return err
+      endif
+      init[1:m+2] = winters_mult_init(theta | b, m)
+   endif
+   if verbose > 0
+      printf "estimated initializer, given θ:\n\n"
+      eval init
+   endif
+   return 0
+end function
+
 function matrix winters_ranges (const series y, int ntest)
    matrix ret = zeros(1,3)
    catch smpl --contiguous y
@@ -386,7 +417,11 @@ function bundle Winters (const series y,
    smpl t1 t3
 
    if fixed_theta
-      matrix theta = args.theta
+      matrix theta = vec(args.theta)
+      err = winters_given_theta(theta, my, &init, additive, verbose)
+      if err
+         funcerr "Failed to optimize initializer"
+      endif
    else
       matrix theta = winters_auto_parms(my, &init, additive, verbose)
       if !ok(theta[1])

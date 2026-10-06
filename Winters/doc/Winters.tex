@@ -338,10 +338,11 @@ As regards optimization, two cases arise.
   L-BFGS algorithm (see the chapter on Numerical methods in the \GUG\
   for details), with $\alpha$, $\beta$ and $\gamma$ constrained to lie
   in $[0,1]$.
-\item If \texttt{theta} is given, the initializer is just the
-  rule-of-thumb value; no optimization is performed. In principle the
-  initializer could be optimized conditional on $\theta$ and that's a
-  possible future refinement if it seems there's a real use case.
+\item If \texttt{theta} is given, the initializer is optimized
+  conditional on $\theta$, using the same criterion. In the additive
+  case this is a linear least-squares problem with a closed-form
+  solution; in the multiplicative case L-BFGS is used, starting from
+  the rule-of-thumb initializer.
 \end{itemize}
 
 \section{Daily and hourly data}
@@ -375,15 +376,16 @@ version 1.1 that means using a fixed parameter vector,
 $\theta = (0.3, 0.1, 0.7)$, while in version 2.0 it means that the
 parameters are automatically optimized, along with the initializer.
 
-When $\theta$ is specified the two versions should produce identical
-forecasts: over the training range, $\hat{y}_{t|t-1}$, and over the
-testing or out-of-sample range, $\hat{y}_{T+h|T}$ where $T$ is the
-last training observation and $h = 1,2,\dots$.\footnote{With one
-  qualification: following Hyndman's procedure the first training
-  forecast in version 2.0 is for the first observation of \texttt{y},
-  while in version 1.1 the forecasts start $m$ periods later.}  So in
-Case 1 we find that the testing results are the same for the two
-versions, namely RMSE = 74.792 and MAE = 73.132.
+When $\theta$ is specified the two versions will produce similar but
+not identical forecasts. Version 1.1 starts the recursion from the
+rule-of-thumb initializer described in section~\ref{sec:details},
+while from version 2.1 the initializer is optimized conditional on
+$\theta$.\footnote{In addition, following Hyndman's procedure the
+  first training forecast in version 2.x is for the first observation
+  of \texttt{y}, while in version 1.1 the forecasts start $m$ periods
+  later.}  So in Case 1 the testing results are close but not the
+same: RMSE = 74.792 and MAE = 73.132 for version 1.1, against
+RMSE = 74.802 and MAE = 73.142 for the current version.
 
 In Case 2 of the listing we could have had version 2.0 replicate the
 results using the default $\theta$ from version 1.1, but it's more
