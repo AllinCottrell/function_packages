@@ -366,34 +366,31 @@ series in question has to be complete over the given sample range.
 
 Listing~\ref{list:compat} shows three cases drawing on the sample
 script for version 1.1 of the package along with the revised code
-required to produce similar results from version 2.0. Note that while
+required to produce similar results from version 2.2. Note that while
 in version 1.1 the \texttt{Winters} arguments are strictly positional,
-in version 2.0 they are in effect named, since they appear as elements
+in version 2.2 they are in effect named, since they appear as elements
 of a gretl bundle (apart from the first required series argument). And
 the meaning of ``default smoothing parameters'' has changed: in
 version 1.1 that means using a fixed parameter vector,
-$\theta = (0.3, 0.1, 0.7)$, while in version 2.0 it means that the
+$\theta = (0.3, 0.1, 0.7)$, while in version 2.2 it means that the
 parameters are automatically optimized, along with the initializer.
 
-When $\theta$ is specified the two versions will produce similar but
-not identical forecasts. Version 1.1 starts the recursion from the
-rule-of-thumb initializer described in section~\ref{sec:details},
-while from version 2.1 the initializer is optimized conditional on
-$\theta$.\footnote{In addition, following Hyndman's procedure the
-  first training forecast in version 2.x is for the first observation
-  of \texttt{y}, while in version 1.1 the forecasts start $m$ periods
-  later.}  So in Case 1 the testing results are close but not the
-same: RMSE = 74.792 and MAE = 73.132 for version 1.1, against
-RMSE = 74.802 and MAE = 73.142 for the current version.
+When $\theta$ is specified by the caller the two versions will produce
+similar but not identical forecasts. Version 1.1 starts the recursion
+from the rule-of-thumb initializer described in
+section~\ref{sec:details}, while from version 2.2 the initializer is
+optimized conditional on $\theta$.\footnote{In addition, following
+  Hyndman's procedure the first training forecast in version 2.x is for
+  the first observation of \texttt{y}, while in version 1.1 the
+  forecasts start $m$ periods later.}
 
-In Case 2 of the listing we could have had version 2.0 replicate the
+In case (b) of the listing we could have had version 2.2 replicate the
 results using the default $\theta$ from version 1.1, but it's more
-informative to compare that default with optimized results. The
-automatic $\theta$ in version 1.1 gives a slight improvement over Case
-1: RMSE = 74.033, MAE = 70.341. The optimized parameters with 2.0 give
-a more substantial improvement: RMSE = 65.582, MAE = 60.895.
+informative to compare that default with optimized results. The default
+$\theta$ in version 1.1 gives a slight improvement over case (a) while
+the optimized parameters with 2.2 give a more substantial improvement.
 
-In Case 3, with automatic parameters and genuine out-of-sample
+In case (c), with automatic parameters and genuine out-of-sample
 forecasts, the forecasts will differ by version but we're obviously
 not in a position to offer forecast evaluation statistics.
 
@@ -407,9 +404,9 @@ include Winters.gfn
 open data9-3.gdt
 # (a) Multiplicative, specified parameters, 4 testing forecasts
 bundle BW1 = Winters(reskwh, 1, 0.5, 0.1, 0.7, 4)
-series reskwh_W_mul = BW.reskwh_W_mul
+series reskwh_W_mul = BW1.reskwh_W_mul
 # (b) Multiplicative, default parameters, 4 testing forecasts
-bundle BW2 = Winters(reskwh, , , , 4)
+bundle BW2 = Winters(reskwh, , , , , 4)
 # (c) Additive, default parameters, 4 out-of-sample forecasts
 dataset addobs 4
 bundle BW3 = Winters(reskwh, 0)
@@ -421,7 +418,7 @@ include Winters.gfn
 open data9-3.gdt
 # (a) Multiplicative, specified parameters, 4 testing forecasts
 bundle BW1 = Winters(reskwh, _(theta = {0.5, 0.1, 0.7}, ntest = 4))
-series reskwh_W_mul = BW.W[,5]
+series reskwh_W_mul = BW1.W[,5]
 # (b) Multiplicative, optimized parameters, 4 testing forecasts
 bundle BW2 = Winters(reskwh, _(ntest=4))
 series reskwh_W_mul = BW2.W[,5]
@@ -436,15 +433,21 @@ The output data in the returned bundle also differ slightly across the
 versions of the package. In version 1.11 four series are included: the
 original series, the one-step ahead forecast, level-plus-trend, and
 seasonal. Version 2.0 gives a five-column matrix holding the original
-series, level, trend, seasonal, and forecast as in \cite{hyndman2021}.
+series, level, trend, seasonal, and forecast as in \cite{hyndman2021},
+to which a sixth column holding forecast standard error is appended when
+pseudo-out-of-sample forecasts are produced using the additive method.
 
 \section{Change log}
 \label{sec:log}
 
 \begin{itemize}
-\item \texttt{v2.1}: Update to exploit ``virtual series'' in the
-  bundle returned by \texttt{Winters()}.
-\item \texttt{v2.0}: Initial release of substantially modified version.
+\item \texttt{v2.2}, 2026-10-06: Use a more efficient algorithm (with
+  help from Claude) and add forecast standard errors for the case of
+  additive seasonal effects.
+\item \texttt{v2.1}, 2026-05-28: Update to exploit ``virtual series'' in
+  the bundle returned by \texttt{Winters()}.
+\item \texttt{v2.0}, 2025-04-23: Initial release of substantially
+  modified version.
 \end{itemize}
 
 \bibliographystyle{gretl}
