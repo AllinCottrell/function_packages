@@ -354,6 +354,54 @@ function void winters_add_fcse (bundle *b)
    cnameset(b.W, ss + "stderr")
 end function
 
+function matrix winters_mult_sim (const bundle *b, int N, int df)
+   # Simulated paths of y over the forecast range, multiplicative case,
+   # for which there's no closed form for the forecast variance. Each
+   # path runs the Winters recursion forward from the final training
+   # state, feeding in y = forecast + error, with the error drawn as
+   # RMSE_train times Student t(df), so the interval at h = 1 matches
+   # the analytic additive one. Returns an N x H matrix.
+   scalar m = nelem(b.init) - 2
+   scalar H = b.limits[3] - b.limits[2]
+   scalar n = rows(b.W) - H
+   scalar α = b.theta[1]
+   scalar β = b.theta[2]
+   scalar γ = b.theta[3]
+   matrix E = b.RMSE_train * mrandgen(t, df, N, H)
+   matrix ι = ones(N, 1)
+   matrix a_ = ι * b.W[n,2]
+   matrix b_ = ι * b.W[n,3]
+   # S[,h] holds s_{n+h-m}; S[,h+m] receives s_{n+h}
+   matrix S = (ι * b.W[n-m+1:n,4]') ~ zeros(N, H)
+   matrix Y = zeros(N, H)
+   matrix a y sm
+   loop h=1..H
+      sm = S[,h]
+      y = (a_ + b_) .* sm + E[,h]
+      a = α * y ./ sm + (1-α) * (a_ + b_)
+      b_ = β * (a - a_) + (1-β) * b_
+      S[,h+m] = γ * y ./ a + (1-γ) * sm
+      a_ = a
+      Y[,h] = y
+   endloop
+   return Y
+end function
+
+function matrix winters_sim_band (const matrix Y, int T, scalar c)
+   # For a c percent interval from the empirical quantiles of the
+   # simulated paths @Y, return a T x 2 matrix holding the center and
+   # half-width of the band, NA outside the forecast range (the last
+   # cols(Y) of T rows). The band need not be symmetric about the
+   # forecast, hence the representation via its midpoint.
+   scalar H = cols(Y)
+   scalar p = (100 - c) / 200
+   matrix Q = quantile(Y, {p, 1-p})
+   matrix ret = mshape(NA, T, 2)
+   ret[T-H+1:T,1] = (Q[1,] + Q[2,])' / 2
+   ret[T-H+1:T,2] = (Q[2,] - Q[1,])' / 2
+   return ret
+end function
+
 function bundle winters_default_args (void)
    bundle b
    b.theta = {0.5, 0.5, 0.05}'
@@ -509,6 +557,18 @@ function bundles ci_bands (list L, int df, scalar c1, scalar c2)
    return bb
 end function
 
+function void check_ci_levels (matrix pc)
+   scalar err = 0
+   if nelem(pc) != 2
+      err = 1
+   elif min(pc) < 50 || max(pc) > 99
+      err = 2
+   elif pc[1] == pc[2]
+      err = 3
+   endif
+   errorif(err, "ci_levels: invalid argument")
+end function
+
 function void get_ci_vals (const bundle b, matrix ci_levels[null],
                            scalar *c1, scalar *c2, scalar *hmax)
    if exists(ci_levels)
@@ -530,11 +590,26 @@ function void Winters_plot (const bundle *b,
       if yname != "y"
          rename y @yname
       endif
-      if b.limits[3] > b.limits[2] && b.additive
+      if b.limits[3] > b.limits[2]
          scalar c1 c2 hmax
          get_ci_vals(b, ci_levels, &c1, &c2, &hmax)
          df = rows(b.W) - hmax - (4 + $pd)
-         hbands = ci_bands(L, df, c1, c2)
+         if b.additive
+            hbands = ci_bands(L, df, c1, c2)
+         else
+            # simulation-based bands
+            matrix Y = winters_mult_sim(&b, 10000, df)
+            scalar T = rows(b.W)
+            matrix B1 = winters_sim_band(Y, T, c1)
+            matrix B2 = winters_sim_band(Y, T, c2)
+            series ctr1 = B1[,1]
+            series hw1 = B1[,2]
+            series ctr2 = B2[,1]
+            series hw2 = B2[,2]
+            bundles hbands = array(2)
+            hbands[1] = _(center="ctr2", width="hw2", style="fill", color="#BBD9F5")
+            hbands[2] = _(center="ctr1", width="hw1", style="fill", color="#6AADEC")
+         endif
          list P = @yname forecast
          plot P
             options --time-series --with-lines --bands=hbands

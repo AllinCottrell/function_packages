@@ -5,6 +5,5 @@ dataset addobs 12
 # with 12 out-of-sample forecasts
 bundle hwb = Winters(Trips)
 print hwb
-list L = mat2list(hwb.W)
-gnuplot y forecast --time --with-lines --output=display
-tsplots level trend seasonal --output=display
+Winters_plot(&hwb, 1)
+Winters_plot(&hwb, 2)

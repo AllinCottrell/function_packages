@@ -13,7 +13,7 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
 
-\hypersetup{pdftitle={Winters 2.0},
+\hypersetup{pdftitle={Winters 2.3},
             pdfauthor={Ignacio Díaz-Emparanza and Allin Cottrell},
             colorlinks=true,
             linkcolor=blue,
@@ -26,9 +26,9 @@
 \begin{document}
 
 \begin{center}
-  {\Large \textbf{Winters 2.1}} \\[6pt]
+  {\Large \textbf{Winters 2.3}} \\[6pt]
   Ignacio Díaz-Emparanza and Allin Cottrell \\[6pt]
-  2026-05-28
+  2026-10-11
 \end{center}
 
 \section{Introduction}
@@ -158,14 +158,24 @@ in the bundle, namely the RMSE and Mean Absolute Error for the
 pseudo-out-of-sample forecasts, under the keys \dtk{RMSE_test} and
 \dtk{MAE_test}.
 
-A simple plotting function is also supplied:
+If the additive method is specified and any post-training forecasts are
+performed (either in response to \texttt{ntest} or out of sample), the
+matrix \texttt{W} acquires a sixth column, holding standard errors for
+these forecasts.
+
+A simple \textit{plotting} function is also supplied:
 \begin{nscode}
-function void Winters_plot (bundle *b, int ptype)
+function void Winters_plot (bundle *b, int ptype, matrix ci_levels[null])
 \end{nscode}
-The first argument should be a bundle obtained from \texttt{Winters}
-and the second argument should be either 1 for a plot of actual and
-forecast values, or 2 for a four-part plot of the level, trend,
-seasonal and irregular components.
+The first argument should be a bundle obtained from \texttt{Winters} and
+the second argument should be either 1 for a plot of actual and forecast
+values, or 2 for a four-part plot of the level, trend, seasonal and
+irregular components. The third (optional) argument is referenced only
+when \texttt{ptype} = 1 and post-training forecasts have been performed,
+in which case confidence intervals will be shown. If \dtk{ci_levels} is
+supplied it must be a 2-vector holding two distinct confidence levels,
+in percentage form and in the range 50 to 99. If this argument is not
+given the levels default to 80\% and 95\%.
 
 \section{Command-line usage}
 \label{sec:auto}
@@ -182,13 +192,13 @@ bundle wb = Winters(Trips)
 The \dtk{aus_holidays} dataset contains 80 quarterly observations from
 1998:1 to 2017:4, which will be used for training the model. The twelve
 added observations, 2018:1 to 2020:4, will then be used for
-out-of-sample forecasting. Since \texttt{theta} is not not specified
+out-of-sample forecasting. Since \texttt{theta} is not specified
 both the parameters and the initializer for the Winters recursion
 will be optimized automatically; see section~\ref{sec:details} for
 details.
 
-As an alternative to the above one might not add any observations but
-use the \texttt{ntest} option to get \texttt{Winters} to generate
+As an alternative to the above one might not add any empty observations
+but use the \texttt{ntest} option to get \texttt{Winters} to generate
 pseudo-out-of-sample forecasts:
 \begin{nscode}
 open aus_holidays.gdt --frompkg=Winters
@@ -361,41 +371,48 @@ Gretl also supports hourly data ($m=24$) and Winters may work if there's
 seasonality in the form of intra-day variability. Again, however, the
 series in question has to be complete over the given sample range.
 
-\section{Updating from Winters 1.1}
+\section{Comparison with Winters 1.1}
 \label{sec:update}
 
-Listing~\ref{list:compat} shows three cases drawing on the sample
-script for version 1.1 of the package along with the revised code
-required to produce similar results from version 2.2. Note that while
-in version 1.1 the \texttt{Winters} arguments are strictly positional,
-in version 2.2 they are in effect named, since they appear as elements
-of a gretl bundle (apart from the first required series argument). And
-the meaning of ``default smoothing parameters'' has changed: in
-version 1.1 that means using a fixed parameter vector,
-$\theta = (0.3, 0.1, 0.7)$, while in version 2.2 it means that the
+The signatures of the \texttt{Winters()} function in the two package
+versions have this in common: the first (and the only required) argument
+is a series. Beyond that, in version 1.1 this was followed by five
+optional scalar arguments: a boolean switch (0 for additive, 1 for
+multiplicative seasonality), the three smoothing parameters $\alpha$,
+$\beta$ and $\gamma$, and the number of observations to be reserved for
+testing.
+
+Listing~\ref{list:compat} shows three cases drawing on the sample script
+for version 1.1 of the package along with the revised code required to
+produce similar results from version 2.n. Note that while in version 1.1
+the optional \texttt{Winters} arguments are strictly positional, in
+version 2.n they are in effect named, since they appear as elements of a
+gretl bundle. And the meaning of ``default smoothing parameters'' has
+changed: in version 1.1 that means using a fixed parameter vector,
+$\theta = (0.3, 0.1, 0.7)$, while in version 2.n it means that the
 parameters are automatically optimized, along with the initializer.
 
-When $\theta$ is specified by the caller the two versions will produce
+When $\theta$ is specified by the caller the two versions produce
 similar but not identical forecasts. Version 1.1 starts the recursion
 from the rule-of-thumb initializer described in
-section~\ref{sec:details}, while from version 2.2 the initializer is
+section~\ref{sec:details}, while from version 2.n the initializer is
 optimized conditional on $\theta$.\footnote{In addition, following
   Hyndman's procedure the first training forecast in version 2.x is for
   the first observation of \texttt{y}, while in version 1.1 the
   forecasts start $m$ periods later.}
 
-In case (b) of the listing we could have had version 2.2 replicate the
+In case (b) of the listing we could have had version 2.n replicate the
 results using the default $\theta$ from version 1.1, but it's more
 informative to compare that default with optimized results. The default
 $\theta$ in version 1.1 gives a slight improvement over case (a) while
-the optimized parameters with 2.2 give a more substantial improvement.
+the optimized parameters with 2.n give a more substantial improvement.
 
 In case (c), with automatic parameters and genuine out-of-sample
 forecasts, the forecasts will differ by version but we're obviously
 not in a position to offer forecast evaluation statistics.
 
 \begin{script}[p]
-  \caption{Winters 1.1 examples with corresponding 2.2 code}
+  \caption{Winters 1.1 examples with corresponding 2.n code}
   \label{list:compat}
   $\quad$ \\[1ex]
 Code for Winters 1.1
@@ -412,7 +429,7 @@ dataset addobs 4
 bundle BW3 = Winters(reskwh, 0)
 series reskwh_W_add = BW3.reskwh_W_add
 \end{scode}
-Code for Winters 2.2
+Code for Winters 2.n
 \begin{scode}
 include Winters.gfn
 open data9-3.gdt
@@ -429,7 +446,7 @@ series reskwh_W_add = BW3.W[,5]
 \end{scode}
 \end{script}
 
-The output data in the returned bundle also differ slightly across the
+The output data in the returned bundle also differ somewhat across the
 versions of the package. In version 1.11 four series are included: the
 original series, the one-step ahead forecast, level-plus-trend, and
 seasonal. Version 2.0 gives a five-column matrix holding the original
@@ -441,7 +458,10 @@ pseudo-out-of-sample forecasts are produced using the additive method.
 \label{sec:log}
 
 \begin{itemize}
-\item \texttt{v2.2}, 2026-10-06: Use a more efficient algorithm (with
+\item \texttt{v2.3}, 2026-10-11: Add simulation-based confidence
+  intervals for the case of multiplicative seasonal effects and fix a
+  bug in the handling of user-supplied confidence levels.
+\item \texttt{v2.2}, 2026-10-07: Use a more efficient algorithm (with
   help from Claude) and add forecast standard errors for the case of
   additive seasonal effects.
 \item \texttt{v2.1}, 2026-05-28: Update to exploit ``virtual series'' in
