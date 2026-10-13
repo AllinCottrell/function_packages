@@ -1,7 +1,7 @@
 author = Ignacio Diaz-Emparanza and Allin Cottrell
 email = cottrell@wfu.edu
 version = 2.3
-date = 2026-10-11
+date = 2026-10-13
 tags = C53
 description = Winters forecasting method
 label = Winters

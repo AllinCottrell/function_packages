@@ -28,7 +28,7 @@
 \begin{center}
   {\Large \textbf{Winters 2.3}} \\[6pt]
   Ignacio Díaz-Emparanza and Allin Cottrell \\[6pt]
-  2026-10-11
+  2026-10-13
 \end{center}
 
 \section{Introduction}
@@ -39,9 +39,10 @@ This package implements the forecasting method devised by P. R. Winters
 trend and seasonal components.  It requires time-series data with a
 seasonal dimension. Quarterly or monthly data are the best bet for
 suitability. Daily or hourly data might be suitable, subject to the
-qualifications noted in section~\ref{sec:daily}. If you want double
-exponential smoothing (level and trend with no seasonal, as in
-\citealt{holt57}), try the \textsf{Holt} package.
+qualifications noted in section~\ref{sec:daily}. Weekly seasonality is
+not supported: it's too complicated. If you want double exponential
+smoothing (level and trend with no seasonal, as in \citealt{holt57}),
+take a look at the \textsf{Holt} package.
 
 A prior version of this package (1.1) was written by Ignacio
 Díaz-Emparanza in 2022. This revision was written by Allin Cottrell,
@@ -174,14 +175,19 @@ irregular components. The third (optional) argument is referenced only
 when \texttt{ptype} = 1 and post-training forecasts have been performed,
 in which case confidence intervals will be shown. If \dtk{ci_levels} is
 supplied it must be a 2-vector holding two distinct confidence levels,
-in percentage form and in the range 50 to 99. If this argument is not
-given the levels default to 80\% and 95\%.
+in percentage form and in the range 50 to 99. If this argument is
+omitted the levels default to 80\% and 95\%. If the additive method is
+selected the confidence intervals are based on analytical standard
+errors. In the multiplicative case they are simulation-based, using
+10000 iterations of draws from the $t(\nu)$ distribution, where $\nu$
+equals the number of training observations minus the number of
+parameters being estimated.
 
 \section{Command-line usage}
 \label{sec:auto}
 
-We'll start with a simple example---replication of the Australian
-tourism example given by \cite{hyndman2021}, using the multiplicative
+We start with a simple example---replication of the Australian tourism
+example given by \cite{hyndman2021}, using the multiplicative
 variant. Here's the hansl code:\label{pg:ex1}
 \begin{nscode}
 open aus_holidays.gdt --frompkg=Winters
@@ -197,8 +203,8 @@ both the parameters and the initializer for the Winters recursion
 will be optimized automatically; see section~\ref{sec:details} for
 details.
 
-As an alternative to the above one might not add any empty observations
-but use the \texttt{ntest} option to get \texttt{Winters} to generate
+One might choose not to add any empty observations but instead use the
+\texttt{ntest} option to get \texttt{Winters} to generate
 pseudo-out-of-sample forecasts:
 \begin{nscode}
 open aus_holidays.gdt --frompkg=Winters
@@ -375,7 +381,7 @@ series in question has to be complete over the given sample range.
 \label{sec:update}
 
 The signatures of the \texttt{Winters()} function in the two package
-versions have this in common: the first (and the only required) argument
+versions have in common that the first (and the only required) argument
 is a series. Beyond that, in version 1.1 this was followed by five
 optional scalar arguments: a boolean switch (0 for additive, 1 for
 multiplicative seasonality), the three smoothing parameters $\alpha$,
@@ -383,14 +389,14 @@ $\beta$ and $\gamma$, and the number of observations to be reserved for
 testing.
 
 Listing~\ref{list:compat} shows three cases drawing on the sample script
-for version 1.1 of the package along with the revised code required to
-produce similar results from version 2.n. Note that while in version 1.1
-the optional \texttt{Winters} arguments are strictly positional, in
-version 2.n they are in effect named, since they appear as elements of a
-gretl bundle. And the meaning of ``default smoothing parameters'' has
+for version 1.1, along with the revised code required to produce similar
+results from version 2.\textit{n}. Note that while in version 1.1 the
+optional \texttt{Winters} arguments are strictly positional, in version
+2.\textit{n} they are in effect named, since they appear as elements of
+a gretl bundle. And the meaning of ``default smoothing parameters'' has
 changed: in version 1.1 that means using a fixed parameter vector,
-$\theta = (0.3, 0.1, 0.7)$, while in version 2.n it means that the
-parameters are automatically optimized, along with the initializer.
+$\theta = (0.3, 0.1, 0.7)$, while in version 2.\textit{n} it means that
+the parameters are automatically optimized, along with the initializer.
 
 When $\theta$ is specified by the caller the two versions produce
 similar but not identical forecasts. Version 1.1 starts the recursion
@@ -401,15 +407,16 @@ optimized conditional on $\theta$.\footnote{In addition, following
   the first observation of \texttt{y}, while in version 1.1 the
   forecasts start $m$ periods later.}
 
-In case (b) of the listing we could have had version 2.n replicate the
-results using the default $\theta$ from version 1.1, but it's more
-informative to compare that default with optimized results. The default
-$\theta$ in version 1.1 gives a slight improvement over case (a) while
-the optimized parameters with 2.n give a more substantial improvement.
+In case (b) of the listing we could have had version 2.\textit{n}
+replicate the results using the default $\theta$ from version 1.1, but
+it's more informative to compare the previous default with optimized
+results. The default $\theta$ in version 1.1 gives a slight improvement
+over case (a) while the optimized parameters with 2.\textit{n} give a
+more substantial improvement.
 
 In case (c), with automatic parameters and genuine out-of-sample
-forecasts, the forecasts will differ by version but we're obviously
-not in a position to offer forecast evaluation statistics.
+forecasts, the forecasts will differ by version but of course forecast
+evaluation statistics are not available.
 
 \begin{script}[p]
   \caption{Winters 1.1 examples with corresponding 2.n code}
@@ -447,10 +454,10 @@ series reskwh_W_add = BW3.W[,5]
 \end{script}
 
 The output data in the returned bundle also differ somewhat across the
-versions of the package. In version 1.11 four series are included: the
+versions of the package. In 1.11 four series are included: the
 original series, the one-step ahead forecast, level-plus-trend, and
-seasonal. Version 2.0 gives a five-column matrix holding the original
-series, level, trend, seasonal, and forecast as in \cite{hyndman2021},
+seasonal. Version 2 gives a five-column matrix holding the original
+series, level, trend, seasonal and forecast, as in \cite{hyndman2021},
 to which a sixth column holding forecast standard error is appended when
 pseudo-out-of-sample forecasts are produced using the additive method.
 
@@ -458,7 +465,7 @@ pseudo-out-of-sample forecasts are produced using the additive method.
 \label{sec:log}
 
 \begin{itemize}
-\item \texttt{v2.3}, 2026-10-11: Add simulation-based confidence
+\item \texttt{v2.3}, 2026-10-13: Add simulation-based confidence
   intervals for the case of multiplicative seasonal effects and fix a
   bug in the handling of user-supplied confidence levels.
 \item \texttt{v2.2}, 2026-10-07: Use a more efficient algorithm (with
