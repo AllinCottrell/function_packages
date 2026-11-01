@@ -1,0 +1,44 @@
+# Regression test for a corner case reported by a colleague: with the
+# fixed start (0.5, 0.5) L-BFGS-B took a full gradient step onto the
+# (0,0) corner of the parameter box and stalled there, with SSE 12673.9.
+# The global optimum is near α = 0.14, β = 0, with SSE about 10584.
+#
+# Run from the ETS directory: gretlcli -b test/traffic.inp
+# (include the .inp, not the .gfn, which may load an installed copy)
+
+include ETS.inp
+open traffic.gdt
+
+function scalar train_sse (const bundle b)
+    return b.RMSE_train^2 * (b.limits[2] - b.limits[1] + 1)
+end function
+
+function void check (scalar ok, string msg)
+    errorif(!ok, msg)
+end function
+
+# Holt: must escape the corner and reach the better optimum
+bundle b = ETS(traffic, _(trend=1, verbose=0))
+scalar sse = train_sse(b)
+printf "Holt: α = %g, β = %g, SSE = %g\n", b.theta[1], b.theta[2], sse
+check(!(b.theta[1] < 0.05), "Holt: stuck at α = 0 corner")
+check(!(sse > 10600), "Holt: SSE too large")
+
+# simple exponential smoothing
+b = ETS(traffic, _(verbose=0))
+sse = train_sse(b)
+printf "SES: α = %g, SSE = %g\n", b.theta[1], sse
+check(!(b.theta[1] < 0.05), "SES: stuck at α = 0")
+check(!(sse > 10700), "SES: SSE too large")
+
+# seasonal models should be unaffected
+b = ETS(traffic, _(seasonal=1, verbose=0))
+sse = train_sse(b)
+printf "HW additive: SSE = %g\n", sse
+check(!(sse > 3670), "HW additive: SSE too large")
+b = ETS(traffic, _(seasonal=2, verbose=0))
+sse = train_sse(b)
+printf "HW multiplicative: SSE = %g\n", sse
+check(!(sse > 3620), "HW multiplicative: SSE too large")
+
+print "traffic regression test passed"

@@ -340,12 +340,56 @@ function matrix ets_filter (const matrix theta, const matrix init,
     endif
 end function
 
+function scalar ets_crit_add_scaled (const matrix theta, const matrix my,
+                                     matrix *init, int tr, int m, scalar f0)
+    return ets_crit_add(theta, my, &init, tr, m) / f0
+end function
+
+function scalar ets_crit_mult_scaled (const matrix par, const matrix my,
+                                      int m, scalar f0)
+    return ets_crit_mult(par, my, m) / f0
+end function
+
+function matrix ets_start_values (const matrix my, const matrix init,
+                                  int tr, int sf, int m, scalar *f0)
+    # Starting values for the smoothing parameters, by coarse grid
+    # search over the criterion. The criterion can be quite irregular
+    # (and the first L-BFGS-B step is a full gradient step, which for
+    # a gradient of large magnitude can throw us onto a corner of the
+    # box from which we cannot escape), so a fixed start such as
+    # (0.5, 0.5) is not safe. On return @f0 holds the criterion value
+    # at the chosen point, for use in scaling the criterion.
+    scalar np = 1 + tr + (m > 0)
+    matrix P = {0.05; 0.1; 0.2; 0.4; 0.6; 0.8}
+    if np > 1
+        matrix bg = {0.01; 0.05; 0.1; 0.3; 0.6}
+        P = (P ** ones(rows(bg), 1)) ~ (ones(rows(P), 1) ** bg)
+    endif
+    if np > 2
+        matrix gg = {0.01; 0.1; 0.3}
+        P = (P ** ones(rows(gg), 1)) ~ (ones(rows(P), 1) ** gg)
+    endif
+    scalar n = rows(P)
+    matrix fv = zeros(n, 1)
+    matrix tmp = init
+    loop i=1..n
+        if sf == 2
+            fv[i] = ets_crit_mult(P[i,]' | init[1:m+1], my, m)
+        else
+            fv[i] = ets_crit_add(P[i,]', my, &tmp, tr, m)
+        endif
+    endloop
+    scalar imin = iminr(fv')
+    f0 = fv[imin]
+    return P[imin,]'
+end function
+
 function matrix ets_auto_parms (const matrix my, matrix *init,
                                 int tr, int sf, int m, int verbose)
     # driver for automatic estimation of parameters
     scalar np = 1 + tr + (m > 0)
-    matrix b0 = {0.5; 0.5; 0.05}
-    matrix b = b0[1:np]
+    scalar f0
+    matrix b = ets_start_values(my, init, tr, sf, m, &f0)
     if sf == 2
         # the additive cases solve for the initializer internally
         b |= init[1:m+1]
@@ -367,9 +411,9 @@ function matrix ets_auto_parms (const matrix my, matrix *init,
         set bfgs_verbskip 5
     endif
     if sf == 2
-        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_mult(b, my, m))
+        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_mult_scaled(b, my, m, f0))
     else
-        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_add(b, my, &init, tr, m))
+        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_add_scaled(b, my, &init, tr, m, f0))
     endif
     err = $error
     if err
