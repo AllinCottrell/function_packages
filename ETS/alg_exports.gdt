@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gretldata SYSTEM "gretldata.dtd">
+
+<gretldata version="1.5" name="alg_exports" frequency="1" n="58" startobs="1960" endobs="2017" type="time-series">
+<description>Data imported from CSV file 'alg_exports.csv', exported from R's fpp3.
+See https://otexts.com/fpp3/ses.html
+</description>
+<variables count="1">
+<variable name="Exports"
+ label="Algerian exports as percentage of GDP"
+/>
+</variables>
+<observations count="58" labels="false">
+<obs>39.043172595018 </obs>
+<obs>46.2445568889055 </obs>
+<obs>19.793872675119999 </obs>
+<obs>24.6846820545111 </obs>
+<obs>25.0840587279266 </obs>
+<obs>22.6039435563255 </obs>
+<obs>25.986197517809099 </obs>
+<obs>23.434416768712001 </obs>
+<obs>23.135634603358699 </obs>
+<obs>23.7887768242961 </obs>
+<obs>22.0727334005425 </obs>
+<obs>18.442519154139799 </obs>
+<obs>20.4495619832458 </obs>
+<obs>25.503663001274401 </obs>
+<obs>38.7490436138728 </obs>
+<obs>33.688936216292099 </obs>
+<obs>33.054583925353597 </obs>
+<obs>30.586566930109999 </obs>
+<obs>25.535836721276699 </obs>
+<obs>31.148300205341599 </obs>
+<obs>34.338461465789401 </obs>
+<obs>34.5872507738721 </obs>
+<obs>30.924856323020101 </obs>
+<obs>27.941806112034801 </obs>
+<obs>25.710016181984098 </obs>
+<obs>23.5839328880834 </obs>
+<obs>12.8547573361278 </obs>
+<obs>14.272474725221601 </obs>
+<obs>15.507867878641299 </obs>
+<obs>18.639263335762699 </obs>
+<obs>23.4436850828471 </obs>
+<obs>29.11782217052 </obs>
+<obs>25.319594279343701 </obs>
+<obs>21.783876996166398 </obs>
+<obs>22.530725245238099 </obs>
+<obs>26.194775979055901 </obs>
+<obs>29.760448325184701 </obs>
+<obs>30.906311379864501 </obs>
+<obs>22.578354009803899 </obs>
+<obs>28.150116498362799 </obs>
+<obs>42.069718323811799 </obs>
+<obs>36.689304752495602 </obs>
+<obs>35.504533105117503 </obs>
+<obs>38.248829107157199 </obs>
+<obs>40.0532264952068 </obs>
+<obs>47.205193239312997 </obs>
+<obs>48.810688221486998 </obs>
+<obs>47.068163549001198 </obs>
+<obs>47.9733451352038 </obs>
+<obs>35.371650643135602 </obs>
+<obs>38.444547845884799 </obs>
+<obs>38.786953876113301 </obs>
+<obs>36.8905475681754 </obs>
+<obs>33.209897786624303 </obs>
+<obs>30.2191174257954 </obs>
+<obs>23.171778290716102 </obs>
+<obs>20.8600106281793 </obs>
+<obs>22.6388868549416 </obs>
+</observations>
+</gretldata>

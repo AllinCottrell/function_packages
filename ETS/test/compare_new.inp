@@ -1,0 +1,29 @@
+include /home/cottrell/stats/function_packages/ETS/ETS.inp
+set seed 1234
+open /home/cottrell/stats/function_packages/Holt/auspop.gdt
+dataset addobs 10
+bundle b = ETS(pop, _(verbose=0, trend=1))
+mwrite(b.S ~ ones(rows(b.S),1)*0, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_holt_auto.mat")
+mwrite(b.theta | vec(b.init), "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_holt_auto.par")
+matrix C = ETS_ci_matrix(b)
+mwrite(C, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_holt_auto.ci")
+b = ETS(pop, _(verbose=0, trend=1, theta={0.6,0.3}'))
+mwrite(b.S, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_holt_fix.mat")
+open /home/cottrell/stats/function_packages/Holt/auspop.gdt
+b = ETS(pop, _(verbose=0, trend=1, ntest=4))
+mwrite(b.S, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_holt_nt.mat")
+mwrite(vec(b.RMSE_test), "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_holt_nt.rm")
+
+open /home/cottrell/stats/function_packages/Winters/aus_holidays.gdt
+dataset addobs 12
+loop ad=0..1
+  bundle w = ETS(Trips, _(verbose=0, seasonal=2-ad))
+  mwrite(w.S, sprintf("/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_w%d_auto.mat", ad))
+  mwrite(w.theta | vec(w.init), sprintf("/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_w%d_auto.par", ad))
+  w = ETS(Trips, _(verbose=0, seasonal=2-ad, theta={0.3,0.2,0.1}'))
+  mwrite(w.S, sprintf("/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_w%d_fix.mat", ad))
+  mwrite(w.theta | vec(w.init), sprintf("/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_w%d_fix.par", ad))
+endloop
+open /home/cottrell/stats/function_packages/Winters/aus_holidays.gdt
+w = ETS(Trips, _(verbose=0, seasonal=1, ntest=8))
+mwrite(w.S, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/new_w1_nt.mat")

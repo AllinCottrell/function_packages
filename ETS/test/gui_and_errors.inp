@@ -1,0 +1,26 @@
+include ETS.gfn
+open aus_holidays.gdt --frompkg=ETS
+dataset addobs 12
+loop m=1..4
+  printf "=== model %d\n", m
+  bundle b = ETS_gui(Trips, m, 1, 0.3, 0.2, 0.1, 0, 1)
+  bundle b2 = ETS_gui(Trips, m, 2, 0.3, 0.2, 0.1, 0, 1)
+endloop
+bundle w2 = ETS(Trips, _(seasonal=2, verbose=0))
+matrix C = ETS_ci_matrix(w2)
+print C
+ETS_plot(&w2, 1)
+ETS_plot(&w2, 2)
+bundle w1 = ETS(Trips, _(seasonal=1, verbose=0))
+print w1.Trips_level
+ETS_plot(&w1, 1)
+open alg_exports.gdt --frompkg=ETS
+catch bundle e1 = ETS(Exports, _(seasonal=1))
+printf "err %d\n", $error
+open aus_holidays.gdt --frompkg=ETS
+catch bundle e2 = ETS(Trips, _(seasonal=1, trend=0))
+printf "err %d\n", $error
+catch bundle e3 = ETS(Trips, _(seasonal=1, theta={0.5,0.5}'))
+printf "err %d\n", $error
+catch bundle e4 = ETS(Trips, _(trend=1, theta={0.5,1.5}'))
+printf "err %d\n", $error

@@ -1,0 +1,891 @@
+set verbose off
+
+# ETS: exponential smoothing in the Holt-Winters family
+#
+# Supported models, selected by the @trend and @seasonal members of the
+# specs bundle:
+#
+#   trend  seasonal   model                         theta
+#     0       0       simple exponential smoothing  (α)
+#     1       0       Holt (linear trend)           (α, β)
+#     1       1       Holt-Winters, additive        (α, β, γ)
+#     1       2       Holt-Winters, multiplicative  (α, β, γ)
+#
+# Internally the code is written in terms of @tr (0/1 trend flag) and
+# @m (number of seasonal states: 0 for no seasonality, otherwise $pd) so
+# that the additive recursions share a single linear state-space
+# implementation. The state is
+#   z_t = (a_t, [b_t], [s_t, s_{t-1}, ..., s_{t-m+1}])'
+# with the bracketed elements present only if applicable.
+
+# ------------------------------------------------------------------
+# Utilities
+# ------------------------------------------------------------------
+
+function scalar ets_nparms (int tr, int m)
+    # number of estimated parameters: smoothing parameters plus free
+    # initial-state elements (seasonals are constrained to sum to zero
+    # or to average 1, hence m-1 of them)
+    scalar np = 1 + tr + (m > 0)
+    scalar ni = 1 + tr + (m > 0 ? m - 1 : 0)
+    return np + ni
+end function
+
+function scalar ets_fcol (const bundle b)
+    # column of the forecast in b.S
+    return 3 + b.trend + (b.seasonal > 0)
+end function
+
+function void ets_print_theta (const matrix theta)
+    strings gk = defarray("α", "β", "γ")
+    scalar n = nelem(theta)
+    printf "  "
+    loop i=1..n
+        printf "%s = %g", gk[i], theta[i]
+        if i < n
+            printf ", "
+        endif
+    endloop
+    printf "\n"
+end function
+
+function matrix ets_ranges (const series y, int ntest, int minlen)
+    matrix ret = zeros(1,3)
+    catch smpl --contiguous y
+    if $error
+        funcerr "Missing values encountered"
+    endif
+    ret[1] = $t1 # start of contiguous y
+    ret[2] = $t2 # end of contiguous y
+    scalar tail = $tmax - $t2
+    if ntest > 0
+        ret[2] = $t2 - ntest
+        ret[3] = $t2
+    elif tail > 0
+        ret[3] = $tmax
+    else
+        ret[3] = $t2
+    endif
+    ntrain = ret[2] - ret[1] + 1
+    errorif(ntrain < minlen, "Insufficient observations for training")
+    return ret
+end function
+
+function void ets_checks (const bundle args, int fixed_theta)
+    scalar tr = args.trend
+    scalar sf = args.seasonal
+    if sf > 0
+        errorif($pd == 1, "Periodicity = 1, no seasonality!")
+        errorif(tr == 0, "seasonal models require a trend")
+    endif
+    if fixed_theta
+        scalar np = 1 + tr + (sf > 0)
+        errorif(nelem(args.theta) != np,
+          sprintf("theta must be a %d-vector", np))
+        loop i=1..np
+            errorif(args.theta[i] < 0 || args.theta[i] > 1,
+              sprintf("theta[%d] is out of bounds", i))
+        endloop
+    endif
+end function
+
+function string ets_model_name (int tr, int sf)
+    if sf == 0
+        return tr ? "Holt double exponential smoothing" : \
+          "Simple exponential smoothing"
+    else
+        return sprintf("Holt-Winters, using %s formula", \
+          sf == 1 ? "additive" : "multiplicative")
+    endif
+end function
+
+# ------------------------------------------------------------------
+# Initialization
+# ------------------------------------------------------------------
+
+function matrix ets_auto_init (series y "Target series", int tr, int sf)
+    # Rule-of-thumb initial state, for period 0. Non-seasonal: initial
+    # level is the first observation, initial trend the first
+    # difference. Seasonal: first-period average, trend from the
+    # first two major periods, and seasonal indices relative to the
+    # first-period average.
+    if sf == 0
+        matrix ret = zeros(1 + tr, 1)
+        ret[1] = y[$t1]
+        if tr
+            ret[2] = y[$t1+1] - y[$t1]
+            rnameset(ret, "level trend")
+        else
+            rnameset(ret, "level")
+        endif
+        return ret
+    endif
+
+    scalar m = $pd
+    scalar t2 = $t1+m-1
+    scalar am1 = 0
+    scalar am2 = 0
+    matrix ret = zeros(m + 2, 1)
+
+    # sums of y over the first two major periods
+    loop t=$t1..t2
+        am1 += y[t]
+        am2 += y[t + m]
+    endloop
+
+    ret[1] = am1 / m
+    ret[2] = (am2 - am1) / (m * m)
+
+    # seasonal indices
+    i = 3
+    loop t=$t1..t2
+        if sf == 1
+            ret[i] = y[t] - ret[1]
+        else
+            ret[i] = y[t] / ret[1]
+        endif
+        i++
+    endloop
+
+    strings S = array(2 + m)
+    S[1] = "level"
+    S[2] = "trend"
+    loop i=1..m
+        S[i+2] = sprintf("seas%d", i)
+    endloop
+    rnameset(ret, S)
+
+    return ret
+end function
+
+# ------------------------------------------------------------------
+# Additive case: the recursion is linear in the state, so
+#   z_t = A z_{t-1} + d y_t
+# and the one-step forecast is f_t = c'z_{t-1}.
+# Theta is (α, [β], [γ]).
+# ------------------------------------------------------------------
+
+function matrix ets_A (const matrix theta, int tr, int m)
+    scalar α = theta[1]
+    scalar β = tr ? theta[2] : 0
+    scalar γ = m > 0 ? theta[2+tr] : 0
+    scalar n = 1 + tr + m
+    matrix A = zeros(n, n)
+    A[1,1] = 1-α
+    if tr
+        A[1,2] = 1-α
+        A[2,1] = -α*β
+        A[2,2] = 1-α*β
+    endif
+    if m > 0
+        A[1,n] = -α
+        if tr
+            A[2,n] = -α*β
+        endif
+        scalar sr = 2 + tr # row of the newest seasonal
+        A[sr,1] = -γ*(1-α)
+        if tr
+            A[sr,2] = -γ*(1-α)
+        endif
+        A[sr,n] = 1-γ*(1-α)
+        loop j=sr+1..n
+            # shift the older seasonals down one slot
+            A[j,j-1] = 1
+        endloop
+    endif
+    return A
+end function
+
+function matrix ets_d (const matrix theta, int tr, int m)
+    # loading of y_t on the state (row vector)
+    scalar α = theta[1]
+    matrix d = {α}
+    if tr
+        d ~= α * theta[2]
+    endif
+    if m > 0
+        d ~= theta[2+tr] * (1-α) ~ zeros(1, m-1)
+    endif
+    return d
+end function
+
+function matrix ets_c (int tr, int m)
+    # forecast selection vector
+    matrix c = ones(1 + tr, 1)
+    if m > 0
+        c |= zeros(m-1, 1) | 1
+    endif
+    return c
+end function
+
+function matrix ets_filter_add (const matrix theta, const matrix init,
+                                const matrix my, int tr, int m)
+    # returns T x (3 + tr + (m>0)) matrix
+    #   {y, level, [trend], [seasonal], forecast}
+    scalar T = rows(my)
+    scalar k = 1 + tr
+    # state order is newest seasonal first; @init is oldest first
+    matrix z0 = init[1:k]
+    if m > 0
+        z0 |= mreverse(init[k+1:k+m])
+    endif
+    matrix Z = varsimul(ets_A(theta, tr, m), my * ets_d(theta, tr, m), z0')
+    matrix ret = my ~ Z[2:T+1,1:k]
+    if m > 0
+        ret ~= Z[2:T+1,k+1]
+    endif
+    ret ~= Z[1:T,] * ets_c(tr, m)
+    return ret
+end function
+
+function scalar ets_crit_add (const matrix theta, const matrix my,
+                              matrix *init, int tr, int m)
+    # BFGS callback, additive case: SSE given @theta, with the initial
+    # state concentrated out. Forecasts are linear in the initial
+    # state, f = f0 + G z0, where f0 is the forecast path from a zero
+    # state and row t of G is c'A^(t-1). Note that G can be had from
+    # one varsimul() call with transition A' and initial value c.
+    #
+    # If seasonal, the seasonals are constrained to sum to zero: the
+    # initial level and the seasonal mean are not separately identified
+    # (adding k to the level and subtracting k from every seasonal
+    # leaves all forecasts unchanged), so without this the regressors
+    # would be collinear.
+    scalar T = rows(my)
+    scalar k = 1 + tr
+    scalar n = k + m
+    matrix A = ets_A(theta, tr, m)
+    matrix c = ets_c(tr, m)
+    matrix Z = varsimul(A, my * ets_d(theta, tr, m), zeros(1, n))
+    matrix f0 = Z[1:T,] * c
+    matrix G = varsimul(A', zeros(T-1, n), c')
+    matrix e, q
+    if m > 0
+        # put seasonal columns in @init order (oldest first)
+        matrix X = G[,1:k] ~ mreverse(G[,k+1:n]')'
+        # impose seas_m = -(seas_1 + ... + seas_{m-1})
+        matrix Xs = X[,1:n-1] - X[,n] * (zeros(1, k) ~ ones(1, m-1))
+        q = mols(my - f0, Xs, &e)
+        init[1:n-1] = q
+        init[n] = -sumc(q[k+1:n-1])
+    else
+        q = mols(my - f0, G, &e)
+        init[1:k] = q
+    endif
+    return sumc(e.^2)
+end function
+
+# ------------------------------------------------------------------
+# Multiplicative seasonal case (with trend): nonlinear, so we need an
+# explicit loop, but on matrices rather than series and with no
+# per-step branching.
+# ------------------------------------------------------------------
+
+function matrix ets_filter_mult (const matrix theta, const matrix init,
+                                 const matrix my)
+    # returns T x 5 matrix {y, level, trend, seasonal, forecast}
+    scalar α = theta[1]
+    scalar β = theta[2]
+    scalar γ = theta[3]
+    scalar m = nelem(init) - 2
+    scalar T = rows(my)
+    # s[t] holds s_{t-m}; s[t+m] receives s_t
+    matrix s = init[3:m+2] | zeros(T, 1)
+    matrix ret = my ~ zeros(T, 4)
+    scalar a_ = init[1]
+    scalar b_ = init[2]
+    scalar a = 0
+    scalar b = 0
+    scalar sm = 0
+    loop t=1..T
+        sm = s[t]
+        ret[t,5] = (a_ + b_) * sm
+        a = α * my[t] / sm + (1-α) * (a_ + b_)
+        b = β * (a - a_) + (1-β) * b_
+        s[t+m] = γ * my[t] / a + (1-γ) * sm
+        ret[t,2] = a
+        ret[t,3] = b
+        a_ = a
+        b_ = b
+    endloop
+    ret[,4] = s[m+1:m+T]
+    return ret
+end function
+
+function matrix ets_mult_init (const matrix par, int m)
+    # map (α, β, γ, level, trend, seas_1..seas_{m-1}) to the full
+    # initializer, with seasonals normalized to average 1: scaling
+    # level and trend by k and the seasonals by 1/k leaves all
+    # forecasts unchanged, so one seasonal is redundant
+    matrix sv = par[6:m+4]
+    return par[4:5] | sv | (m - sumc(sv))
+end function
+
+function scalar ets_crit_mult (const matrix par, const matrix my, int m)
+    # BFGS callback, multiplicative case
+    matrix W = ets_filter_mult(par[1:3], ets_mult_init(par, m), my)
+    return sumc((W[,1] - W[,5]).^2)
+end function
+
+# ------------------------------------------------------------------
+# Dispatch, estimation
+# ------------------------------------------------------------------
+
+function matrix ets_filter (const matrix theta, const matrix init,
+                            const matrix my, int tr, int sf, int m)
+    if sf == 2
+        return ets_filter_mult(theta, init, my)
+    else
+        return ets_filter_add(theta, init, my, tr, m)
+    endif
+end function
+
+function matrix ets_auto_parms (const matrix my, matrix *init,
+                                int tr, int sf, int m, int verbose)
+    # driver for automatic estimation of parameters
+    scalar np = 1 + tr + (m > 0)
+    matrix b0 = {0.5; 0.5; 0.05}
+    matrix b = b0[1:np]
+    if sf == 2
+        # the additive cases solve for the initializer internally
+        b |= init[1:m+1]
+    endif
+    scalar len = nelem(b)
+    matrix bounds = zeros(len, 3)
+    loop i=1..len
+        if i <= np
+            bounds[i,] = {i, 0, 1}
+        else
+            bounds[i,] = {i, -$huge, $huge}
+        endif
+    endloop
+
+    if verbose == 3
+        set max_verbose full
+    elif verbose == 2
+        set max_verbose on
+        set bfgs_verbskip 5
+    endif
+    if sf == 2
+        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_mult(b, my, m))
+    else
+        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_add(b, my, &init, tr, m))
+    endif
+    err = $error
+    if err
+        printf "Got error %d from BFGScmin\n", err
+        b[1] = NA
+    else
+        # make sure @init corresponds to the final parameters
+        if sf == 2
+            init[1:m+2] = ets_mult_init(b, m)
+        else
+            SSE = ets_crit_add(b, my, &init, tr, m)
+        endif
+        if verbose > 0
+            if verbose > 1
+                printf "\n"
+            endif
+            printf "automatic parameter values:\n"
+            ets_print_theta(b[1:np])
+            printf "\nestimated initializer:\n\n"
+            eval init
+        endif
+    endif
+    return b[1:np]
+end function
+
+function scalar ets_given_theta (const matrix theta, const matrix my,
+                                 matrix *init, int tr, int sf, int m,
+                                 int verbose)
+    # optimize the (seasonal) initializer conditional on fixed @theta
+    if sf == 2
+        matrix b = init[1:m+1]
+        if verbose == 3
+            set max_verbose full
+        elif verbose == 2
+            set max_verbose on
+            set bfgs_verbskip 5
+        endif
+        catch scalar SSE = BFGSmin(&b, ets_crit_mult(theta | b, my, m))
+        err = $error
+        if err
+            printf "Got error %d from BFGSmin\n", err
+            return err
+        endif
+        init[1:m+2] = ets_mult_init(theta | b, m)
+    else
+        # the initializer is concentrated out by OLS
+        ets_crit_add(theta, my, &init, tr, m)
+    endif
+    if verbose > 0
+        printf "estimated initializer, given θ:\n\n"
+        eval init
+    endif
+    return 0
+end function
+
+# ------------------------------------------------------------------
+# Post-estimation extras
+# ------------------------------------------------------------------
+
+function void ets_add_virtual_series (bundle *b)
+    scalar tr = b.trend
+    scalar sf = b.seasonal
+    scalar fc = ets_fcol(b)
+    string s = sprintf("%s_level", b.yname)
+    b[s] = "virtual_series:S[,2]"
+    if tr
+        s = sprintf("%s_trend", b.yname)
+        b[s] = "virtual_series:S[,3]"
+    endif
+    if sf > 0
+        s = sprintf("%s_season", b.yname)
+        b[s] = sprintf("virtual_series:S[,%d]", 3 + tr)
+    endif
+    s = sprintf("%s_fcast", b.yname)
+    b[s] = sprintf("virtual_series:S[,%d]", fc)
+    s = sprintf("%s_irreg", b.yname)
+    b[s] = sprintf("virtual_series:S[,1]-S[,%d]", fc)
+end function
+
+function void ets_add_eval_stats (bundle *b)
+    scalar T = rows(b.S)
+    scalar t0 = T - b.ntest + 1
+    scalar fc = ets_fcol(b)
+    matrix e = b.S[t0:T,1] - b.S[t0:T,fc]
+    b.RMSE_test = sqrt(sumc(e.^2) / b.ntest)
+    b.MAE_test = sumc(abs(e)) / b.ntest
+end function
+
+function void ets_add_fcse (bundle *b)
+    # Forecast standard errors for the additive models (SES, Holt and
+    # additive Holt-Winters), via the equivalent ETS(A,*,*) model: see
+    # https://otexts.com/fpp3/ets-forecasting.html, section 8.7 and
+    # Table 8.8. The h-step variance is
+    #   σ² [1 + Σ_{j=1}^{h-1} c_j²],
+    # where c_j = α + β_e j + γ_e I(j mod m = 0). The ETS smoothing
+    # parameters are related to ours by β_e = αβ and γ_e = (1-α)γ (see
+    # fpp3 sections 8.3 and 8.5).
+    scalar tr = b.trend
+    scalar m = b.seasonal > 0 ? rows(b.init) - 2 : 0
+    scalar α = b.theta[1]
+    scalar β = tr ? α * b.theta[2] : 0
+    scalar γ = m > 0 ? (1-α) * b.theta[3] : 0
+    scalar s2 = b.RMSE_train^2
+    scalar hmax = b.limits[3] - b.limits[2]
+    matrix j = seq(1, hmax-1)'
+    matrix cj = α + β * j
+    if m > 0
+        cj += γ * ((j - m * floor(j/m)) .= 0)
+    endif
+    matrix vh = ones(rows(b.S), 1) * NA
+    scalar T = rows(vh)
+    matrix cs = hmax > 1 ? 0 | cum(cj.^2) : 0
+    vh[T-hmax+1:T] = s2 * (1 + cs)
+    strings ss = cnameget(b.S)
+    b.S ~= sqrt(vh)
+    cnameset(b.S, ss + "stderr")
+end function
+
+function matrix ets_mult_sim (const bundle *b, int N, int df)
+    # Simulated paths of y over the forecast range, multiplicative case,
+    # for which there's no closed form for the forecast variance. Each
+    # path runs the recursion forward from the final training state,
+    # feeding in y = forecast + error, with the error drawn as
+    # RMSE_train times Student t(df), so the interval at h = 1 matches
+    # the analytic additive one. Returns an N x H matrix.
+    scalar m = nelem(b.init) - 2
+    scalar H = b.limits[3] - b.limits[2]
+    scalar n = rows(b.S) - H
+    scalar α = b.theta[1]
+    scalar β = b.theta[2]
+    scalar γ = b.theta[3]
+    matrix E = b.RMSE_train * mrandgen(t, df, N, H)
+    matrix ι = ones(N, 1)
+    matrix a_ = ι * b.S[n,2]
+    matrix b_ = ι * b.S[n,3]
+    # S[,h] holds s_{n+h-m}; S[,h+m] receives s_{n+h}
+    matrix S = (ι * b.S[n-m+1:n,4]') ~ zeros(N, H)
+    matrix Y = zeros(N, H)
+    matrix a y sm
+    loop h=1..H
+        sm = S[,h]
+        y = (a_ + b_) .* sm + E[,h]
+        a = α * y ./ sm + (1-α) * (a_ + b_)
+        b_ = β * (a - a_) + (1-β) * b_
+        S[,h+m] = γ * y ./ a + (1-γ) * sm
+        a_ = a
+        Y[,h] = y
+    endloop
+    return Y
+end function
+
+function matrix ets_sim_band (const matrix Y, int T, scalar c)
+    # For a c percent interval from the empirical quantiles of the
+    # simulated paths @Y, return a T x 2 matrix holding the center and
+    # half-width of the band, NA outside the forecast range (the last
+    # cols(Y) of T rows). The band need not be symmetric about the
+    # forecast, hence the representation via its midpoint.
+    scalar H = cols(Y)
+    scalar p = (100 - c) / 200
+    matrix Q = quantile(Y, {p, 1-p})
+    matrix ret = mshape(NA, T, 2)
+    ret[T-H+1:T,1] = (Q[1,] + Q[2,])' / 2
+    ret[T-H+1:T,2] = (Q[2,] - Q[1,])' / 2
+    return ret
+end function
+
+function void ets_check_ci_levels (matrix pc)
+    scalar err = 0
+    if nelem(pc) != 2
+        err = 1
+    elif min(pc) < 50 || max(pc) > 99
+        err = 2
+    elif pc[1] == pc[2]
+        err = 3
+    endif
+    errorif(err, "ci_levels: invalid argument")
+end function
+
+function void ets_get_ci_vals (const bundle b, matrix ci_levels[null],
+                               scalar *c1, scalar *c2, scalar *hmax)
+    if exists(ci_levels)
+        ets_check_ci_levels(ci_levels)
+    else
+        ci_levels = {80, 95}
+    endif
+    hmax = b.limits[3] - b.limits[2]
+    c1 = min(ci_levels)
+    c2 = max(ci_levels)
+end function
+
+function bundles ets_ci_bands (int df, scalar c1, scalar c2)
+    bundles bb = array(2)
+    # for plotting, show the wider band first
+    f1 = critical(t, df, (100 - c2) / 200)
+    f2 = critical(t, df, (100 - c1) / 200)
+    bb[1] = _(center="forecast", width="stderr", factor=f1, style="fill", color="#BBD9F5")
+    bb[2] = _(center="forecast", width="stderr", factor=f2, style="fill", color="#6AADEC")
+    return bb
+end function
+
+# ------------------------------------------------------------------
+# Public functions
+# ------------------------------------------------------------------
+
+function bundle ets_default_args (void)
+    bundle b
+    b.trend = 0
+    b.seasonal = 0
+    b.theta = {0.5}' # placeholder, length checked only if supplied
+    b.ntest = 0
+    b.verbose = 1
+    b.bounds = _(trend={0,1}, seasonal={0,2}, verbose={0,3}, ntest={0,NA})
+    return b
+end function
+
+function bundle ETS (const series y,
+                     const bundle specs[null])
+    scalar fixed_theta = 0
+    string yname = argname(y, "y")
+
+    bundle args = ets_default_args()
+    if exists(specs)
+        fixed_theta = inbundle(specs, "theta")
+        # a seasonal model implies a trend unless told otherwise
+        if inbundle(specs, "seasonal") && !inbundle(specs, "trend")
+            args.trend = specs.seasonal > 0
+        endif
+        errorif(bcheck(&args, specs), "aborting")
+    endif
+
+    ets_checks(args, fixed_theta)
+    scalar tr = args.trend
+    scalar sf = args.seasonal
+    scalar m = sf > 0 ? $pd : 0
+    scalar ntest = args.ntest
+
+    matrix limits = ets_ranges(y, ntest, m > 0 ? 4 * m : 4)
+    scalar t1 = limits[1]
+    scalar t2 = limits[2]
+    scalar t3 = limits[3]
+    smpl t1 t3
+
+    scalar verbose = args.verbose
+
+    series level = NA
+    list L = y level
+    if tr
+        series trend = NA
+        L += trend
+    endif
+    if sf > 0
+        series seasonal = NA
+        L += seasonal
+    endif
+    series forecast = NA
+    L += forecast
+
+    if verbose > 0
+        printf "%s\n", ets_model_name(tr, sf)
+        printf "Training range: %s to %s\n",
+          obslabel(t1), obslabel(t2)
+        if fixed_theta
+            printf "Fixed parameters:\n"
+            ets_print_theta(args.theta)
+        endif
+        if ntest > 0
+            printf "Testing forecast: %s to %s\n\n",
+              obslabel(t2+1), obslabel(t3)
+        elif t3 > t2
+            printf "Out-of-sample forecast: %s to %s\n\n",
+              obslabel(t2+1), obslabel(t3)
+        else
+            printf "Number of forecasts: 0\n\n"
+        endif
+    endif
+
+    matrix init = ets_auto_init(y, tr, sf)
+    if verbose > 1
+        print init
+    endif
+
+    # training data as a column vector
+    smpl t1 t2
+    matrix my = {y}
+    smpl t1 t3
+
+    if fixed_theta
+        matrix theta = vec(args.theta)
+        if sf > 0
+            err = ets_given_theta(theta, my, &init, tr, sf, m, verbose)
+            if err
+                funcerr "Failed to optimize initializer"
+            endif
+        endif
+    else
+        matrix theta = ets_auto_parms(my, &init, tr, sf, m, verbose)
+        if !ok(theta[1])
+            funcerr "Failed to estimate parameters"
+        endif
+    endif
+    theta = vec(theta)
+
+    # training: states and one-step-ahead forecasts
+    matrix Wtr = ets_filter(theta, init, my, tr, sf, m)
+    scalar fcol = 3 + tr + (m > 0)
+    matrix u = Wtr[,1] - Wtr[,fcol]
+    scalar n = rows(u)
+    scalar SSE = sumc(u.^2)
+    scalar RMSE_train = sqrt(SSE / n)
+    scalar MAE_train = sumc(abs(u)) / n
+
+    # transcribe to series over t1..t2
+    smpl t1 t2
+    level = Wtr[,2]
+    if tr
+        trend = Wtr[,3]
+    endif
+    if sf > 0
+        seasonal = Wtr[,3+tr]
+    endif
+    forecast = Wtr[,fcol]
+
+    # h-step-ahead forecasts over t2+1..t3 (test or out-of-sample)
+    if t3 > t2
+        scalar H = t3 - t2
+        matrix hv = seq(1, H)'
+        matrix fc = Wtr[n,2] * ones(H, 1)
+        if tr
+            fc += hv * Wtr[n,3]
+        endif
+        if sf > 0
+            # last m seasonals, cycled out to H periods
+            matrix sh = Wtr[n-m+1:n,3+tr] * ones(1, ceil(H/m))
+            sh = vec(sh)[1:H]
+            if sf == 1
+                fc += sh
+            else
+                fc = fc .* sh
+            endif
+        endif
+        smpl t2+1 t3
+        forecast = fc
+    endif
+    smpl t1 t3
+
+    if verbose > 0
+        if verbose > 1
+            printf "\n"
+        endif
+        printf "training SSE = %g, RMSE = %g, MAE = %g\n", SSE,
+          RMSE_train, MAE_train
+        print L -o
+    endif
+
+    set skip_missing off
+    matrix S = {L}
+    nparms = ets_nparms(tr, m)
+    bundle ret = _(theta, init, trend=tr, seasonal=sf, ntest, S,
+      RMSE_train, MAE_train, yname, limits, nparms)
+
+    if ntest > 0
+        ets_add_eval_stats(&ret)
+        if verbose > 0
+            printf "testing RMSE = %g, MAE = %g\n", ret.RMSE_test,
+              ret.MAE_test
+        endif
+    endif
+
+    if verbose > 0
+        printf "\n"
+    endif
+    if sf != 2 && t3 > t2
+        ets_add_fcse(&ret)
+    endif
+    if $version >= 20262
+        ets_add_virtual_series(&ret)
+    endif
+
+    return ret
+end function
+
+function matrix ETS_ci_matrix (const bundle b,
+                               matrix ci_levels[null])
+    scalar hmax = b.limits[3] - b.limits[2]
+    errorif(hmax <= 0, "No post-training forecasts are available")
+    if exists(ci_levels)
+        ets_check_ci_levels(ci_levels)
+    else
+        ci_levels = {80, 95}
+    endif
+    scalar df = rows(b.S) - hmax - b.nparms
+    scalar ci1 = min(ci_levels)
+    scalar ci2 = max(ci_levels)
+    scalar T = rows(b.S)
+    scalar fcol = ets_fcol(b)
+    matrix fc = b.S[T-hmax+1:T,fcol]
+    matrix CI = zeros(hmax, 4)
+    if b.seasonal == 2
+        # simulation-based intervals
+        matrix Y = ets_mult_sim(&b, 10000, df)
+        matrix B1 = ets_sim_band(Y, T, ci1)
+        matrix B2 = ets_sim_band(Y, T, ci2)
+        CI[,1] = B1[T-hmax+1:T,1] - B1[T-hmax+1:T,2]
+        CI[,2] = B1[T-hmax+1:T,1] + B1[T-hmax+1:T,2]
+        CI[,3] = B2[T-hmax+1:T,1] - B2[T-hmax+1:T,2]
+        CI[,4] = B2[T-hmax+1:T,1] + B2[T-hmax+1:T,2]
+    else
+        scalar f1 = critical(t, df, (100 - ci1) / 200)
+        scalar f2 = critical(t, df, (100 - ci2) / 200)
+        matrix me = b.S[T-hmax+1:T,fcol+1]
+        CI[,1] = fc - f1 * me
+        CI[,2] = fc + f1 * me
+        CI[,3] = fc - f2 * me
+        CI[,4] = fc + f2 * me
+    endif
+    strings cs = array(4)
+    cs[1] = sprintf("Lo%d", ci1)
+    cs[2] = sprintf("Hi%d", ci1)
+    cs[3] = sprintf("Lo%d", ci2)
+    cs[4] = sprintf("Hi%d", ci2)
+    cnameset(CI, cs)
+    return CI
+end function
+
+function void ETS_plot (const bundle *b,
+                        int ptype[1:2:1] {"actual and forecast", "components"},
+                        matrix ci_levels[null])
+    list L = mat2list(b.S)
+    if ptype == 1
+        string yname = b.yname
+        if yname != "y"
+            rename y @yname
+        endif
+        if b.limits[3] > b.limits[2]
+            scalar c1 c2 hmax
+            ets_get_ci_vals(b, ci_levels, &c1, &c2, &hmax)
+            df = rows(b.S) - hmax - b.nparms
+            if b.seasonal != 2
+                hbands = ets_ci_bands(df, c1, c2)
+            else
+                # simulation-based bands
+                matrix Y = ets_mult_sim(&b, 10000, df)
+                scalar T = rows(b.S)
+                matrix B1 = ets_sim_band(Y, T, c1)
+                matrix B2 = ets_sim_band(Y, T, c2)
+                series ctr1 = B1[,1]
+                series hw1 = B1[,2]
+                series ctr2 = B2[,1]
+                series hw2 = B2[,2]
+                bundles hbands = array(2)
+                hbands[1] = _(center="ctr2", width="hw2", style="fill", color="#BBD9F5")
+                hbands[2] = _(center="ctr1", width="hw1", style="fill", color="#6AADEC")
+            endif
+            list P = @yname forecast
+            plot P
+                options --time-series --with-lines --bands=hbands
+                printf "set title 'forecast with %d and %d percent intervals'",
+                  c1, c2
+            end plot --output=display
+        else
+            gnuplot @yname forecast --time --with-lines --output=display
+        endif
+    else
+        series irreg = b.S[,1] - b.S[,ets_fcol(b)]
+        string cs = "level"
+        if b.trend
+            cs ~= " trend"
+        endif
+        if b.seasonal > 0
+            cs ~= " seasonal"
+        endif
+        tsplots @cs irreg --output=display
+    endif
+end function
+
+# ------------------------------------------------------------------
+# GUI
+# ------------------------------------------------------------------
+
+function scalar ets_precheck (void)
+    # return non-zero if dataset is not suitable: we require
+    # sufficient observations (seasonal models need more, and a
+    # periodicity > 1, which is checked at run time)
+    return $nobs < 10
+end function
+
+function bundle ets_ui_maker (void)
+    bundle b
+    b.alpha = _(depends="parms=2")
+    b.beta  = _(depends="parms=2")
+    b.gamma = _(depends="parms=2")
+    return b
+end function
+
+function bundle ETS_gui (series y,
+                         int model[1:4:2] {"simple exponential smoothing", "Holt (trend)", "Holt-Winters, additive", "Holt-Winters, multiplicative"},
+                         int parms[1:2:1] {"automatic", "pre-specified"},
+                         scalar alpha[0:1:0.5:0.0001] "level, α",
+                         scalar  beta[0:1:0.5:0.0001] "trend, β",
+                         scalar gamma[0:1:0.05:0.0001] "season, γ",
+                         int ntest[0::0] "ntest, see Help",
+                         int verbose[1:3:1])
+    string yname = argname(y, "y")
+    if yname != "y"
+        rename y @yname
+    endif
+    # decode the model selector
+    trend = model > 1
+    seasonal = model > 2 ? model - 2 : 0
+    bundle ret
+    if parms == 1
+        ret = ETS(@yname, _(trend, seasonal, ntest, verbose))
+    else
+        matrix th3 = {alpha, beta, gamma}
+        matrix theta = th3[1:1+trend+(seasonal>0)]'
+        ret = ETS(@yname, _(theta, trend, seasonal, ntest, verbose))
+    endif
+    return ret
+end function

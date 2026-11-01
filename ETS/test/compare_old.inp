@@ -1,0 +1,30 @@
+include /home/cottrell/stats/function_packages/Holt/Holt.gfn
+include /home/cottrell/stats/function_packages/Winters/Winters.gfn
+set seed 1234
+open /home/cottrell/stats/function_packages/Holt/auspop.gdt
+dataset addobs 10
+bundle b = Holt(pop, _(verbose=0))
+mwrite(b.H ~ ones(rows(b.H),1)*0, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_holt_auto.mat")
+mwrite(b.theta | vec(b.init), "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_holt_auto.par")
+matrix C = Holt_ci_matrix(b)
+mwrite(C, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_holt_auto.ci")
+b = Holt(pop, _(verbose=0, theta={0.6,0.3}'))
+mwrite(b.H, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_holt_fix.mat")
+open /home/cottrell/stats/function_packages/Holt/auspop.gdt
+b = Holt(pop, _(verbose=0, ntest=4))
+mwrite(b.H, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_holt_nt.mat")
+mwrite(vec(b.RMSE_test), "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_holt_nt.rm")
+
+open /home/cottrell/stats/function_packages/Winters/aus_holidays.gdt
+dataset addobs 12
+loop ad=0..1
+  bundle w = Winters(Trips, _(verbose=0, additive=ad))
+  mwrite(w.W, sprintf("/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_w%d_auto.mat", ad))
+  mwrite(w.theta | vec(w.init), sprintf("/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_w%d_auto.par", ad))
+  w = Winters(Trips, _(verbose=0, additive=ad, theta={0.3,0.2,0.1}'))
+  mwrite(w.W, sprintf("/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_w%d_fix.mat", ad))
+  mwrite(w.theta | vec(w.init), sprintf("/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_w%d_fix.par", ad))
+endloop
+open /home/cottrell/stats/function_packages/Winters/aus_holidays.gdt
+w = Winters(Trips, _(verbose=0, additive=1, ntest=8))
+mwrite(w.W, "/tmp/claude-1000/-home-cottrell-stats-function-packages/e647e592-806f-4dd7-8752-1b702079e8b7/scratchpad/out/old_w1_nt.mat")

@@ -1,0 +1,14 @@
+testing
+newtest
+*.gfn
+*.zip
+*.pdf
+*~
+doc/*.aux
+doc/*.log
+doc/*.out
+doc/*.pdf
+doc/*.bbl
+doc/*.blg
+doc/*.bib
+doc/*.bst
