@@ -1,12 +1,12 @@
 author = Ignacio Diaz-Emparanza and Allin Cottrell
 email = cottrell@wfu.edu
 version = 2.0
-date = 2026-10-03
+date = 2026-10-07
 tags = C53
 description = Holt's forecasting method
 label = Holt
 menu-attachment = MAINWIN/Variable/Filter
-min-version = 2025a
+min-version = 2024c
 data-requirement = needs-time-series-data
 public = Holt Holt_gui Holt_plot Holt_ci_matrix
 gui-main = Holt_gui

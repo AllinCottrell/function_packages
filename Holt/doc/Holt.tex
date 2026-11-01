@@ -1,10 +1,10 @@
 \documentclass{article}
+\usepackage{graphicx}
 \usepackage[letterpaper,body={6.1in,9in},top=.8in,left=1.2in]{geometry}
 \usepackage[no-math]{fontspec}
 \usepackage{verbatim,fancyvrb}
 \usepackage{gretl}
 %\usepackage{amsmath}
-\usepackage{graphicx}
 \usepackage[authoryear]{natbib}
 \usepackage{hyperref}
 
@@ -28,7 +28,7 @@
 \begin{center}
   {\Large \textbf{Holt 2.0}} \\[6pt]
   Ignacio Díaz-Emparanza and Allin Cottrell \\[6pt]
-  2026-10-03
+  2026-10-07
 \end{center}
 
 \section{Introduction}
@@ -136,7 +136,6 @@ following elements:
   last forecast. If there are no post-training forecasts (testing or
   out-of-sample) the third element is equal to the second.
 \end{itemize}
-
 If \texttt{ntest} is non-zero, two additional items are included in the
 bundle, namely the RMSE and MAE for the pseudo-out-of-sample forecasts,
 under the keys \dtk{RMSE_test} and \dtk{MAE_test}.
@@ -425,7 +424,7 @@ holding the original series, level, trend and forecast as in
 \label{sec:log}
 
 \begin{itemize}
-\item \texttt{v2.0}, 2026-10-03: Initial release of substantially
+\item \texttt{v2.0}, 2026-10-07: Initial release of substantially
   modified version.
 \end{itemize}
 
