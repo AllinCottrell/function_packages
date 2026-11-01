@@ -56,7 +56,10 @@ completeness. See section~\ref{sec:update} for an account of the
 differences from those packages. The earlier versions of \textsf{Holt}
 (1.0, 2015) and \textsf{Winters} (1.1, 2022) were written by Ignacio
 Díaz-Emparanza; the versions 2.\textit{n} on which this package builds
-were written by Allin Cottrell.
+were written by Allin Cottrell. Most of the work on the consolidated
+\textsf{ETS} package was done by Claude Sonnet 5.5. (\textsf{ETS} can be
+thought of as indicating ``Exponential Time-series Smoothing'' or
+``Error, Trend, Seasonal''.)
 
 \subsection{The recursions}
 
@@ -262,7 +265,7 @@ bundle sb = ETS(Exports)
 ETS_plot(&sb, 1)
 \end{nscode}
 
-The \texttt{alg\_exports} dataset contains 58 annual observations from
+The \dtk{alg_exports} dataset contains 58 annual observations from
 1960 to 2017, which are used for training the model. The five added
 observations, 2018 to 2022, are then used for out-of-sample
 forecasting. Since \texttt{theta} is not specified, both $\alpha$ and
@@ -285,7 +288,7 @@ bundle wb = ETS(Trips, _(seasonal=2))
 ETS_plot(&wb, 1)
 ETS_plot(&wb, 2)
 \end{nscode}
-The \texttt{aus\_holidays} dataset contains 80 quarterly observations
+The \dtk{aus_holidays} dataset contains 80 quarterly observations
 from 1998:1 to 2017:4; the twelve added observations are for
 out-of-sample forecasting.
 
@@ -415,8 +418,8 @@ If the bundle includes the forecast standard errors (additive models
 with post-training forecasts) the final column of \texttt{S} is named
 \texttt{stderr}. If gretl is version 2026c or later the bundle also
 contains ``virtual series'' named after the input series: for a series
-\texttt{y}, \texttt{y\_level}, \texttt{y\_fcast} and \texttt{y\_irreg},
-plus \texttt{y\_trend} and \texttt{y\_season} where applicable.
+\texttt{y}, \dtk{y_level}, \dtk{y_fcast} and \dtk{y_irreg},
+plus \dtk{y_trend} and \dtk{y_season} where applicable.
 
 \section{GUI usage}
 \label{sec:gui}
@@ -596,7 +599,7 @@ these.
   are the same as from the earlier packages (up to the tolerance of the
   optimizer). The forecast standard errors for the additive models are
   also identical.
-\item The \texttt{ETS\_gui()} dialog offers a single \textsf{model}
+\item The \dtk{ETS_gui} dialog offers a single \textsf{model}
   selector in place of the \textsf{formula} selector in the
   \textsf{Winters} dialog.
 \end{itemize}

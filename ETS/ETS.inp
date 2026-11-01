@@ -861,6 +861,7 @@ function bundle ets_ui_maker (void)
     b.alpha = _(depends="parms=2")
     b.beta  = _(depends="parms=2")
     b.gamma = _(depends="parms=2")
+    b.model = _(default="$pd>1 && $pd!=52 ? 4 : 2", maximum="$pd>1 && $pd<52 ? 4 : 2")
     return b
 end function
 
