@@ -22,12 +22,17 @@ set verbose off
 # Utilities
 # ------------------------------------------------------------------
 
-function scalar ets_nparms (int tr, int m)
+function scalar ets_nparms (int tr, int m, int fixed_theta,
+                            int fixed_init)
     # number of estimated parameters: smoothing parameters plus free
     # initial-state elements (seasonals are constrained to sum to zero
-    # or to average 1, hence m-1 of them)
-    scalar np = 1 + tr + (m > 0)
+    # or to average 1, hence m-1 of them). With fixed theta, a
+    # non-seasonal initializer is not estimated either.
+    scalar np = fixed_theta ? 0 : 1 + tr + (m > 0)
     scalar ni = 1 + tr + (m > 0 ? m - 1 : 0)
+    if fixed_init || (fixed_theta && m == 0)
+        ni = 0
+    endif
     return np + ni
 end function
 
@@ -71,7 +76,9 @@ function matrix ets_ranges (const series y, int ntest, int minlen)
     return ret
 end function
 
-function void ets_checks (const bundle args, int fixed_theta)
+function void ets_checks (const bundle args,
+                          int fixed_theta,
+                          int fixed_init)
     scalar tr = args.trend
     scalar sf = args.seasonal
     if sf > 0
@@ -86,6 +93,17 @@ function void ets_checks (const bundle args, int fixed_theta)
             errorif(args.theta[i] < 0 || args.theta[i] > 1,
               sprintf("theta[%d] is out of bounds", i))
         endloop
+    endif
+    if fixed_init
+        scalar ni = 1 + tr + (sf > 0 ? $pd : 0)
+        errorif(nelem(args.init) != ni,
+          sprintf("init must be a %d-vector", ni))
+        errorif(sumc(ok(vec(args.init))) < ni, "init contains missing values")
+        if sf == 2
+            matrix iv = vec(args.init)
+            errorif(iv[1] <= 0 || minc(iv[3:ni]) <= 0,
+              "multiplicative model: level and seasonals must be positive")
+        endif
     endif
 end function
 
@@ -345,13 +363,27 @@ function scalar ets_crit_add_scaled (const matrix theta, const matrix my,
     return ets_crit_add(theta, my, &init, tr, m) / f0
 end function
 
+function scalar ets_crit_fixed (const matrix theta, const matrix init,
+                                const matrix my, int tr, int sf, int m)
+    # criterion (SSE) given both @theta and @init
+    matrix W = ets_filter(theta, init, my, tr, sf, m)
+    return sumc((W[,1] - W[,cols(W)]).^2)
+end function
+
+function scalar ets_crit_fixed_scaled (const matrix theta, const matrix init,
+                                       const matrix my, int tr, int sf,
+                                       int m, scalar f0)
+    return ets_crit_fixed(theta, init, my, tr, sf, m) / f0
+end function
+
 function scalar ets_crit_mult_scaled (const matrix par, const matrix my,
                                       int m, scalar f0)
     return ets_crit_mult(par, my, m) / f0
 end function
 
 function matrix ets_start_values (const matrix my, const matrix init,
-                                  int tr, int sf, int m, scalar *f0)
+                                  int tr, int sf, int m, int fixed_init,
+                                  scalar *f0)
     # Starting values for the smoothing parameters, by coarse grid
     # search over the criterion. The criterion can be quite irregular
     # (and the first L-BFGS-B step is a full gradient step, which for
@@ -373,7 +405,9 @@ function matrix ets_start_values (const matrix my, const matrix init,
     matrix fv = zeros(n, 1)
     matrix tmp = init
     loop i=1..n
-        if sf == 2
+        if fixed_init
+            fv[i] = ets_crit_fixed(P[i,]', init, my, tr, sf, m)
+        elif sf == 2
             fv[i] = ets_crit_mult(P[i,]' | init[1:m+1], my, m)
         else
             fv[i] = ets_crit_add(P[i,]', my, &tmp, tr, m)
@@ -385,12 +419,14 @@ function matrix ets_start_values (const matrix my, const matrix init,
 end function
 
 function matrix ets_auto_parms (const matrix my, matrix *init,
-                                int tr, int sf, int m, int verbose)
-    # driver for automatic estimation of parameters
+                                int tr, int sf, int m, int verbose,
+                                int fixed_init)
+    # driver for automatic estimation of parameters; if @fixed_init
+    # is non-zero, @init is held constant and only theta is estimated
     scalar np = 1 + tr + (m > 0)
     scalar f0
-    matrix b = ets_start_values(my, init, tr, sf, m, &f0)
-    if sf == 2
+    matrix b = ets_start_values(my, init, tr, sf, m, fixed_init, &f0)
+    if sf == 2 && !fixed_init
         # the additive cases solve for the initializer internally
         b |= init[1:m+1]
     endif
@@ -410,7 +446,9 @@ function matrix ets_auto_parms (const matrix my, matrix *init,
         set max_verbose on
         set bfgs_verbskip 5
     endif
-    if sf == 2
+    if fixed_init
+        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_fixed_scaled(b, init, my, tr, sf, m, f0))
+    elif sf == 2
         catch scalar SSE = BFGScmin(&b, bounds, ets_crit_mult_scaled(b, my, m, f0))
     else
         catch scalar SSE = BFGScmin(&b, bounds, ets_crit_add_scaled(b, my, &init, tr, m, f0))
@@ -421,7 +459,9 @@ function matrix ets_auto_parms (const matrix my, matrix *init,
         b[1] = NA
     else
         # make sure @init corresponds to the final parameters
-        if sf == 2
+        if fixed_init
+            # nothing to do
+        elif sf == 2
             init[1:m+2] = ets_mult_init(b, m)
         else
             SSE = ets_crit_add(b, my, &init, tr, m)
@@ -432,8 +472,10 @@ function matrix ets_auto_parms (const matrix my, matrix *init,
             endif
             printf "automatic parameter values:\n"
             ets_print_theta(b[1:np])
-            printf "\nestimated initializer:\n\n"
-            eval init
+            if !fixed_init
+                printf "\nestimated initializer:\n\n"
+                eval init
+            endif
         endif
     endif
     return b[1:np]
@@ -623,6 +665,7 @@ function bundle ets_default_args (void)
     b.trend = 0
     b.seasonal = 0
     b.theta = {0.5}' # placeholder, length checked only if supplied
+    b.init = {1.0}   # ditto
     b.ntest = 0
     b.verbose = 1
     b.bounds = _(trend={0,1}, seasonal={0,2}, verbose={0,3}, ntest={0,NA})
@@ -632,11 +675,14 @@ end function
 function bundle ETS (const series y,
                      const bundle specs[null])
     scalar fixed_theta = 0
+    scalar fixed_init = 0
     string yname = argname(y, "y")
+    matrix init = {}
 
     bundle args = ets_default_args()
     if exists(specs)
         fixed_theta = inbundle(specs, "theta")
+        fixed_init = inbundle(specs, "init")
         # a seasonal model implies a trend unless told otherwise
         if inbundle(specs, "seasonal") && !inbundle(specs, "trend")
             args.trend = specs.seasonal > 0
@@ -644,7 +690,7 @@ function bundle ETS (const series y,
         errorif(bcheck(&args, specs), "aborting")
     endif
 
-    ets_checks(args, fixed_theta)
+    ets_checks(args, fixed_theta, fixed_init)
     scalar tr = args.trend
     scalar sf = args.seasonal
     scalar m = sf > 0 ? $pd : 0
@@ -679,6 +725,10 @@ function bundle ETS (const series y,
             printf "Fixed parameters:\n"
             ets_print_theta(args.theta)
         endif
+        if fixed_init
+            printf "Fixed initializer:\n"
+            eval args.init
+        endif
         if ntest > 0
             printf "Testing forecast: %s to %s\n\n",
               obslabel(t2+1), obslabel(t3)
@@ -690,9 +740,13 @@ function bundle ETS (const series y,
         endif
     endif
 
-    matrix init = ets_auto_init(y, tr, sf)
-    if verbose > 1
-        print init
+    if fixed_init
+        init = vec(args.init)
+    else
+        init = ets_auto_init(y, tr, sf)
+        if verbose > 1
+            print init
+        endif
     endif
 
     # training data as a column vector
@@ -702,14 +756,14 @@ function bundle ETS (const series y,
 
     if fixed_theta
         matrix theta = vec(args.theta)
-        if sf > 0
+        if sf > 0 && !fixed_init
             err = ets_given_theta(theta, my, &init, tr, sf, m, verbose)
             if err
                 funcerr "Failed to optimize initializer"
             endif
         endif
     else
-        matrix theta = ets_auto_parms(my, &init, tr, sf, m, verbose)
+        matrix theta = ets_auto_parms(my, &init, tr, sf, m, verbose, fixed_init)
         if !ok(theta[1])
             funcerr "Failed to estimate parameters"
         endif
@@ -770,7 +824,7 @@ function bundle ETS (const series y,
 
     set skip_missing off
     matrix S = {L}
-    nparms = ets_nparms(tr, m)
+    nparms = ets_nparms(tr, m, fixed_theta, fixed_init)
     bundle ret = _(theta, init, trend=tr, seasonal=sf, ntest, S,
       RMSE_train, MAE_train, yname, limits, nparms)
 

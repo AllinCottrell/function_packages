@@ -1,0 +1,50 @@
+# Tests for user-specified init. Run from the ETS directory:
+#   gretlcli -b test/fixed_init.inp
+include ETS.inp
+
+function void rt (const series y, bundle spec, string label)
+    # round trip: estimate, then feed theta and init back in, and also
+    # supply init alone (theta free)
+    bundle b0 = ETS(y, spec)
+    bundle s2 = spec
+    s2.theta = b0.theta
+    s2.init = b0.init
+    bundle b1 = ETS(y, s2)
+    scalar d1 = maxr(abs(vec(b0.S - b1.S))')
+    bundle s3 = spec
+    s3.init = b0.init
+    bundle b2 = ETS(y, s3)
+    printf "%-10s both fixed: max|dS| = %g, nparms %d (was %d)\n", label, d1, b1.nparms, b0.nparms
+    printf "%-10s init fixed: RMSE %g vs free-init %g, nparms %d\n", label, b2.RMSE_train, b0.RMSE_train, b2.nparms
+    errorif(d1 > 1.0e-6, "round trip failed")
+    errorif(b2.RMSE_train < b0.RMSE_train - 1.0e-6, "restricted fit beats unrestricted?")
+end function
+
+open auspop.gdt -q
+bundle sp = _(verbose=0)
+rt(pop, sp, "SES")
+sp.trend = 1
+rt(pop, sp, "Holt")
+
+open aus_holidays.gdt -q
+sp = _(verbose=0, seasonal=1)
+rt(Trips, sp, "HW-add")
+sp.seasonal = 2
+rt(Trips, sp, "HW-mult")
+
+# error cases
+catch bundle e = ETS(Trips, _(verbose=0, seasonal=1, init={1,2,3}))
+printf "wrong length: error %d\n", $error
+catch bundle e = ETS(Trips, _(verbose=0, seasonal=2, init={-1,0,1,1,1,1}'))
+printf "bad mult init: error %d\n", $error
+
+# a poor init should give a worse fit than the optimal one, and a
+# fixed theta with it still works
+bundle g = ETS(Trips, _(verbose=0, seasonal=1))
+matrix bad = g.init
+bad[1] += 20
+bundle h = ETS(Trips, _(verbose=0, seasonal=1, init=bad))
+printf "good RMSE %g, bad-init RMSE %g\n", g.RMSE_train, h.RMSE_train
+if h.RMSE_train <= g.RMSE_train
+    printf "FAIL: bad init should fit worse\n"
+endif

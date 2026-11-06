@@ -159,6 +159,16 @@ options:
   $\theta = (\alpha, \beta)$; and 3 for Holt-Winters,
   $\theta = (\alpha, \beta, \gamma)$. If \texttt{theta} is not given the
   parameters are determined automatically.
+\item \texttt{init} (matrix): if supplied, this must be a vector
+  holding the initial state: the level, followed by the trend if
+  applicable, followed by the $m$ seasonals (oldest first) if
+  applicable, where $m$ is the periodicity of the data. The length is
+  thus 1 for simple smoothing, 2 for Holt and $m+2$ for Holt-Winters.
+  In the multiplicative case the level and seasonals must be positive.
+  If \texttt{init} is given it is held fixed: it is neither estimated
+  nor overwritten, and if \texttt{theta} is not given only the smoothing
+  parameters are optimized. This is mainly useful for testing and for
+  replicating results from other software.
 \item \texttt{ntest} (integer): specifies the number of
   observations at the end of the range of \texttt{y} values to reserve
   for testing via pseudo-out-of-sample forecasting. The default value
@@ -523,6 +533,11 @@ Two cases arise.
   solution, while in the multiplicative case L-BFGS is used. For the
   non-seasonal models the initializer is just the basic value
   described above; no optimization is performed.
+\item If \texttt{init} is given (with or without \texttt{theta}) it is
+  used as is, and only the smoothing parameters, if not given, are
+  optimized (by L-BFGS, for all four models). The supplied seasonals
+  are not renormalized, so the \texttt{init} in the returned bundle
+  is exactly what was passed in.
 \end{itemize}
 
 \subsection{Forecast standard errors}
@@ -611,6 +626,8 @@ these.
 \item \texttt{v1.0}, 2026-11-01: Initial release, combining the
   \textsf{Holt} 2.0 and \textsf{Winters} 2.3 packages and adding simple
   exponential smoothing.
+\item \texttt{v1.1}: Added the \texttt{init} option; the
+  \texttt{nparms} count now excludes fixed parameters.
 \end{itemize}
 
 \bibliographystyle{gretl}
