@@ -22,14 +22,14 @@ set verbose off
 # Utilities
 # ------------------------------------------------------------------
 
-function scalar ets_nparms (int tr, int m, int fixed_theta,
+function scalar ets_nparms (int td, int m, int fixed_theta,
                             int fixed_init)
     # number of estimated parameters: smoothing parameters plus free
     # initial-state elements (seasonals are constrained to sum to zero
     # or to average 1, hence m-1 of them). With fixed theta, a
     # non-seasonal initializer is not estimated either.
-    scalar np = fixed_theta ? 0 : 1 + tr + (m > 0)
-    scalar ni = 1 + tr + (m > 0 ? m - 1 : 0)
+    scalar np = fixed_theta ? 0 : 1 + td + (m > 0)
+    scalar ni = 1 + td + (m > 0 ? m - 1 : 0)
     if fixed_init || (fixed_theta && m == 0)
         ni = 0
     endif
@@ -52,6 +52,23 @@ function void ets_print_theta (const matrix theta)
         endif
     endloop
     printf "\n"
+end function
+
+function void ets_print_init (const matrix init, int td, int sf)
+    printf "  level = %g", init[1]
+    scalar i = 2
+    if td
+        printf ", trend = %g\n", init[i++]
+    endif
+    printf "\n"
+    if sf
+        scalar n = nelem(init)
+        printf "  seasonals = {%g, ", init[i++]
+        loop j=i..n
+            printf "%g%s", init[i++], i < n ? ", " : "}\n"
+        endloop
+    endif
+    printf "\n" # ?
 end function
 
 function matrix ets_ranges (const series y, int ntest, int minlen)
@@ -79,14 +96,14 @@ end function
 function void ets_checks (const bundle args,
                           int fixed_theta,
                           int fixed_init)
-    scalar tr = args.trend
+    scalar td = args.trend
     scalar sf = args.seasonal
     if sf > 0
         errorif($pd == 1, "Periodicity = 1, no seasonality!")
-        errorif(tr == 0, "seasonal models require a trend")
+        errorif(td == 0, "seasonal models require a trend")
     endif
     if fixed_theta
-        scalar np = 1 + tr + (sf > 0)
+        scalar np = 1 + td + (sf > 0)
         errorif(nelem(args.theta) != np,
           sprintf("theta must be a %d-vector", np))
         loop i=1..np
@@ -95,7 +112,7 @@ function void ets_checks (const bundle args,
         endloop
     endif
     if fixed_init
-        scalar ni = 1 + tr + (sf > 0 ? $pd : 0)
+        scalar ni = 1 + td + (sf > 0 ? $pd : 0)
         errorif(nelem(args.init) != ni,
           sprintf("init must be a %d-vector", ni))
         errorif(sumc(ok(vec(args.init))) < ni, "init contains missing values")
@@ -107,9 +124,9 @@ function void ets_checks (const bundle args,
     endif
 end function
 
-function string ets_model_name (int tr, int sf)
+function string ets_model_name (int td, int sf)
     if sf == 0
-        return tr ? "Holt double exponential smoothing" : \
+        return td ? "Holt double exponential smoothing" : \
           "Simple exponential smoothing"
     else
         return sprintf("Holt-Winters, using %s formula", \
@@ -121,16 +138,16 @@ end function
 # Initialization
 # ------------------------------------------------------------------
 
-function matrix ets_auto_init (series y "Target series", int tr, int sf)
+function matrix ets_auto_init (series y "Target series", int td, int sf)
     # Rule-of-thumb initial state, for period 0. Non-seasonal: initial
     # level is the first observation, initial trend the first
     # difference. Seasonal: first-period average, trend from the
     # first two major periods, and seasonal indices relative to the
     # first-period average.
     if sf == 0
-        matrix ret = zeros(1 + tr, 1)
+        matrix ret = zeros(1 + td, 1)
         ret[1] = y[$t1]
-        if tr
+        if td
             ret[2] = y[$t1+1] - y[$t1]
             rnameset(ret, "level trend")
         else
@@ -183,26 +200,26 @@ end function
 # Theta is (α, [β], [γ]).
 # ------------------------------------------------------------------
 
-function matrix ets_A (const matrix theta, int tr, int m)
+function matrix ets_A (const matrix theta, int td, int m)
     scalar α = theta[1]
-    scalar β = tr ? theta[2] : 0
-    scalar γ = m > 0 ? theta[2+tr] : 0
-    scalar n = 1 + tr + m
+    scalar β = td ? theta[2] : 0
+    scalar γ = m > 0 ? theta[2+td] : 0
+    scalar n = 1 + td + m
     matrix A = zeros(n, n)
     A[1,1] = 1-α
-    if tr
+    if td
         A[1,2] = 1-α
         A[2,1] = -α*β
         A[2,2] = 1-α*β
     endif
     if m > 0
         A[1,n] = -α
-        if tr
+        if td
             A[2,n] = -α*β
         endif
-        scalar sr = 2 + tr # row of the newest seasonal
+        scalar sr = 2 + td # row of the newest seasonal
         A[sr,1] = -γ*(1-α)
-        if tr
+        if td
             A[sr,2] = -γ*(1-α)
         endif
         A[sr,n] = 1-γ*(1-α)
@@ -214,22 +231,22 @@ function matrix ets_A (const matrix theta, int tr, int m)
     return A
 end function
 
-function matrix ets_d (const matrix theta, int tr, int m)
+function matrix ets_d (const matrix theta, int td, int m)
     # loading of y_t on the state (row vector)
     scalar α = theta[1]
     matrix d = {α}
-    if tr
+    if td
         d ~= α * theta[2]
     endif
     if m > 0
-        d ~= theta[2+tr] * (1-α) ~ zeros(1, m-1)
+        d ~= theta[2+td] * (1-α) ~ zeros(1, m-1)
     endif
     return d
 end function
 
-function matrix ets_c (int tr, int m)
+function matrix ets_c (int td, int m)
     # forecast selection vector
-    matrix c = ones(1 + tr, 1)
+    matrix c = ones(1 + td, 1)
     if m > 0
         c |= zeros(m-1, 1) | 1
     endif
@@ -237,27 +254,27 @@ function matrix ets_c (int tr, int m)
 end function
 
 function matrix ets_filter_add (const matrix theta, const matrix init,
-                                const matrix my, int tr, int m)
-    # returns T x (3 + tr + (m>0)) matrix
+                                const matrix my, int td, int m)
+    # returns T x (3 + td + (m>0)) matrix
     #   {y, level, [trend], [seasonal], forecast}
     scalar T = rows(my)
-    scalar k = 1 + tr
+    scalar k = 1 + td
     # state order is newest seasonal first; @init is oldest first
     matrix z0 = init[1:k]
     if m > 0
         z0 |= mreverse(init[k+1:k+m])
     endif
-    matrix Z = varsimul(ets_A(theta, tr, m), my * ets_d(theta, tr, m), z0')
+    matrix Z = varsimul(ets_A(theta, td, m), my * ets_d(theta, td, m), z0')
     matrix ret = my ~ Z[2:T+1,1:k]
     if m > 0
         ret ~= Z[2:T+1,k+1]
     endif
-    ret ~= Z[1:T,] * ets_c(tr, m)
+    ret ~= Z[1:T,] * ets_c(td, m)
     return ret
 end function
 
 function scalar ets_crit_add (const matrix theta, const matrix my,
-                              matrix *init, int tr, int m)
+                              matrix *init, int td, int m)
     # BFGS callback, additive case: SSE given @theta, with the initial
     # state concentrated out. Forecasts are linear in the initial
     # state, f = f0 + G z0, where f0 is the forecast path from a zero
@@ -270,11 +287,11 @@ function scalar ets_crit_add (const matrix theta, const matrix my,
     # leaves all forecasts unchanged), so without this the regressors
     # would be collinear.
     scalar T = rows(my)
-    scalar k = 1 + tr
+    scalar k = 1 + td
     scalar n = k + m
-    matrix A = ets_A(theta, tr, m)
-    matrix c = ets_c(tr, m)
-    matrix Z = varsimul(A, my * ets_d(theta, tr, m), zeros(1, n))
+    matrix A = ets_A(theta, td, m)
+    matrix c = ets_c(td, m)
+    matrix Z = varsimul(A, my * ets_d(theta, td, m), zeros(1, n))
     matrix f0 = Z[1:T,] * c
     matrix G = varsimul(A', zeros(T-1, n), c')
     matrix e, q
@@ -350,30 +367,30 @@ end function
 # ------------------------------------------------------------------
 
 function matrix ets_filter (const matrix theta, const matrix init,
-                            const matrix my, int tr, int sf, int m)
+                            const matrix my, int td, int sf, int m)
     if sf == 2
         return ets_filter_mult(theta, init, my)
     else
-        return ets_filter_add(theta, init, my, tr, m)
+        return ets_filter_add(theta, init, my, td, m)
     endif
 end function
 
 function scalar ets_crit_add_scaled (const matrix theta, const matrix my,
-                                     matrix *init, int tr, int m, scalar f0)
-    return ets_crit_add(theta, my, &init, tr, m) / f0
+                                     matrix *init, int td, int m, scalar f0)
+    return ets_crit_add(theta, my, &init, td, m) / f0
 end function
 
 function scalar ets_crit_fixed (const matrix theta, const matrix init,
-                                const matrix my, int tr, int sf, int m)
+                                const matrix my, int td, int sf, int m)
     # criterion (SSE) given both @theta and @init
-    matrix W = ets_filter(theta, init, my, tr, sf, m)
+    matrix W = ets_filter(theta, init, my, td, sf, m)
     return sumc((W[,1] - W[,cols(W)]).^2)
 end function
 
 function scalar ets_crit_fixed_scaled (const matrix theta, const matrix init,
-                                       const matrix my, int tr, int sf,
+                                       const matrix my, int td, int sf,
                                        int m, scalar f0)
-    return ets_crit_fixed(theta, init, my, tr, sf, m) / f0
+    return ets_crit_fixed(theta, init, my, td, sf, m) / f0
 end function
 
 function scalar ets_crit_mult_scaled (const matrix par, const matrix my,
@@ -382,7 +399,7 @@ function scalar ets_crit_mult_scaled (const matrix par, const matrix my,
 end function
 
 function matrix ets_start_values (const matrix my, const matrix init,
-                                  int tr, int sf, int m, int fixed_init,
+                                  int td, int sf, int m, int fixed_init,
                                   scalar *f0)
     # Starting values for the smoothing parameters, by coarse grid
     # search over the criterion. The criterion can be quite irregular
@@ -391,7 +408,7 @@ function matrix ets_start_values (const matrix my, const matrix init,
     # box from which we cannot escape), so a fixed start such as
     # (0.5, 0.5) is not safe. On return @f0 holds the criterion value
     # at the chosen point, for use in scaling the criterion.
-    scalar np = 1 + tr + (m > 0)
+    scalar np = 1 + td + (m > 0)
     matrix P = {0.05; 0.1; 0.2; 0.4; 0.6; 0.8}
     if np > 1
         matrix bg = {0.01; 0.05; 0.1; 0.3; 0.6}
@@ -406,11 +423,11 @@ function matrix ets_start_values (const matrix my, const matrix init,
     matrix tmp = init
     loop i=1..n
         if fixed_init
-            fv[i] = ets_crit_fixed(P[i,]', init, my, tr, sf, m)
+            fv[i] = ets_crit_fixed(P[i,]', init, my, td, sf, m)
         elif sf == 2
             fv[i] = ets_crit_mult(P[i,]' | init[1:m+1], my, m)
         else
-            fv[i] = ets_crit_add(P[i,]', my, &tmp, tr, m)
+            fv[i] = ets_crit_add(P[i,]', my, &tmp, td, m)
         endif
     endloop
     scalar imin = iminr(fv')
@@ -419,13 +436,13 @@ function matrix ets_start_values (const matrix my, const matrix init,
 end function
 
 function matrix ets_auto_parms (const matrix my, matrix *init,
-                                int tr, int sf, int m, int verbose,
+                                int td, int sf, int m, int verbose,
                                 int fixed_init)
     # driver for automatic estimation of parameters; if @fixed_init
     # is non-zero, @init is held constant and only theta is estimated
-    scalar np = 1 + tr + (m > 0)
+    scalar np = 1 + td + (m > 0)
     scalar f0
-    matrix b = ets_start_values(my, init, tr, sf, m, fixed_init, &f0)
+    matrix b = ets_start_values(my, init, td, sf, m, fixed_init, &f0)
     if sf == 2 && !fixed_init
         # the additive cases solve for the initializer internally
         b |= init[1:m+1]
@@ -447,11 +464,11 @@ function matrix ets_auto_parms (const matrix my, matrix *init,
         set bfgs_verbskip 5
     endif
     if fixed_init
-        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_fixed_scaled(b, init, my, tr, sf, m, f0))
+        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_fixed_scaled(b, init, my, td, sf, m, f0))
     elif sf == 2
         catch scalar SSE = BFGScmin(&b, bounds, ets_crit_mult_scaled(b, my, m, f0))
     else
-        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_add_scaled(b, my, &init, tr, m, f0))
+        catch scalar SSE = BFGScmin(&b, bounds, ets_crit_add_scaled(b, my, &init, td, m, f0))
     endif
     err = $error
     if err
@@ -464,7 +481,7 @@ function matrix ets_auto_parms (const matrix my, matrix *init,
         elif sf == 2
             init[1:m+2] = ets_mult_init(b, m)
         else
-            SSE = ets_crit_add(b, my, &init, tr, m)
+            SSE = ets_crit_add(b, my, &init, td, m)
         endif
         if verbose > 0
             if verbose > 1
@@ -482,7 +499,7 @@ function matrix ets_auto_parms (const matrix my, matrix *init,
 end function
 
 function scalar ets_given_theta (const matrix theta, const matrix my,
-                                 matrix *init, int tr, int sf, int m,
+                                 matrix *init, int td, int sf, int m,
                                  int verbose)
     # optimize the (seasonal) initializer conditional on fixed @theta
     if sf == 2
@@ -502,7 +519,7 @@ function scalar ets_given_theta (const matrix theta, const matrix my,
         init[1:m+2] = ets_mult_init(theta | b, m)
     else
         # the initializer is concentrated out by OLS
-        ets_crit_add(theta, my, &init, tr, m)
+        ets_crit_add(theta, my, &init, td, m)
     endif
     if verbose > 0
         printf "estimated initializer, given θ:\n\n"
@@ -516,18 +533,18 @@ end function
 # ------------------------------------------------------------------
 
 function void ets_add_virtual_series (bundle *b)
-    scalar tr = b.trend
+    scalar td = b.trend
     scalar sf = b.seasonal
     scalar fc = ets_fcol(b)
     string s = sprintf("%s_level", b.yname)
     b[s] = "virtual_series:S[,2]"
-    if tr
+    if td
         s = sprintf("%s_trend", b.yname)
         b[s] = "virtual_series:S[,3]"
     endif
     if sf > 0
         s = sprintf("%s_season", b.yname)
-        b[s] = sprintf("virtual_series:S[,%d]", 3 + tr)
+        b[s] = sprintf("virtual_series:S[,%d]", 3 + td)
     endif
     s = sprintf("%s_fcast", b.yname)
     b[s] = sprintf("virtual_series:S[,%d]", fc)
@@ -553,10 +570,10 @@ function void ets_add_fcse (bundle *b)
     # where c_j = α + β_e j + γ_e I(j mod m = 0). The ETS smoothing
     # parameters are related to ours by β_e = αβ and γ_e = (1-α)γ (see
     # fpp3 sections 8.3 and 8.5).
-    scalar tr = b.trend
+    scalar td = b.trend
     scalar m = b.seasonal > 0 ? rows(b.init) - 2 : 0
     scalar α = b.theta[1]
-    scalar β = tr ? α * b.theta[2] : 0
+    scalar β = td ? α * b.theta[2] : 0
     scalar γ = m > 0 ? (1-α) * b.theta[3] : 0
     scalar s2 = b.RMSE_train^2
     scalar hmax = b.limits[3] - b.limits[2]
@@ -691,7 +708,7 @@ function bundle ETS (const series y,
     endif
 
     ets_checks(args, fixed_theta, fixed_init)
-    scalar tr = args.trend
+    scalar td = args.trend
     scalar sf = args.seasonal
     scalar m = sf > 0 ? $pd : 0
     scalar ntest = args.ntest
@@ -706,7 +723,7 @@ function bundle ETS (const series y,
 
     series level = NA
     list L = y level
-    if tr
+    if td
         series trend = NA
         L += trend
     endif
@@ -718,7 +735,7 @@ function bundle ETS (const series y,
     L += forecast
 
     if verbose > 0
-        printf "%s\n", ets_model_name(tr, sf)
+        printf "%s\n", ets_model_name(td, sf)
         printf "Training range: %s to %s\n",
           obslabel(t1), obslabel(t2)
         if fixed_theta
@@ -727,7 +744,7 @@ function bundle ETS (const series y,
         endif
         if fixed_init
             printf "Fixed initializer:\n"
-            eval args.init
+            ets_print_init(args.init, td, sf)
         endif
         if ntest > 0
             printf "Testing forecast: %s to %s\n\n",
@@ -743,7 +760,7 @@ function bundle ETS (const series y,
     if fixed_init
         init = vec(args.init)
     else
-        init = ets_auto_init(y, tr, sf)
+        init = ets_auto_init(y, td, sf)
         if verbose > 1
             print init
         endif
@@ -757,13 +774,13 @@ function bundle ETS (const series y,
     if fixed_theta
         matrix theta = vec(args.theta)
         if sf > 0 && !fixed_init
-            err = ets_given_theta(theta, my, &init, tr, sf, m, verbose)
+            err = ets_given_theta(theta, my, &init, td, sf, m, verbose)
             if err
                 funcerr "Failed to optimize initializer"
             endif
         endif
     else
-        matrix theta = ets_auto_parms(my, &init, tr, sf, m, verbose, fixed_init)
+        matrix theta = ets_auto_parms(my, &init, td, sf, m, verbose, fixed_init)
         if !ok(theta[1])
             funcerr "Failed to estimate parameters"
         endif
@@ -771,8 +788,8 @@ function bundle ETS (const series y,
     theta = vec(theta)
 
     # training: states and one-step-ahead forecasts
-    matrix Wtr = ets_filter(theta, init, my, tr, sf, m)
-    scalar fcol = 3 + tr + (m > 0)
+    matrix Wtr = ets_filter(theta, init, my, td, sf, m)
+    scalar fcol = 3 + td + (m > 0)
     matrix u = Wtr[,1] - Wtr[,fcol]
     scalar n = rows(u)
     scalar SSE = sumc(u.^2)
@@ -782,11 +799,11 @@ function bundle ETS (const series y,
     # transcribe to series over t1..t2
     smpl t1 t2
     level = Wtr[,2]
-    if tr
+    if td
         trend = Wtr[,3]
     endif
     if sf > 0
-        seasonal = Wtr[,3+tr]
+        seasonal = Wtr[,3+td]
     endif
     forecast = Wtr[,fcol]
 
@@ -795,12 +812,12 @@ function bundle ETS (const series y,
         scalar H = t3 - t2
         matrix hv = seq(1, H)'
         matrix fc = Wtr[n,2] * ones(H, 1)
-        if tr
+        if td
             fc += hv * Wtr[n,3]
         endif
         if sf > 0
             # last m seasonals, cycled out to H periods
-            matrix sh = Wtr[n-m+1:n,3+tr] * ones(1, ceil(H/m))
+            matrix sh = Wtr[n-m+1:n,3+td] * ones(1, ceil(H/m))
             sh = vec(sh)[1:H]
             if sf == 1
                 fc += sh
@@ -824,8 +841,8 @@ function bundle ETS (const series y,
 
     set skip_missing off
     matrix S = {L}
-    nparms = ets_nparms(tr, m, fixed_theta, fixed_init)
-    bundle ret = _(theta, init, trend=tr, seasonal=sf, ntest, S,
+    nparms = ets_nparms(td, m, fixed_theta, fixed_init)
+    bundle ret = _(theta, init, trend=td, seasonal=sf, ntest, S,
       RMSE_train, MAE_train, yname, limits, nparms)
 
     if ntest > 0
