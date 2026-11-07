@@ -1,0 +1,11 @@
+# This script illustrates production of confidence intervals
+# with coverage other then the default values of 80 and 95 percent.
+
+include ETS.gfn
+open aus_holidays.gdt --frompkg=ETS
+dataset addobs 12
+bundle wb = ETS(Trips, _(seasonal=1))
+matrix coverage = {70, 90}
+ETS_plot(&wb, 1, coverage)
+cimat = ETS_ci_matrix(wb, coverage)
+print cimat

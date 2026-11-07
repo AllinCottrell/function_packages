@@ -357,6 +357,12 @@ bundle wb = ETS(Trips, _(seasonal=2, ntest=8))
 This generates forecasts for 2016:1 to 2017:4, and the RMSE and MAE for
 these testing forecasts are printed.
 
+The data files referenced in these scripts, along with additional
+example scripts, can be found in the \texttt{examples} subdirectory of
+the \textsf{ETS} installation. You can access these resources under
+gretl's \textsf{Packages} menu: select \textsf{On local machine}, find
+\textsf{ETS}, right-click and select \textsf{Resources}.
+
 \subsection{Printed output}
 
 Examples of the table of results displayed when \texttt{verbose} is 1 or
@@ -436,6 +442,7 @@ training SSE = 13.4951, RMSE = 0.410718, MAE = 0.307344
 2018:3                                                         10.83055
 2018:4                                                         11.13920
 ...
+
 \end{code}
 \end{script}
 
@@ -603,8 +610,13 @@ estimated parameters (smoothing parameters plus free initial-state
 elements; this is the \texttt{nparms} element of the returned bundle).
 
 In the multiplicative case there is no closed form for the forecast
-variance, so the intervals are simulation-based, using 10000 iterations
-of draws from the $t(\nu)$ distribution with $\nu$ as above.
+variance. The intervals are instead based on 10000 simulated paths.
+Each path starts from the final training state, with the estimated
+parameter values taken as given, and runs the recursions forward over
+the forecast range, with the simulated $y_t$ equal to the point forecast
+plus an error drawn as the training RMSE times a $t(\nu)$ variate. The
+limits of the intervals at each horizon are the corresponding quantiles
+of the simulated values of $y$.
 
 \section{History and migration}
 \label{sec:update}
