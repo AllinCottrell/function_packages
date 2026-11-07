@@ -1,7 +1,7 @@
 author = Allin Cottrell and Ignacio Diaz-Emparanza
 email = cottrell@wfu.edu
 version = 1.0
-date = 2026-11-06
+date = 2026-11-07
 tags = C53
 description = Exponential smoothing: simple, Holt and Holt-Winters
 label = ETS

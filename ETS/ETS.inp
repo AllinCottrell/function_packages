@@ -11,7 +11,7 @@ set verbose off
 #     1       1       Holt-Winters, additive        (α, β, γ)
 #     1       2       Holt-Winters, multiplicative  (α, β, γ)
 #
-# Internally the code is written in terms of @tr (0/1 trend flag) and
+# Internally the code is written in terms of @td (0/1 trend flag) and
 # @m (number of seasonal states: 0 for no seasonality, otherwise $pd) so
 # that the additive recursions share a single linear state-space
 # implementation. The state is
@@ -58,17 +58,24 @@ function void ets_print_init (const matrix init, int td, int sf)
     printf "  level = %g", init[1]
     scalar i = 2
     if td
-        printf ", trend = %g\n", init[i++]
+        printf ", trend = %g", init[i++]
     endif
     printf "\n"
-    if sf
+    if sf && $pd > 4
+        scalar n = nelem(init)
+        printf "  seasonals:\n"
+        loop j=i..n
+            printf "  %+f\n", init[i++]
+        endloop
+    elif sf
         scalar n = nelem(init)
         printf "  seasonals = {%g, ", init[i++]
         loop j=i..n
-            printf "%g%s", init[i++], i < n ? ", " : "}\n"
+            printf "%g%s", init[i++], j < n ? ", " : "}"
         endloop
+        printf "\n"
     endif
-    printf "\n" # ?
+    printf "\n"
 end function
 
 function matrix ets_ranges (const series y, int ntest, int minlen)
@@ -487,11 +494,11 @@ function matrix ets_auto_parms (const matrix my, matrix *init,
             if verbose > 1
                 printf "\n"
             endif
-            printf "automatic parameter values:\n"
+            printf "estimated parameter values:\n"
             ets_print_theta(b[1:np])
             if !fixed_init
-                printf "\nestimated initializer:\n\n"
-                eval init
+                printf "\nestimated initializer:\n"
+                ets_print_init(init, td, sf)
             endif
         endif
     endif
@@ -522,8 +529,8 @@ function scalar ets_given_theta (const matrix theta, const matrix my,
         ets_crit_add(theta, my, &init, td, m)
     endif
     if verbose > 0
-        printf "estimated initializer, given θ:\n\n"
-        eval init
+        printf "estimated initializer, given θ:\n"
+        ets_print_init(init, td, sf)
     endif
     return 0
 end function

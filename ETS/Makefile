@@ -4,6 +4,7 @@ PKG = ETS
 DOC = doc/ETS.pdf
 DATA = alg_exports.gdt auspop.gdt aus_holidays.gdt
 
+
 $(PKG).gfn: $(PKG).inp $(PKG).spec $(PKG)_sample.inp ets_gui_help.md
 	gretlcli --makepkg $(PKG).inp
 

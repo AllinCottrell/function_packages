@@ -34,8 +34,8 @@
 \section{Introduction}
 \label{sec:intro}
 
-This package implements exponential smoothing for time series, in three
-variants:
+This package implements exponential smoothing for time series data, in
+three variants:
 \begin{enumerate}
 \item \textit{Simple} exponential smoothing: a level component only.
 \item \textit{Holt's} method \citep{holt57}, also known as double
@@ -44,11 +44,11 @@ variants:
   triple exponential smoothing: level, trend and seasonal components,
   where the seasonal component can be either additive or multiplicative.
 \end{enumerate}
-It requires time-series data. The seasonal variants require data with a
-seasonal dimension; quarterly or monthly data are the best bet for
-suitability. Daily or hourly data might be suitable, subject to the
-qualifications noted in section~\ref{sec:daily}. Weekly seasonality is
-not supported: it's too complicated.
+The seasonal variants require data with a seasonal dimension; quarterly
+or monthly data are the best bet for suitability. Daily or hourly data
+might be suitable, subject to the qualifications noted in
+section~\ref{sec:daily}. Weekly seasonality is not supported: it's too
+complicated.
 
 The package combines and supersedes the earlier \textsf{Holt} and
 \textsf{Winters} packages, and adds simple exponential smoothing for
@@ -206,10 +206,9 @@ following elements:
   (if applicable), then the seasonal (if applicable); and the final
   column holds forecasts. Columns are named. More details on this matrix
   are provided below.
-\item \dtk{RMSE_train}: the root mean squared error for the 1-step
-  ahead forecasts made using the training data.
-\item \dtk{MAE_train}: the mean absolute error for the 1-step
-  ahead forecasts made using the training data.
+\item \dtk{RMSE_train}, \dtk{MAE_train}: respectively, the root mean
+  squared error and mean absolute error for the 1-step ahead forecasts
+  made using the training data.
 \item \texttt{yname}: the name of the input series.
 \item \texttt{limits}: a 3-vector holding the 1-based indices of the
   first training observation, the last training observation, and the
@@ -353,12 +352,11 @@ Simple exponential smoothing
 Training range: 1960 to 2017
 Out-of-sample forecast: 2018 to 2022
 
-automatic parameter values:
+estimated parameter values:
   α = 0.839783
 
 estimated initializer:
-
-level       39.538
+  level = 39.5381
 
 training SSE = 1995.29, RMSE = 5.86528, MAE = 4.00111
 
@@ -395,13 +393,8 @@ automatic parameter values:
   α = 0.246678, β = 0.122928, γ = 0
 
 estimated initializer:
-
-level       9.9096
-trend    -0.028539
-seas1       1.1626
-seas2      0.96686
-seas3      0.92687
-seas4      0.94364
+  level = 9.9096, trend = -0.0285393
+  seasonals = {1.16264, 0.966858, 0.926865, 0.943636}
 
 training SSE = 13.4951, RMSE = 0.410718, MAE = 0.307344
 
@@ -435,11 +428,12 @@ plus \dtk{y_trend} and \dtk{y_season} where applicable.
 \label{sec:gui}
 
 When you install this package you should get the option of attaching it
-as the menu item \textsf{Variable/Filter} in gretl's main
+as the menu item \textsf{Variable/Filter/ETS} in gretl's main
 window. Clicking this item brings up a dialog box in which you choose
 the model (simple, Holt, or Holt-Winters additive or multiplicative),
 whether the smoothing parameters are to be estimated or pre-specified,
-the number of test observations and the verbosity level.
+the number of test observations and the verbosity level. See
+Figure~\ref{fig:dialog}.
 
 \begin{figure}[htpb]
   \centering
@@ -459,10 +453,10 @@ Clicking the \textsf{Help} button will bring up a brief explanation of
 each control. Only those smoothing parameters relevant to the selected
 model are used when they are pre-specified: $\alpha$ for simple
 smoothing, $\alpha$ and $\beta$ for Holt, all three for Holt-Winters.
-On clicking \textsf{OK} you should get a window showing the results. The
-toolbar at the top of this window includes a \textsf{Graph} button which
-gives access to two types of plot, one showing actual and forecast
-\texttt{y} and one showing the components.
+On clicking \textsf{OK} you should get a window showing the results. See
+Figure~\ref{fig:output}. The toolbar at the top of this window includes
+a \textsf{Graph} button which gives access to two types of plot, one
+showing actual and forecast \texttt{y} and one showing the components.
 
 \section{Technical details}
 \label{sec:details}
@@ -483,9 +477,8 @@ non-seasonal models the basic initialization is as follows.
   first observed difference, $y_{\tau+1} - y_{\tau}$.
 \end{itemize}
 
-For the seasonal models the rule-of-thumb is calculated as per the
-suggestion in \cite{hyndman98}, which is also described in
-\cite{hyndman2010}.
+For the seasonal models we follow the rule-of-thumb suggested by
+\cite{hyndman98}, which is also described in \cite{hyndman2010}.
 \begin{itemize}
 \item The initial level, $\ell_{\tau-1}$, is set to the mean of the
   $m$ values $y_{\tau}, y_{\tau+1},\dots, y_{\tau+m-1}$.
@@ -502,43 +495,41 @@ suggestion in \cite{hyndman98}, which is also described in
 
 \subsection{Optimization}
 
-Two cases arise.
-\begin{itemize}
-\item If \texttt{theta} is not specified, the parameter values and
-  initializer are optimized, with the criterion of minimizing the sum of
-  squared one-step ahead forecast errors for the training range. The
-  starting point for the parameters is
-  $\alpha = \beta = 0.5, \gamma = 0.05$ (as applicable). Optimization is
-  performed using the L-BFGS algorithm (see the chapter on Numerical
-  methods in the \GUG\ for details), with the smoothing parameters
-  constrained to lie in $[0,1]$.
+If neither \texttt{theta} nor \texttt{init} is pre-specified, the
+parameter values and initializer are optimized, with the criterion of
+minimizing the sum of squared one-step ahead forecast errors for the
+training range. The starting point for the parameters is determined via
+a coarse grid search, then optimization is performed using the L-BFGS-B
+algorithm (see the chapter on Numerical methods in the \GUG\ for
+details), with the smoothing parameters constrained to lie in $[0,1]$.
 
-  In the additive models (simple, Holt and additive Holt-Winters) the
-  recursion is linear in the state, so given the smoothing parameters
-  the one-step forecasts are linear in the initial state; the
-  initializer can therefore be concentrated out and solved for by OLS
-  within each evaluation of the criterion, and L-BFGS need only search
-  over the smoothing parameters.\footnote{Thanks go to Jack Lucchetti for
-    suggesting a particularly efficient approach to the optimization,
-    making use of gretl's \texttt{varsimul} function.} In the seasonal
-  case the seasonals are constrained to sum to zero, since the initial
-  level and the seasonal mean are not separately identified. In the
-  multiplicative case the initializer is optimized jointly with the
-  smoothing parameters via L-BFGS, starting from the rule-of-thumb
-  values, with the seasonals normalized to average 1.
-\item If \texttt{theta} is given, the treatment of the initializer
-  depends on the model. For the seasonal models, it is optimized
-  conditional on $\theta$, using the same criterion: in the additive
-  case this is a linear least-squares problem with a closed-form
-  solution, while in the multiplicative case L-BFGS is used. For the
-  non-seasonal models the initializer is just the basic value
-  described above; no optimization is performed.
-\item If \texttt{init} is given (with or without \texttt{theta}) it is
-  used as is, and only the smoothing parameters, if not given, are
-  optimized (by L-BFGS, for all four models). The supplied seasonals
-  are not renormalized, so the \texttt{init} in the returned bundle
-  is exactly what was passed in.
-\end{itemize}
+In the additive models (simple, Holt and additive Holt-Winters) the
+recursion is linear in the state, so given the smoothing parameters the
+one-step forecasts are linear in the initial state. The initializer can
+therefore be concentrated out and solved for by OLS within each
+evaluation of the criterion, and L-BFGS-B need only search over the
+smoothing parameters.\footnote{Thanks go to Jack Lucchetti for
+  suggesting a particularly efficient approach to the optimization,
+  making use of gretl's \texttt{varsimul} function.} In the seasonal
+case the seasonals are constrained to sum to zero, since the initial
+level and the seasonal mean are not separately identified. In the
+multiplicative case the initializer is optimized jointly with the
+smoothing parameters via L-BFGS-B, starting from the rule-of-thumb
+values, with the seasonals normalized to average 1.
+  
+If \texttt{theta} is given but \texttt{init} is not given, the treatment
+of the initializer depends on the model. For the seasonal models, it is
+optimized conditional on $\theta$, using the same criterion: in the
+additive case this is a linear least-squares problem with a closed-form
+solution, while in the multiplicative case L-BFGS-B is used. For the
+non-seasonal models the initializer is just the basic value described
+above; no optimization is performed.
+  
+If \texttt{init} is given (with or without \texttt{theta}) it is used as
+is, and only the smoothing parameters, if not given, are optimized (by
+L-BFGS-B, for all four models). The supplied seasonals are not
+renormalized, so the \texttt{init} in the returned bundle is exactly
+what was passed in.
 
 \subsection{Forecast standard errors}
 
@@ -571,7 +562,7 @@ elements; this is the \texttt{nparms} element of the returned bundle).
 As mentioned in section~\ref{sec:intro} the seasonal models may be
 applicable to daily data, with $m$ = 5, 6 or 7 days per week. In this
 context `seasonality' means intra-week variability. However, the results
-will be meaningful only if the data are `complete', in the sense that
+will be meaningful only if the data are complete, in the sense that
 each week in the sample range includes $m$ valid daily observations. It
 should go without saying that financial market data, even if complete,
 are unlikely to be suitable since seasonal variation would be a clear
@@ -588,7 +579,7 @@ range.
 
 ETS replaces the separate \textsf{Holt} (2.0) and \textsf{Winters}
 (2.3) packages. For users of those packages the principal changes are
-these.
+as follows.
 \begin{itemize}
 \item There is a single primary function, \texttt{ETS()}. The call
   \texttt{Holt(y, specs)} becomes \texttt{ETS(y, \_(trend=1, \dots))}
@@ -598,10 +589,9 @@ these.
   \texttt{ETS(y, \_(seasonal=2, \dots))}. Note that \texttt{Winters}
   defaulted to the multiplicative variant; \texttt{ETS} requires you to
   say which seasonal variant you want.
-\item The plotting function is now \dtk{ETS_plot}.
-  Confidence intervals are available via
-  \dtk{ETS_ci_matrix}, which is new for the seasonal models and
-  covers both the additive and multiplicative cases.
+\item The plotting function is now \dtk{ETS_plot}.  Confidence intervals
+  are available via \dtk{ETS_ci_matrix}, which is new for the seasonal
+  models and covers both the additive and multiplicative cases.
 \item The results matrix in the returned bundle is named \texttt{S}, in
   place of \texttt{H} (Holt) or \texttt{W} (Winters). Its columns are as
   before except that columns which do not apply to the model are
@@ -623,7 +613,7 @@ these.
 \label{sec:log}
 
 \begin{itemize}
-\item \texttt{v1.0}, 2026-11-01: Initial release, combining the
+\item \texttt{v1.0}, 2026-11-07: Initial release, combining the
   \textsf{Holt} 2.0 and \textsf{Winters} 2.3 packages and adding simple
   exponential smoothing.
 \end{itemize}
