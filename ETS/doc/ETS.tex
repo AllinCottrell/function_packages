@@ -12,6 +12,7 @@
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1ex}
+\setcounter{secnumdepth}{1}
 
 \hypersetup{pdftitle={ETS 1.0},
             pdfauthor={Allin Cottrell and Ignacio Díaz-Emparanza},
@@ -28,14 +29,15 @@
 \begin{center}
   {\Large \textbf{ETS 1.0}} \\[6pt]
   Allin Cottrell and Ignacio Díaz-Emparanza \\[6pt]
-  2026-11-01
+  2026-11-07
 \end{center}
 
 \section{Introduction}
 \label{sec:intro}
 
-This package implements exponential smoothing for time series data, in
-three variants:
+`\textsf{ETS}' can be thought of as indicating ``Exponential Time-series
+Smoothing'' or ``Error, Trend, Seasonal''.  This package implements
+exponential smoothing for time series data, in three variants:
 \begin{enumerate}
 \item \textit{Simple} exponential smoothing: a level component only.
 \item \textit{Holt's} method \citep{holt57}, also known as double
@@ -44,30 +46,41 @@ three variants:
   triple exponential smoothing: level, trend and seasonal components,
   where the seasonal component can be either additive or multiplicative.
 \end{enumerate}
-The seasonal variants require data with a seasonal dimension; quarterly
-or monthly data are the best bet for suitability. Daily or hourly data
-might be suitable, subject to the qualifications noted in
-section~\ref{sec:daily}. Weekly seasonality is not supported: it's too
-complicated.
+The seasonal variants require data with a seasonal dimension. Throughout
+this document $m$ denotes the periodicity of the data, that is, the
+number of observations per seasonal cycle (gretl's \verb|$pd|):
+$m=4$ for quarterly data and
+$m=12$ for monthly data, which are the best bet for suitability. Daily
+or hourly data might be suitable, subject to the qualifications noted
+below.  Weekly data
+($m=52$) are not supported: the seasonal period is not an integer number
+of weeks.
 
 The package combines and supersedes the earlier \textsf{Holt} and
 \textsf{Winters} packages, and adds simple exponential smoothing for
-completeness. See section~\ref{sec:update} for an account of the
-differences from those packages. The earlier versions of \textsf{Holt}
-(1.0, 2015) and \textsf{Winters} (1.1, 2022) were written by Ignacio
-Díaz-Emparanza; the versions 2.\textit{n} on which this package builds
-were written by Allin Cottrell. Most of the work on the consolidated
-\textsf{ETS} package was done by Claude Sonnet 5.5. (\textsf{ETS} can be
-thought of as indicating ``Exponential Time-series Smoothing'' or
-``Error, Trend, Seasonal''.)
+completeness. See section~\ref{sec:update} for the history of the
+package and the differences from those packages.
 
-\subsection{The recursions}
+\subsection{Daily and hourly data}
+
+The seasonal models may be applicable to daily data, with $m$ = 5, 6 or
+7 days per week, where `seasonality' means intra-week
+variability. However, the results will be meaningful only if the data
+are complete, in the sense that each week in the sample range includes
+$m$ valid daily observations.  Gretl also supports hourly data ($m=24$)
+and the seasonal models may work if there's seasonality in the form of
+intra-day variability. Again, however, the series in question has to be
+complete over the given sample range.
+
+\section{The models}
+\label{sec:models}
 
 The filtering recursions and forecasting equations are shown below. The
 notation is based on \citet[chapter 8]{hyndman2021}: $\ell$ denotes the
 level, $b$ the trend or slope, and $s$ the seasonal; $\alpha$, $\beta$
 and $\gamma$ are the respective smoothing parameters. In addition $m$
-denotes the periodicity of the data (gretl's \verb|$pd|) and $k$ is the
+is the periodicity of the data, as defined in section~\ref{sec:intro},
+and $k$ is the
 integer part of $(h-1)/m$ ($=0$ when $h=1$).
 
 \textit{Simple}:
@@ -98,39 +111,6 @@ integer part of $(h-1)/m$ ($=0$ when $h=1$).
   s_t &= \gamma\, y_t / \ell_t + (1-\gamma) s_{t-m}\\
   \hat{y}_{t+h|t} &= (\ell_t + hb_t)\, s_{t+h-m(k+1)}
 \end{align*}
-
-\subsection{Sample ranges and forecasts}
-
-Like most functions in gretl, \texttt{ETS} confines its operations
-to the sample range in force when the function is called. We'll refer
-to the (1-based) start and end of this range as $t_1$ and $t_2$,
-respectively.\footnote{This range can be set via the \texttt{smpl}
-  command. If \texttt{smpl} has not been invoked since a dataset was
-  opened $t_1$ will equal 1 and $t_2$ will equal the total number of
-  observations.}  In addition, let $T$ denote the date of the last
-valid observation of the variable to be predicted, $y$.
-
-There are two cases to be considered:
-\begin{enumerate}
-\item $T < t_2$: in this case there's a `tail' of observations for
-  which values of $y_t$ are not available.  \texttt{ETS} will by
-  default produce predictions for these observations.
-\item $T = t_2$: there's no tail for genuine out-of-sample prediction,
-  but you can specify a number of observations, \texttt{ntest}, to
-  reserve for pseudo-out-of-sample prediction. In that case the
-  training recursion will be terminated at observation $T-$
-  \texttt{ntest}.
-\end{enumerate}
-
-If you want case 1 but your dataset doesn't contain any extra trailing
-observations it's straightforward to add them using the
-\texttt{dataset addobs} command, or via the \textsf{Add observations}
-item under the \textsf{Data} menu in the graphical interface.
-
-Conversely, if the dataset does contain extra trailing observations
-but you want case 2, specifying a positive value for \texttt{ntest}
-will result in the extra observations being ignored and
-pseudo-out-of-sample forecasts being produced.
 
 \section{The public functions}
 \label{sec:public}
@@ -204,8 +184,9 @@ following elements:
   from $t_1$ to the last forecast. Column 1 holds the data passed as
   \texttt{y}; the next columns hold the estimated level, then the trend
   (if applicable), then the seasonal (if applicable); and the final
-  column holds forecasts. Columns are named. More details on this matrix
-  are provided below.
+  column holds forecasts. Columns are named. The matrix is basically a
+  matrix version of the table of results displayed when \texttt{verbose}
+  is 1 or greater (see section~\ref{sec:examples}).
 \item \dtk{RMSE_train}, \dtk{MAE_train}: respectively, the root mean
   squared error and mean absolute error for the 1-step ahead forecasts
   made using the training data.
@@ -226,7 +207,39 @@ If any post-training forecasts are performed (either in response to
 \texttt{ntest} or out of sample) and the model is not multiplicative,
 the matrix \texttt{S} acquires a further column, holding standard errors
 for these forecasts. (In the multiplicative case there is no closed
-form for the forecast variance; see below.)
+form for the forecast variance; see section~\ref{sec:details}.)
+
+The standard-errors column of \texttt{S}, when present, is named
+\texttt{stderr}. If you want to grab the columns of \texttt{S} as a list
+of series you can do something like this:
+\begin{nscode}
+bundle sb = ETS(Exports)
+list L = mat2list(sb.S)
+list L print # show all the series in L
+\end{nscode}
+If gretl is version 2026c or later the bundle also contains ``virtual
+series'' named after the input series: for a series \texttt{y},
+\dtk{y_level}, \dtk{y_fcast} and \dtk{y_irreg}, plus \dtk{y_trend} and
+\dtk{y_season} where applicable.
+
+Table~\ref{tab:verbose} shows what is printed by \texttt{ETS} as a
+function of the \texttt{verbose} option.
+
+\begin{table}[htbp]
+  \caption{Effect of the verbose option}
+  \label{tab:verbose}
+  \begin{tabular}{cp{4.5in}}
+    \textit{verbose} & \textit{cumulative effect} \\[6pt]
+    0 & Nothing is printed. \\
+    1 & Parameters and initializer are reported, also a table
+        of results (see section~\ref{sec:examples}) and the SSE,
+        RMSE and MAE for the training data.\\
+    2 & If optimization is performed, partial information on
+        progress of the iterative procedure is shown. \\
+    3 & If optimization is performed, progress of the
+        optimizer is shown in full.
+  \end{tabular}
+\end{table}
 
 A simple \textit{plotting} function is also supplied:
 \begin{nscode}
@@ -242,13 +255,11 @@ shown. If \dtk{ci_levels} is supplied it must be a 2-vector holding two
 distinct confidence levels, in percentage form and in the range 50 to
 99. If this argument is not given the levels default to 80\% and 95\%.
 For the additive models the intervals are based on analytical standard
-errors. In the multiplicative case they are simulation-based, using 10000
-iterations of draws from the $t(\nu)$ distribution, where $\nu$ equals
-the number of training observations minus the number of parameters
-being estimated.
+errors; in the multiplicative case they are simulation-based. See
+section~\ref{sec:details} for details.
 
-A third public function is available when, and only when, post-training
-forecasts are generated:
+A third public function provides confidence intervals for the
+post-training forecasts (it is an error to call it if there are none):
 \begin{nscode}
 function matrix ETS_ci_matrix (const bundle b, matrix ci_levels[null])
 \end{nscode}
@@ -260,8 +271,44 @@ second two hold the limits for a 95 percent interval. The optional
 \dtk{ci_levels} argument works just as with \dtk{ETS_plot}, and the
 intervals are calculated as described above.
 
-\section{Command-line usage}
-\label{sec:auto}
+\section{Sample ranges and forecasts}
+\label{sec:ranges}
+
+Like most functions in gretl, \texttt{ETS} confines its operations
+to the sample range in force when the function is called. We'll refer
+to the (1-based) start and end of this range as $t_1$ and $t_2$,
+respectively.\footnote{This range can be set via the \texttt{smpl}
+  command. If \texttt{smpl} has not been invoked since a dataset was
+  opened $t_1$ will equal 1 and $t_2$ will equal the total number of
+  observations.}  In addition, let $T$ denote the date of the last
+valid observation of the variable to be predicted, $y$.
+
+There are two cases to be considered:
+\begin{enumerate}
+\item $T < t_2$: in this case there's a `tail' of observations for
+  which values of $y_t$ are not available.  \texttt{ETS} will by
+  default produce predictions for these observations.
+\item $T = t_2$: there's no tail for genuine out-of-sample prediction,
+  but you can specify a number of observations, \texttt{ntest}, to
+  reserve for pseudo-out-of-sample prediction. In that case the
+  training recursion will be terminated at observation $T-$
+  \texttt{ntest}.
+\end{enumerate}
+
+If you want case 1 but your dataset doesn't contain any extra trailing
+observations it's straightforward to add them using the
+\texttt{dataset addobs} command, or via the \textsf{Add observations}
+item under the \textsf{Data} menu in the graphical interface.
+
+Conversely, if the dataset does contain extra trailing observations
+but you want case 2, specifying a positive value for \texttt{ntest}
+will result in the extra observations being ignored and
+pseudo-out-of-sample forecasts being produced.
+
+\section{Examples}
+\label{sec:examples}
+
+\subsection{Script examples}
 
 We'll illustrate with replication of three examples from
 \citet{hyndman2021}. First, simple exponential smoothing applied to
@@ -310,42 +357,17 @@ bundle wb = ETS(Trips, _(seasonal=2, ntest=8))
 This generates forecasts for 2016:1 to 2017:4, and the RMSE and MAE for
 these testing forecasts are printed.
 
-\section{Output details}
-\label{sec:out}
+\subsection{Printed output}
 
-Table~\ref{tab:verbose} shows what is printed by \texttt{ETS} as a
-function of the \texttt{verbose} option. Examples of the table of
-results displayed when \texttt{verbose} is 1 or greater are presented
-in listings~\ref{list:results1} and~\ref{list:results2}. The matrix
-\texttt{S} that's included in the bundle returned by \texttt{ETS} is
-basically a matrix version of this table. If you want to grab the
-columns of \texttt{S} as a list of series you can do something like
-this:
-\begin{nscode}
-bundle sb = ETS(Exports)
-list L = mat2list(sb.S)
-list L print # show all the series in L
-\end{nscode}
-
-\begin{table}[htbp]
-  \caption{Effect of the verbose option}
-  \label{tab:verbose}
-  \begin{tabular}{cp{4.5in}}
-    \textit{verbose} & \textit{cumulative effect} \\[6pt]
-    0 & Nothing is printed. \\
-    1 & Parameters and initializer are reported, also a table
-        of results (see below) and the SSE, RMSE and MAE for the
-        training data.\\
-    2 & If optimization is performed, partial information on
-        progress of the iterative procedure is shown. \\
-    3 & If optimization is performed, progress of the
-        optimizer is shown in full.
-  \end{tabular}
-\end{table}
+Examples of the table of results displayed when \texttt{verbose} is 1 or
+greater are presented in listings~\ref{list:results1}
+and~\ref{list:results2}. See section~\ref{sec:public} for the effect of
+the \texttt{verbose} option and for the relationship between this table
+and the matrix \texttt{S} in the returned bundle.
 
 \begin{script}[htbp]
   \caption{Partial listing of results from the simple exponential
-    smoothing example in Section~\ref{sec:auto}.}
+    smoothing example in Section~\ref{sec:examples}.}
   \label{list:results1}
 \begin{code}
 Simple exponential smoothing
@@ -381,7 +403,7 @@ training SSE = 1995.29, RMSE = 5.86528, MAE = 4.00111
 
 \begin{script}[htbp]
   \caption{Partial listing of results from the Holt-Winters example in
-    Section~\ref{sec:auto}: forecasts for 2018:1 and beyond are
+    Section~\ref{sec:examples}: forecasts for 2018:1 and beyond are
     out-of-sample.}
   \label{list:results2}
 \begin{code}
@@ -389,7 +411,7 @@ Holt-Winters, using multiplicative formula
 Training range: 1998:1 to 2017:4
 Out-of-sample forecast: 2018:1 to 2020:4
 
-automatic parameter values:
+estimated parameter values:
   α = 0.246678, β = 0.122928, γ = 0
 
 estimated initializer:
@@ -416,13 +438,6 @@ training SSE = 13.4951, RMSE = 0.410718, MAE = 0.307344
 ...
 \end{code}
 \end{script}
-
-If the bundle includes the forecast standard errors (additive models
-with post-training forecasts) the final column of \texttt{S} is named
-\texttt{stderr}. If gretl is version 2026c or later the bundle also
-contains ``virtual series'' named after the input series: for a series
-\texttt{y}, \dtk{y_level}, \dtk{y_fcast} and \dtk{y_irreg},
-plus \dtk{y_trend} and \dtk{y_season} where applicable.
 
 \section{GUI usage}
 \label{sec:gui}
@@ -467,6 +482,14 @@ recursions are started, the optimization that is carried out if
 forecast standard errors.
 
 \subsection{Initialization}
+
+This subsection describes the default (``rule-of-thumb'') initial
+state. It is used as is only when it is not optimized or supplied by the
+caller---that is, for the non-seasonal models when \texttt{theta} is
+given but \texttt{init} is not, and, in the multiplicative seasonal
+case, as the starting point for optimization of the initializer (see
+below). In the additive models, when the initializer is optimized it is
+solved for directly and these values play no role.
 
 Let $\tau$ denote the first period in which $y$ is observed. For the
 non-seasonal models the basic initialization is as follows.
@@ -531,6 +554,27 @@ L-BFGS-B, for all four models). The supplied seasonals are not
 renormalized, so the \texttt{init} in the returned bundle is exactly
 what was passed in.
 
+The various cases are summarized in Table~\ref{tab:cases}.
+\begin{table}[htbp]
+  \caption{Treatment of the initializer and smoothing parameters}
+  \label{tab:cases}
+  \vspace{1em}
+  \centering
+  \begin{tabular}{llp{1.1in}p{1.1in}p{1.1in}}
+    \textit{theta} & \textit{init} & \textit{simple} &
+       \textit{Holt-Winters,} & \textit{Holt-Winters,} \\[-4pt]
+    \textit{given} & \textit{given} & \textit{and Holt} &
+       \textit{additive} & \textit{multiplicative} \\[6pt]
+    No & No & $\theta$: L-BFGS-B;\par init: OLS &
+      $\theta$: L-BFGS-B;\par init: OLS & $\theta$ and init jointly: L-BFGS-B \\[6pt]
+    Yes & No & init: basic & init: OLS &
+      init: L-BFGS-B \\[6pt]
+    No & Yes & $\theta$: L-BFGS-B & $\theta$: L-BFGS-B &
+      $\theta$: L-BFGS-B \\[6pt]
+    Yes & Yes & no estimation & no estimation & no estimation
+  \end{tabular}
+\end{table}
+
 \subsection{Forecast standard errors}
 
 For the additive models, the $h$-step ahead forecast error variance
@@ -542,7 +586,9 @@ follows \citet[section 8.7]{hyndman2021}:
 where $\sigma^2$ is estimated by the MSE for the training data and
 $\beta^{*} = \alpha\beta$ and $\gamma^{*} = (1-\alpha)\gamma$ are the
 trend and seasonal parameters of the equivalent ETS(A,$\cdot$,$\cdot$)
-model (see \citealt[sections 8.3 and 8.5]{hyndman2021}). Terms that do not
+model in its error-correction form (see \citealt[sections 8.3 and
+8.5]{hyndman2021}, where the asterisks are used the other way round,
+to mark the component form used in our recursions). Terms that do not
 apply to the model in question ($\beta^{*}$ in the simple case,
 $\gamma^{*}$ in the non-seasonal cases) are zero. These expressions
 reduce to the familiar closed forms: for simple smoothing,
@@ -556,26 +602,20 @@ equal to the number of training observations minus the number of
 estimated parameters (smoothing parameters plus free initial-state
 elements; this is the \texttt{nparms} element of the returned bundle).
 
-\section{Daily and hourly data}
-\label{sec:daily}
+In the multiplicative case there is no closed form for the forecast
+variance, so the intervals are simulation-based, using 10000 iterations
+of draws from the $t(\nu)$ distribution with $\nu$ as above.
 
-As mentioned in section~\ref{sec:intro} the seasonal models may be
-applicable to daily data, with $m$ = 5, 6 or 7 days per week. In this
-context `seasonality' means intra-week variability. However, the results
-will be meaningful only if the data are complete, in the sense that
-each week in the sample range includes $m$ valid daily observations. It
-should go without saying that financial market data, even if complete,
-are unlikely to be suitable since seasonal variation would be a clear
-violation of market efficiency (in the narrow sense in which market
-efficiency is a plausible hypothesis).
-
-Gretl also supports hourly data ($m=24$) and the seasonal models may work
-if there's seasonality in the form of intra-day variability. Again,
-however, the series in question has to be complete over the given sample
-range.
-
-\section{Comparison with Holt and Winters}
+\section{History and migration}
 \label{sec:update}
+
+The earlier versions of \textsf{Holt} (1.0, 2015) and \textsf{Winters}
+(1.1, 2022) were written by Ignacio Díaz-Emparanza; the versions
+2.\textit{n} on which this package builds were written by Allin
+Cottrell. Most of the work on the consolidated \textsf{ETS} package was
+done by Claude Sonnet 5.5.
+
+\subsection{Migrating from Holt and Winters}
 
 ETS replaces the separate \textsf{Holt} (2.0) and \textsf{Winters}
 (2.3) packages. For users of those packages the principal changes are
@@ -609,13 +649,10 @@ as follows.
   \textsf{Winters} dialog.
 \end{itemize}
 
-\section{Change log}
-\label{sec:log}
+\subsection{Change log}
 
 \begin{itemize}
-\item \texttt{v1.0}, 2026-11-07: Initial release, combining the
-  \textsf{Holt} 2.0 and \textsf{Winters} 2.3 packages and adding simple
-  exponential smoothing.
+\item \texttt{v1.0}, 2026-11-07: Initial release.
 \end{itemize}
 
 \bibliographystyle{gretl}
