@@ -16,4 +16,4 @@ ui-maker = ets_ui_maker
 bundle-plot = ETS_plot
 help = ETS.pdf
 sample-script = ETS_sample.inp
-data-files = alg_exports.gdt auspop.gdt aus_holidays.gdt
+data-files = examples

@@ -1,0 +1,4 @@
+include ETS.gfn
+open alg_exports.gdt --frompkg=ETS
+dataset addobs 5
+bundle sb = ETS(Exports)

@@ -1,0 +1,4 @@
+include ETS.gfn
+open aus_holidays.gdt --frompkg=ETS
+dataset addobs 12
+bundle wb = ETS(Trips, _(seasonal=2))
